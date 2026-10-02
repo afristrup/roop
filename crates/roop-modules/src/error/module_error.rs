@@ -11,6 +11,8 @@ pub enum ModuleError {
     Private { module: String, name: String },
     Duplicate { module: String, name: String },
     EmptyUse(String),
+    NoParent(String),
+    ImportCycle(String),
 }
 
 impl fmt::Display for ModuleError {
@@ -38,6 +40,8 @@ impl fmt::Display for ModuleError {
                 )
             }
             Self::EmptyUse(module) => write!(f, "`use` needs a module and an item in `{module}`"),
+            Self::NoParent(module) => write!(f, "module `{module}` has no parent for `super`"),
+            Self::ImportCycle(module) => write!(f, "imports of `{module}` lead back to themselves"),
         }
     }
 }

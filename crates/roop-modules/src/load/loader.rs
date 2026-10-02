@@ -64,6 +64,7 @@ impl<'c> Loader<'c> {
             dir: dir.clone(),
             items: Vec::new(),
             children: BTreeMap::new(),
+            parent: None,
         });
         let mut children = BTreeMap::new();
         for item in &program.items {
@@ -80,6 +81,9 @@ impl<'c> Loader<'c> {
                     self.load_file(&child_file, child_path, false)?,
                 );
             }
+        }
+        for &child in children.values() {
+            self.tree.modules[child].parent = Some(id);
         }
         let module = &mut self.tree.modules[id];
         module.items = program.items;

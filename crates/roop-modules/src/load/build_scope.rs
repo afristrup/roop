@@ -1,39 +1,52 @@
-use crate::{ModuleError, ModuleScope, Tree, global_name, item_name, resolve_use};
-use roop_syntax::Item;
+use crate::{ModuleError, ModuleScope, Tree, global_name, imports_of, item_name};
+use roop_syntax::{Item, UseShape};
 use std::collections::HashMap;
 
 /// Local name to global name for everything a module can mention: its own
-/// definitions and what it imports.
+/// definitions, what it imports by name, and what globs bring in where nothing
+/// else has the name.
 pub fn build_scope(tree: &Tree, id: usize) -> Result<ModuleScope, ModuleError> {
     let module = &tree.modules[id];
     let label = module.path.join("::");
-    let mut scope = HashMap::new();
+    let mut names: HashMap<String, String> = HashMap::new();
     let mut deps = Vec::new();
     let mut imports = Vec::new();
-    let mut bind = |local: String, global: String| match scope.insert(local.clone(), global) {
-        Some(_) => Err(ModuleError::Duplicate {
+    let bind = |names: &mut HashMap<String, String>, local: String, global: String| match names
+        .insert(local.clone(), global.clone())
+    {
+        Some(old) if old != global => Err(ModuleError::Duplicate {
             module: label.clone(),
             name: local,
         }),
-        None => Ok(()),
+        _ => Ok(()),
     };
     for item in &module.items {
         if let Some((name, _)) = item_name(item) {
-            bind(name.to_string(), global_name(&module.path, name))?;
-        }
-        if let Item::Use(decl) = item {
-            let (target, global) = resolve_use(tree, id, decl)?;
-            let local = decl
-                .alias
-                .clone()
-                .unwrap_or_else(|| decl.path.last().cloned().unwrap_or_default());
-            bind(local, global.clone())?;
-            deps.push(target);
-            imports.push(global);
+            bind(
+                &mut names,
+                name.to_string(),
+                global_name(&module.path, name),
+            )?;
         }
     }
+    let mut globs = Vec::new();
+    for item in &module.items {
+        let Item::Use(decl) = item else { continue };
+        for import in imports_of(tree, id, decl, 0)? {
+            deps.push(import.from);
+            imports.push(import.global.clone());
+            if decl.shape == UseShape::Glob {
+                globs.push(import);
+            } else {
+                bind(&mut names, import.local, import.global)?;
+            }
+        }
+    }
+    for import in globs {
+        names.entry(import.local).or_insert(import.global);
+    }
     Ok(ModuleScope {
-        names: scope,
+        names,
         deps,
         imports,
     })

@@ -14,7 +14,7 @@ pub fn discover_roots(loader: &mut Loader) -> Result<(), ModuleError> {
                 Item::Use(u) => u.path.first().cloned(),
                 _ => None,
             })
-            .filter(|first| !module.children.contains_key(first))
+            .filter(|first| first != "super" && !module.children.contains_key(first))
             .collect();
         for name in wanted {
             loader.load_root(&name)?;

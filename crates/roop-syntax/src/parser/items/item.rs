@@ -1,8 +1,8 @@
 use crate::{
     Err, TokenInput, block, comma_list, enum_def, generics, ident, param, session_def, stmt,
-    struct_def,
+    struct_def, use_decl,
 };
-use crate::{FnDef, Item, Token, UseDecl};
+use crate::{FnDef, Item, Token};
 use chumsky::prelude::*;
 
 pub fn item<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>> + Clone {
@@ -10,16 +10,6 @@ pub fn item<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>> + Clon
         .ignore_then(ident())
         .then_ignore(just(Token::Semi))
         .map(Item::Mod);
-    let use_ = just(Token::Use)
-        .ignore_then(
-            ident()
-                .separated_by(just(Token::ColonColon))
-                .at_least(1)
-                .collect(),
-        )
-        .then(just(Token::As).ignore_then(ident()).or_not())
-        .then_ignore(just(Token::Semi))
-        .map(|(path, alias)| Item::Use(UseDecl { path, alias }));
     let fn_def = just(Token::Pub)
         .or_not()
         .then(just(Token::Irrev).or_not())
@@ -40,7 +30,7 @@ pub fn item<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>> + Clon
         });
 
     module
-        .or(use_)
+        .or(use_decl().map(Item::Use))
         .or(session_def().map(Item::Session))
         .or(enum_def().map(Item::Enum))
         .or(struct_def().map(Item::Struct))

@@ -9,4 +9,6 @@ pub struct Module {
     pub dir: PathBuf,
     pub items: Vec<Item>,
     pub children: BTreeMap<String, usize>,
+    /// The module that declared this one with `mod`; the roots have none.
+    pub parent: Option<usize>,
 }
