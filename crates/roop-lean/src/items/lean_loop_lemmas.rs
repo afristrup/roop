@@ -37,13 +37,12 @@ pub fn lean_loop_lemmas(info: &LoopInfo, deps: &[String], earlier: &[String]) ->
         unfold.extend(deps.iter().cloned());
         for (suffix, from, to) in [("inv_f", &fwd, &inv), ("f_inv", &inv, &fwd)] {
             text.push_str(&format!(
-                "theorem {} {} ({a} {b} : {state}) (h : {from} {} {a} = Except.ok {b}) :\n    {to} {} {b} = Except.ok {a} := by\n{}{}{}{}\n",
+                "theorem {} {} ({a} {b} : {state}) (h : {from} {} {a} = Except.ok {b}) :\n    {to} {} {b} = Except.ok {a} := by\n{}{}{}\n",
                 esc_thm(&format!("{id}_{part}_{suffix}")),
                 explicit.join(" "),
                 args.join(" "),
                 args.join(" "),
                 destructure(a),
-                destructure(b),
                 unfold_simp(&unfold, "h \u{22a2}"),
                 proof_script(earlier),
             ));
