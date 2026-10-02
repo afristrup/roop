@@ -8,4 +8,5 @@ pub struct StructDef {
     pub build: Option<BuildFn>,
     pub unbuild: Option<BuildFn>,
     pub span: Span,
+    pub public: bool,
 }

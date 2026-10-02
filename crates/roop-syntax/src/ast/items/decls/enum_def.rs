@@ -5,4 +5,5 @@ pub struct EnumDef {
     pub name: String,
     pub variants: Vec<String>,
     pub span: Span,
+    pub public: bool,
 }

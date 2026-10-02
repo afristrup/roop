@@ -240,3 +240,27 @@ fn lean_subcommand_reports_checker_errors() {
     assert!(!out.status.success());
     assert!(stderr(&out).contains("irrev"), "{}", stderr(&out));
 }
+
+#[test]
+fn builds_and_proves_a_program_that_imports_from_a_roop_toml_module() {
+    let dir = project(
+        "modules",
+        "[modules]\nlib = \"lib\"\n",
+        "use lib::add;\nfn twice(x: &mut i64, k: &i64) { call add(x, k); call add(x, k); }",
+    );
+    std::fs::create_dir_all(dir.join("lib")).unwrap();
+    std::fs::write(
+        dir.join("lib/mod.roop"),
+        "pub fn add(x: &mut i64, k: &i64) { x += k; }",
+    )
+    .unwrap();
+    let out = roop(&dir, &["build", "prog.roop", "--emit", "ir"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let ir = std::fs::read_to_string(dir.join("prog.ll")).unwrap();
+    assert!(ir.contains("@lib__add"), "{ir}");
+
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(report.contains("lib__add, twice"), "{report}");
+}

@@ -1,23 +1,16 @@
 use crate::{
-    BuildArgs, CliError, Emit, build_metallib, build_ptx, clang, host_options, run_tool,
-    runtime_lib,
+    BuildArgs, CliError, Emit, build_metallib, build_ptx, clang, config_for, host_options,
+    load_source, run_tool, runtime_lib,
 };
 use roop_llvm::{compile_all, embed_blobs};
 use roop_opt::fuse_parallel;
 use std::path::Path;
 
 pub fn build(args: &BuildArgs) -> Result<(), CliError> {
-    let source = std::fs::read_to_string(&args.input)
-        .map_err(|e| CliError::Io(args.input.display().to_string(), e))?;
-    let start = args
-        .input
-        .canonicalize()
-        .unwrap_or_else(|_| args.input.clone());
-    let config = roop_config::load_config(start.parent().unwrap_or(Path::new(".")))
-        .map_err(CliError::Config)?;
+    let config = config_for(&args.input)?;
     let options = host_options(&config);
 
-    let program = roop_syntax::parse(&source).map_err(CliError::Parse)?;
+    let program = load_source(&args.input, &config)?;
     roop_check::check(&program).map_err(CliError::Check)?;
     let program = fuse_parallel(&program);
     let compiled = compile_all(&program, &options).map_err(CliError::Codegen)?;

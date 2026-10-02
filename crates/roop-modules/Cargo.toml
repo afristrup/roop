@@ -1,0 +1,11 @@
+[package]
+name = "roop-modules"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+roop-syntax = { path = "../roop-syntax" }
+roop-config = { path = "../roop-config" }
+
+[dev-dependencies]
+roop-check = { path = "../roop-check" }

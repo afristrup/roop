@@ -11,14 +11,19 @@ pub fn struct_def<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, StructDef, Err<
         .then(build_fn(Token::Build).or_not())
         .then(build_fn(Token::Unbuild).or_not())
         .delimited_by(just(Token::LBrace), just(Token::RBrace));
-    just(Token::Struct)
-        .ignore_then(ident())
+    just(Token::Pub)
+        .or_not()
+        .then_ignore(just(Token::Struct))
+        .then(ident())
         .then(members)
-        .map_with(|(name, ((fields, build), unbuild)), e| StructDef {
-            name,
-            fields,
-            build,
-            unbuild,
-            span: e.span(),
-        })
+        .map_with(
+            |((public, name), ((fields, build), unbuild)), e| StructDef {
+                public: public.is_some(),
+                name,
+                fields,
+                build,
+                unbuild,
+                span: e.span(),
+            },
+        )
 }

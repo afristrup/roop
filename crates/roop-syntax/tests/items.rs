@@ -13,7 +13,7 @@ fn parses_mod_use_struct_and_fn() {
     ";
     let program = parse(src).unwrap();
     assert!(matches!(program.items[0], Item::Mod(_)));
-    assert!(matches!(&program.items[1], Item::Use(p) if p.len() == 3));
+    assert!(matches!(&program.items[1], Item::Use(u) if u.path.len() == 3));
     assert!(matches!(program.items[2], Item::Struct(_)));
     assert!(matches!(program.items[3], Item::Fn(_)));
 }
@@ -69,4 +69,13 @@ fn parses_enum_and_variant_uses() {
         panic!("expected enum")
     };
     assert_eq!(def.variants, ["High", "Low"]);
+}
+
+#[test]
+fn parses_pub_and_use_aliases() {
+    let program = parse("pub fn f() { } pub struct S { } pub enum E { A } use a::b as c;").unwrap();
+    assert!(matches!(&program.items[0], Item::Fn(f) if f.public));
+    assert!(matches!(&program.items[1], Item::Struct(s) if s.public));
+    assert!(matches!(&program.items[2], Item::Enum(e) if e.public));
+    assert!(matches!(&program.items[3], Item::Use(u) if u.alias.as_deref() == Some("c")));
 }

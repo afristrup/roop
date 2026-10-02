@@ -14,3 +14,4 @@ roop-opt = { path = "../roop-opt" }
 roop-llvm = { path = "../roop-llvm" }
 roop-config = { path = "../roop-config" }
 roop-lean = { path = "../roop-lean" }
+roop-modules = { path = "../roop-modules" }

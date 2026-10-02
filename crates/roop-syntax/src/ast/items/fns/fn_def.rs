@@ -7,4 +7,5 @@ pub struct FnDef {
     pub body: Block,
     /// Declared `irrev fn`: the whole body is irreversible code.
     pub irreversible: bool,
+    pub public: bool,
 }

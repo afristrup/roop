@@ -1,11 +1,9 @@
-use crate::{CliError, LeanArgs, find_lean, run_tool};
+use crate::{CliError, LeanArgs, config_for, find_lean, load_source, run_tool};
 use std::process::Command;
 
 /// `roop lean`: translate to Lean and report what the model proves.
 pub fn run_lean(args: &LeanArgs) -> Result<(), CliError> {
-    let source = std::fs::read_to_string(&args.input)
-        .map_err(|e| CliError::Io(args.input.display().to_string(), e))?;
-    let program = roop_syntax::parse(&source).map_err(CliError::Parse)?;
+    let program = load_source(&args.input, &config_for(&args.input)?)?;
     roop_check::check(&program).map_err(CliError::Check)?;
     let t = roop_lean::translate(&program);
     std::fs::write(&args.output, &t.lean)

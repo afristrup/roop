@@ -318,6 +318,7 @@ dependencies = [
  "roop-config",
  "roop-lean",
  "roop-llvm",
+ "roop-modules",
  "roop-opt",
  "roop-syntax",
 ]
@@ -351,6 +352,15 @@ version = "0.1.0"
 dependencies = [
  "roop-check",
  "roop-opt",
+ "roop-syntax",
+]
+
+[[package]]
+name = "roop-modules"
+version = "0.1.0"
+dependencies = [
+ "roop-check",
+ "roop-config",
  "roop-syntax",
 ]
 

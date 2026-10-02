@@ -10,8 +10,13 @@ pub fn load_config(start: &Path) -> Result<Config, ConfigError> {
             let origin = path.display().to_string();
             let text =
                 std::fs::read_to_string(&path).map_err(|e| ConfigError::Read(origin.clone(), e))?;
-            return parse_config(&origin, &text);
+            let mut config = parse_config(&origin, &text)?;
+            config.root = dir.to_path_buf();
+            return Ok(config);
         }
     }
-    Ok(Config::default())
+    Ok(Config {
+        root: start.to_path_buf(),
+        ..Config::default()
+    })
 }
