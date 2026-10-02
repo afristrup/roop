@@ -23,11 +23,9 @@ pub fn lean_accepts(t: &Translation) -> Result<(), String> {
     let Some(lean) = lean() else {
         return Ok(());
     };
-    let dir = std::env::temp_dir().join(format!(
-        "roop-lean-{}-{:x}",
-        std::process::id(),
-        t.lean.len()
-    ));
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let id = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("roop-lean-{}-{id}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let file = dir.join("Out.lean");
     std::fs::write(&file, &t.lean).unwrap();
