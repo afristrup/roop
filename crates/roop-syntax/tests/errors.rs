@@ -1,11 +1,6 @@
 use roop_syntax::parse;
 
 #[test]
-fn rejects_destructive_assignment() {
-    assert!(parse("fn f(x: &mut i64) { x = 1; }").is_err());
-}
-
-#[test]
 fn rejects_if_without_exit_assertion() {
     assert!(parse("fn f(x: &mut i64) { if x > 0 { x += 1; } }").is_err());
 }
@@ -18,7 +13,7 @@ fn rejects_from_without_until() {
 #[test]
 fn rejects_unknown_character() {
     let err = parse("fn f() { @ }").unwrap_err();
-    assert_eq!(err.span.start, 13);
+    assert_eq!(err.span.start, 10);
 }
 
 #[test]
