@@ -46,7 +46,7 @@ pub enum Token<'a> {
     #[token("false")]
     False,
 
-    #[regex(r"[A-Za-z_][A-Za-z0-9_]*")]
+    #[regex(r"[A-Za-z][A-Za-z0-9_]*|_[A-Za-z0-9_]+")]
     Ident(&'a str),
     #[regex(r"[0-9]+")]
     Int(&'a str),
