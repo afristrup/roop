@@ -1,4 +1,4 @@
-use crate::SendPtr;
+use crate::parallel::SendPtr;
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::thread;

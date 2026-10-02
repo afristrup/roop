@@ -12,7 +12,7 @@ pub fn metal_dispatch(blob: &[u8], kernel: &str, bufs: &[RoopBuf], params: [i64;
     use crate::gpu::metal::{device_state, pipeline_for, shared_buffer};
     use crate::gpu::{KERNEL_ASSERTION_FAILED, OK};
     use objc2_metal::{
-        MTLCommandBuffer, MTLCommandBufferStatus, MTLCommandEncoder, MTLCommandQueue,
+        MTLBuffer, MTLCommandBuffer, MTLCommandBufferStatus, MTLCommandEncoder, MTLCommandQueue,
         MTLComputeCommandEncoder, MTLComputePipelineState, MTLSize,
     };
 
