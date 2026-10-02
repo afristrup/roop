@@ -1,3 +1,5 @@
+use crate::ParallelOptions;
+
 /// Whole-program code generation settings.
 #[derive(Clone, Debug, Default)]
 pub struct Options {
@@ -5,4 +7,5 @@ pub struct Options {
     pub triple: Option<String>,
     /// LLVM CPU name, e.g. `apple-m4`.
     pub cpu: Option<String>,
+    pub parallel: ParallelOptions,
 }
