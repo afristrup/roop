@@ -1,13 +1,23 @@
+mod air_arg_metadata;
+mod air_module;
 mod compile;
+mod compiled;
 mod function_attrs;
 mod gen_function;
+mod metal_target;
 mod module_header;
 mod options;
+mod ptx_module;
 mod type_decls;
 
+pub use air_arg_metadata::*;
+pub use air_module::*;
 pub use compile::*;
+pub use compiled::*;
 pub use function_attrs::*;
 pub use gen_function::*;
+pub use metal_target::*;
 pub use module_header::*;
 pub use options::*;
+pub use ptx_module::*;
 pub use type_decls::*;

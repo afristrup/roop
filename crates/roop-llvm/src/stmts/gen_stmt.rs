@@ -1,6 +1,6 @@
 use crate::{
-    CodegenError, Dir, FnGen, gen_ancilla, gen_borrow, gen_call, gen_from, gen_if, gen_match,
-    gen_parallel_cpu, gen_swap, gen_update, parallel_target,
+    CodegenError, Dialect, Dir, FnGen, gen_ancilla, gen_borrow, gen_call, gen_from, gen_if,
+    gen_match, gen_parallel_cpu, gen_parallel_gpu, gen_swap, gen_update, parallel_target,
 };
 use roop_syntax::{Stmt, StmtKind, Target};
 
@@ -19,10 +19,13 @@ pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError
             body,
             step,
             until,
-        } => match parallel_target(stmt) {
+        } => match parallel_target(stmt).filter(|_| g.dialect == Dialect::Host) {
             None => gen_from(g, entry, body, step, until, dir),
             Some(Target::Cpu) => gen_parallel_cpu(g, entry, body, step, until, dir),
-            Some(Target::Nvptx | Target::Metal) => Err(CodegenError::Unsupported("GPU targets")),
+            Some(Target::Nvptx) => {
+                gen_parallel_gpu(g, Dialect::Nvptx, entry, body, step, until, dir)
+            }
+            Some(Target::Metal) => gen_parallel_gpu(g, Dialect::Air, entry, body, step, until, dir),
         },
         StmtKind::Match { scrutinee, arms } => gen_match(g, scrutinee, arms, dir),
         StmtKind::Ancilla {

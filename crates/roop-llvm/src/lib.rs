@@ -7,7 +7,7 @@ mod stmts;
 mod types;
 
 pub use error::CodegenError;
-pub use module::{Options, compile, compile_with};
+pub use module::{Compiled, Options, compile, compile_all, compile_with};
 
 use exprs::*;
 use mem::*;
