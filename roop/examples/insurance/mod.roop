@@ -33,3 +33,17 @@ rev fn accrue(p: &mut Policy, months: &i64, i: &mut i64) {
         i += 1;
     } until i == months;
 }
+
+rev enum Status {
+    Active,
+    Lapsed,
+    Closed,
+}
+
+rev fn apply(status: &Status, p: &mut Policy, amount: &i64) {
+    match status {
+        Status::Active => { p.reserve += amount; } assert status == Status::Active;
+        Status::Lapsed => { p.claims += amount; } assert status == Status::Lapsed;
+        Status::Closed => { } assert status == Status::Closed;
+    }
+}

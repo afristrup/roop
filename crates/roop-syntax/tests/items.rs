@@ -52,3 +52,21 @@ fn rejects_unbuild_before_build() {
     let src = "rev struct P { a: i64, unbuild() { } build() { } }";
     assert!(parse(src).is_err());
 }
+
+#[test]
+fn parses_enum_and_variant_uses() {
+    let src = "
+        rev enum Signal { High, Low, }
+        rev fn f(s: &Signal, y: &mut i64) {
+            match s {
+                Signal::High => { y += 1; } assert s == Signal::High;
+                _ => { } assert s != Signal::High;
+            }
+        }
+    ";
+    let program = parse(src).unwrap();
+    let Item::Enum(def) = &program.items[0] else {
+        panic!("expected enum")
+    };
+    assert_eq!(def.variants, ["High", "Low"]);
+}
