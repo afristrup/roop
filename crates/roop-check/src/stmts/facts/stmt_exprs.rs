@@ -3,7 +3,7 @@ use roop_syntax::{Expr, Stmt, StmtKind};
 /// Every expression the statement itself evaluates, excluding nested blocks.
 pub fn stmt_exprs(stmt: &Stmt) -> Vec<&Expr> {
     match &stmt.kind {
-        StmtKind::Update { value, .. } => vec![value],
+        StmtKind::Update { value, .. } | StmtKind::Overwrite { value, .. } => vec![value],
         StmtKind::If { cond, exit, .. } => vec![cond, exit],
         StmtKind::From { entry, until, .. } => vec![entry, until],
         StmtKind::Match { scrutinee, arms } => std::iter::once(scrutinee)
@@ -15,6 +15,7 @@ pub fn stmt_exprs(stmt: &Stmt) -> Vec<&Expr> {
         | StmtKind::Borrow { .. }
         | StmtKind::Try { .. }
         | StmtKind::Block(_)
+        | StmtKind::Irrev(_)
         | StmtKind::Chan { .. }
         | StmtKind::Send { .. }
         | StmtKind::Recv { .. } => Vec::new(),

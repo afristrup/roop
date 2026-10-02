@@ -13,12 +13,13 @@ pub fn child_blocks(stmt: &Stmt) -> Vec<&Block> {
         StmtKind::Ancilla { body, .. }
         | StmtKind::Borrow { body, .. }
         | StmtKind::Chan { body, .. } => vec![body],
-        StmtKind::Block(block) => vec![block],
+        StmtKind::Block(block) | StmtKind::Irrev(block) => vec![block],
         StmtKind::Update { .. }
         | StmtKind::Swap(..)
         | StmtKind::Call { .. }
         | StmtKind::Uncall { .. }
         | StmtKind::Send { .. }
-        | StmtKind::Recv { .. } => Vec::new(),
+        | StmtKind::Recv { .. }
+        | StmtKind::Overwrite { .. } => Vec::new(),
     }
 }

@@ -11,10 +11,12 @@ pub fn can_roll_back(block: &Block) -> bool {
         StmtKind::Ancilla { body, .. }
         | StmtKind::Borrow { body, .. }
         | StmtKind::Chan { body, .. }
-        | StmtKind::Block(body) => can_roll_back(body),
+        | StmtKind::Block(body)
+        | StmtKind::Irrev(body) => can_roll_back(body),
         StmtKind::Update { .. }
         | StmtKind::Swap(..)
         | StmtKind::Send { .. }
-        | StmtKind::Recv { .. } => false,
+        | StmtKind::Recv { .. }
+        | StmtKind::Overwrite { .. } => false,
     })
 }

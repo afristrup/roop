@@ -36,11 +36,13 @@ fn visit_block(block: &Block, f: &mut BodyFeatures, cells: &mut Cells) {
 
 fn visit_stmt(stmt: &Stmt, f: &mut BodyFeatures, cells: &mut Cells) {
     f.work += match &stmt.kind {
-        StmtKind::Update { .. } | StmtKind::Swap(..) => 2,
+        StmtKind::Update { .. } | StmtKind::Overwrite { .. } | StmtKind::Swap(..) => 2,
         _ => 1,
     };
     match &stmt.kind {
-        StmtKind::Update { target, .. } => touch(target, true, f, cells),
+        StmtKind::Update { target, .. } | StmtKind::Overwrite { target, .. } => {
+            touch(target, true, f, cells)
+        }
         StmtKind::Swap(a, b) => {
             touch(a, true, f, cells);
             touch(b, true, f, cells);

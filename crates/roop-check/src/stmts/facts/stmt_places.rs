@@ -5,7 +5,9 @@ use roop_syntax::{Place, Stmt, StmtKind};
 pub fn stmt_places(stmt: &Stmt) -> Vec<&Place> {
     let mut out = Vec::new();
     match &stmt.kind {
-        StmtKind::Update { target, .. } => push_place(target, &mut out),
+        StmtKind::Update { target, .. } | StmtKind::Overwrite { target, .. } => {
+            push_place(target, &mut out)
+        }
         StmtKind::Swap(a, b) => {
             push_place(a, &mut out);
             push_place(b, &mut out);

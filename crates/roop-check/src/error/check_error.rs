@@ -89,6 +89,9 @@ pub enum CheckError {
         chan: String,
         span: Span,
     },
+    IrreversibleOutsideIrrev { span: Span },
+    CallsIrreversible { callee: String, span: Span },
+    UncallIrreversible { callee: String, span: Span },
     TryCannotFail {
         span: Span,
     },
@@ -198,6 +201,21 @@ impl fmt::Display for CheckError {
             Self::ChannelNotDrained { chan, span } => write!(
                 f,
                 "channel `{chan}` still holds messages when its tasks finish at {}..{}",
+                span.start, span.end
+            ),
+            Self::IrreversibleOutsideIrrev { span } => write!(
+                f,
+                "irreversible code (overwrite, try, irrev block) needs an irrev fn or irrev block at {}..{}",
+                span.start, span.end
+            ),
+            Self::CallsIrreversible { callee, span } => write!(
+                f,
+                "`{callee}` is irreversible, so calling it needs irrev code at {}..{}",
+                span.start, span.end
+            ),
+            Self::UncallIrreversible { callee, span } => write!(
+                f,
+                "`{callee}` is irreversible and has no inverse to uncall at {}..{}",
                 span.start, span.end
             ),
             Self::TryCannotFail { span } => write!(
