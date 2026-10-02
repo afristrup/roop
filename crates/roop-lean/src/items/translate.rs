@@ -1,6 +1,6 @@
 use crate::{
-    Ctx, Dir, LeanError, PRELUDE, Translation, esc_fn, lean_enum, lean_fn, lean_struct,
-    lean_theorems,
+    Ctx, Dir, LeanError, PRELUDE, Translation, esc_fn, lean_enum, lean_fn, lean_loop_lemmas,
+    lean_struct, lean_theorems,
 };
 use roop_check::is_irreversible_fn;
 use roop_syntax::{FnDef, Item, Program};
@@ -29,11 +29,12 @@ pub fn translate(program: &Program) -> Translation {
         .filter_map(|i| if let Item::Fn(f) = i { Some(f) } else { None })
         .collect();
     let mut deps: Vec<String> = Vec::new();
+    let mut lemmas: Vec<String> = Vec::new();
     while !pending.is_empty() {
         let mut waiting = Vec::new();
         let mut progressed = false;
         for def in pending {
-            match translate_fn(&cx, def, &deps) {
+            match translate_fn(&cx, def, &deps, &lemmas) {
                 Ok(piece) => {
                     progressed = true;
                     lean.push_str(&piece.text);
@@ -48,7 +49,7 @@ pub fn translate(program: &Program) -> Translation {
                     } else {
                         result.forward_only.push(def.name.clone());
                     }
-                    result.open.extend(piece.open);
+                    lemmas.extend(piece.lemmas);
                 }
                 Err(LeanError::Unknown(what)) if what.starts_with("function") => {
                     waiting.push(def);
@@ -78,29 +79,35 @@ struct Piece {
     text: String,
     reversible: bool,
     inexact: bool,
-    open: Vec<String>,
+    /// Lemmas about the function's loops, for the proofs that come after.
+    lemmas: Vec<String>,
 }
 
-fn translate_fn(cx: &Ctx, def: &FnDef, deps: &[String]) -> Result<Piece, LeanError> {
+fn translate_fn(
+    cx: &Ctx,
+    def: &FnDef,
+    deps: &[String],
+    lemmas: &[String],
+) -> Result<Piece, LeanError> {
     let forward = lean_fn(cx, def, Dir::Forward)?;
-    let (mut text, loops) = (forward.text, forward.loops);
     let reversible = !is_irreversible_fn(def);
-    let inexact = text.contains("Float");
-    let mut open = Vec::new();
+    let mut text = format!("{}{}", forward.lifted, forward.text);
+    let mut known = lemmas.to_vec();
+    let mut inexact = text.contains("Float");
     if reversible {
         let backward = lean_fn(cx, def, Dir::Backward)?;
+        inexact |= backward.lifted.contains("Float");
+        text.push_str(&backward.lifted);
         text.push_str(&backward.text);
         let ancillas = forward.ancillas > 0 || backward.ancillas > 0;
-        let theorems = if inexact {
-            None
-        } else {
-            lean_theorems(def, deps, loops > 0, ancillas)
-        };
-        if let Some(theorems) = theorems {
-            text.push_str(&theorems);
-            if loops > 0 {
-                open.push(format!("{}_inv_f", def.name));
-                open.push(format!("{}_f_inv", def.name));
+        if !inexact {
+            for info in &forward.loops {
+                let (lemma_text, names) = lean_loop_lemmas(info, deps, &known);
+                text.push_str(&lemma_text);
+                known.extend(names);
+            }
+            if let Some(theorems) = lean_theorems(def, deps, &known, ancillas) {
+                text.push_str(&theorems);
             }
         }
     }
@@ -108,6 +115,6 @@ fn translate_fn(cx: &Ctx, def: &FnDef, deps: &[String]) -> Result<Piece, LeanErr
         text,
         reversible,
         inexact,
-        open,
+        lemmas: known[lemmas.len()..].to_vec(),
     })
 }
