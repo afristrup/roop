@@ -4,6 +4,8 @@ use roop_syntax::Type;
 #[derive(Clone, Default)]
 pub struct Env {
     pub vars: Vec<(String, Type)>,
+    /// Translating an irreversible function: no inverse, no restoration checks.
+    pub irreversible: bool,
 }
 
 impl Env {

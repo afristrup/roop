@@ -3,6 +3,8 @@
 pub struct Out {
     pub text: String,
     pub indent: usize,
+    /// Loops translated so far; their reversibility needs an induction.
+    pub loops: usize,
     next: usize,
 }
 
