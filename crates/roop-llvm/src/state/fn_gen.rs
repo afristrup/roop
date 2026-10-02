@@ -6,16 +6,20 @@ pub struct FnGen<'a> {
     pub allocas: String,
     pub body: String,
     pub vars: Vec<(String, Slot)>,
+    pub symbol: String,
+    pub outlined: Vec<String>,
     next: usize,
 }
 
 impl<'a> FnGen<'a> {
-    pub fn new(ctx: &'a Ctx<'a>) -> Self {
+    pub fn new(ctx: &'a Ctx<'a>, symbol: String) -> Self {
         FnGen {
             ctx,
             allocas: String::new(),
             body: String::new(),
             vars: Vec::new(),
+            symbol,
+            outlined: Vec::new(),
             next: 0,
         }
     }

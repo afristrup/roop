@@ -19,7 +19,13 @@ pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError
             body,
             step,
             until,
-        } => gen_from(g, entry, body, step, until, dir),
+        } => match parallel_target(stmt) {
+            None => gen_from(g, entry, body, step, until, dir),
+            Some(Target::Cpu) => gen_parallel_cpu(g, entry, body, step, until, dir),
+            Some(Target::Nvptx | Target::Metal) => {
+                Err(CodegenError::Unsupported("GPU targets"))
+            }
+        },
         StmtKind::Match { scrutinee, arms } => gen_match(g, scrutinee, arms, dir),
         StmtKind::Ancilla {
             name,

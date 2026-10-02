@@ -11,7 +11,7 @@ pub fn gen_function(
     body: &Block,
     dir: Dir,
 ) -> Result<String, CodegenError> {
-    let mut g = FnGen::new(ctx);
+    let mut g = FnGen::new(ctx, symbol.into());
     let mut signature = Vec::new();
     if let Some(name) = self_struct {
         signature.push("ptr %arg_self".to_string());
@@ -45,9 +45,10 @@ pub fn gen_function(
     }
     gen_block(&mut g, body, dir)?;
     Ok(format!(
-        "define void @{symbol}({}) {{\nentry:\n{}{}  ret void\n}}\n",
+        "define void @{symbol}({}) {{\nentry:\n{}{}  ret void\n}}\n{}",
         signature.join(", "),
         g.allocas,
-        g.body
+        g.body,
+        g.outlined.join("\n")
     ))
 }

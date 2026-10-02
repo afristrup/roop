@@ -7,7 +7,7 @@ use roop_syntax::{Item, Program};
 pub fn compile(program: &Program) -> Result<String, CodegenError> {
     let ctx = Ctx::new(program);
     let mut out = type_decls(&ctx, program)?;
-    out.push_str("\ndeclare void @llvm.trap() noreturn nounwind\n\n");
+    out.push_str("\ndeclare void @llvm.trap() noreturn nounwind\ndeclare void @roop_parallel_for(i64, i64, i64, ptr, ptr)\n\n");
     for item in &program.items {
         match item {
             Item::Fn(f) => {
