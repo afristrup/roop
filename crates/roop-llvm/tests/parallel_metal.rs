@@ -43,7 +43,7 @@ fn parallel_loop_runs_and_reverses_on_the_apple_gpu() {
     let out = support::compiled(&program("(metal)"), &Options::default());
     let lib = support::metallib(out.air.as_ref().unwrap()).unwrap();
     let host_ir = roop_llvm::embed_blobs(&out.host, Some(&lib), None);
-    let host = format!("{}\n{}", out.host, harness());
+    let host = format!("{}\n{}", host_ir, harness());
     support::verify(&host);
     let code = support::run_native_modules(&[&host, &blob]).unwrap();
     assert_eq!(code, Some(0));

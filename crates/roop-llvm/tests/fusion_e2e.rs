@@ -46,8 +46,7 @@ fn run_metal(fuse: bool) {
     let lib = support::metallib(out.air.as_ref().unwrap()).unwrap();
     let host_ir = roop_llvm::embed_blobs(&out.host, Some(&lib), None);
     let files = [
-        ("m0.ll".to_string(), out.host.as_str()),
-        ("m1.ll".to_string(), blob.as_str()),
+        ("m0.ll".to_string(), host_ir.as_str()),
         ("main.c".to_string(), HARNESS),
     ];
     assert_eq!(
