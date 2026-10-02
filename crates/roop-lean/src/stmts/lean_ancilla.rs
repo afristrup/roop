@@ -4,6 +4,7 @@ use roop_syntax::{Block, Expr, Type};
 /// A temporary that starts at `init` and must be back there when its block
 /// ends. The compiler proves this statically; here it is a check that the
 /// function's theorem shows never fails.
+#[allow(clippy::too_many_arguments)] // mirrors the fields of the statement
 pub fn lean_ancilla(
     cx: &Ctx,
     env: &mut Env,

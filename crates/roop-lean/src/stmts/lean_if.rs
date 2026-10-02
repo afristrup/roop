@@ -3,6 +3,7 @@ use roop_syntax::{Block, Expr};
 
 /// Backward, the exit assertion selects the branch and the entry condition
 /// becomes the assertion, as in the compiled code.
+#[allow(clippy::too_many_arguments)] // mirrors the fields of the statement
 pub fn lean_if(
     cx: &Ctx,
     env: &mut Env,

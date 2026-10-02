@@ -8,6 +8,7 @@ use roop_syntax::{Block, Expr, Place, Type};
 /// A reversible loop as the prelude's `Roop.janus` over the tuple of variables
 /// the loop writes. Backward swaps entry and exit and runs both blocks
 /// backward, which is the loop's inverse.
+#[allow(clippy::too_many_arguments)] // mirrors the fields of the statement
 pub fn lean_loop(
     cx: &Ctx,
     env: &mut Env,
