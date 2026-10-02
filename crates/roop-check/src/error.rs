@@ -7,6 +7,8 @@ pub enum CheckError {
     AncillaNotRestored { name: String, span: Span },
     AncillaTouchedInControlFlow { name: String, span: Span },
     NonExhaustiveMatch { span: Span },
+    BorrowedPlaceUsed { var: String, span: Span },
+    BorrowIndexModified { var: String, span: Span },
     TryCannotFail { span: Span },
     UnpairedBuild { name: String, span: Span },
     UnbuildNotInverse { name: String, span: Span },
@@ -28,6 +30,16 @@ impl fmt::Display for CheckError {
             Self::AncillaTouchedInControlFlow { name, span } => write!(
                 f,
                 "ancilla `{name}` is modified inside control flow at {}..{}",
+                span.start, span.end
+            ),
+            Self::BorrowedPlaceUsed { var, span } => write!(
+                f,
+                "`{var}` is used while borrowed at {}..{}",
+                span.start, span.end
+            ),
+            Self::BorrowIndexModified { var, span } => write!(
+                f,
+                "`{var}` selects a borrowed place and is modified in the borrow at {}..{}",
                 span.start, span.end
             ),
             Self::TryCannotFail { span } => write!(

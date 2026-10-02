@@ -26,6 +26,14 @@ pub fn stmt_writes<'a>(stmt: &'a Stmt, out: &mut HashSet<&'a str>) {
             block_writes(then_block, out);
             block_writes(else_block, out);
         }
+        StmtKind::Borrow { name, source, body } => {
+            let mut inner = HashSet::new();
+            block_writes(body, &mut inner);
+            if inner.remove(name.as_str()) {
+                out.insert(place_root(source));
+            }
+            out.extend(inner);
+        }
         StmtKind::Try { body, handler } => {
             block_writes(body, out);
             block_writes(handler, out);

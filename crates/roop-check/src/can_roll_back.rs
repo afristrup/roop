@@ -8,7 +8,7 @@ pub fn can_roll_back(block: &Block) -> bool {
         StmtKind::If { .. } | StmtKind::From { .. } | StmtKind::Match { .. } => true,
         StmtKind::Call { .. } | StmtKind::Uncall { .. } => true,
         StmtKind::Try { handler, .. } => can_roll_back(handler),
-        StmtKind::Ancilla { body, .. } => can_roll_back(body),
+        StmtKind::Ancilla { body, .. } | StmtKind::Borrow { body, .. } => can_roll_back(body),
         StmtKind::Update { .. } | StmtKind::Swap(..) => false,
     })
 }

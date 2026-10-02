@@ -63,3 +63,9 @@ fn parses_try_catch_rollback() {
     let kind = first_stmt("try { if x > 0 { y += x; } fi y > 0; } catch_rollback { y += 1; }");
     assert!(matches!(kind, StmtKind::Try { .. }));
 }
+
+#[test]
+fn parses_borrow() {
+    let kind = first_stmt("borrow c = x { c += y; }");
+    assert!(matches!(kind, StmtKind::Borrow { .. }));
+}

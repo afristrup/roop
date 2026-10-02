@@ -1,5 +1,6 @@
 mod binary_level;
 mod block;
+mod borrow_stmt;
 mod build_fn;
 mod comma_list;
 mod err;
@@ -19,6 +20,7 @@ mod ty;
 
 use binary_level::binary_level;
 use block::block;
+use borrow_stmt::borrow_stmt;
 use build_fn::build_fn;
 use comma_list::comma_list;
 use err::Err;

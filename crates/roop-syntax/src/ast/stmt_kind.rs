@@ -18,6 +18,11 @@ pub enum StmtKind {
         scrutinee: Expr,
         arms: Vec<MatchArm>,
     },
+    Borrow {
+        name: String,
+        source: Place,
+        body: Block,
+    },
     Try {
         body: Block,
         handler: Block,

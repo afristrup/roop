@@ -35,3 +35,8 @@ fn rejects_empty_match() {
 fn rejects_try_without_handler() {
     assert!(parse("rev fn f(x: &mut i64) { try { x += 1; } }").is_err());
 }
+
+#[test]
+fn rejects_borrow_without_source() {
+    assert!(parse("rev fn f(x: &mut i64) { borrow c { c += 1; } }").is_err());
+}
