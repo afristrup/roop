@@ -1,4 +1,5 @@
 mod fn_text;
+mod hypothesis;
 mod is_mut_ref;
 mod lean_commute;
 mod lean_enum;
@@ -18,6 +19,7 @@ mod translation;
 mod unfold_simp;
 
 pub use fn_text::*;
+pub use hypothesis::*;
 pub use is_mut_ref::*;
 pub use lean_commute::*;
 pub use lean_enum::*;

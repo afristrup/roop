@@ -1,4 +1,6 @@
-use crate::{Ctx, Env, LeanError, Out, assign_place, lean_zero, place_type, read_place, stack_elem};
+use crate::{
+    Ctx, Env, LeanError, Out, assign_place, lean_zero, place_type, read_place, stack_elem,
+};
 use roop_syntax::Place;
 
 /// Moves the value at `place` onto the stack and leaves zero behind.

@@ -1,4 +1,4 @@
-use crate::{Lifted, LemmaShape, LoopLemmas, never_fails, no_ancilla_lemma, piece_lemmas};
+use crate::{HYP, LemmaShape, Lifted, LoopLemmas, never_fails, no_ancilla_lemma, piece_lemmas};
 
 /// Lemmas about one `try` whose body and handler were lifted out of their
 /// function. If each is undone by its inverse, then so is the `try`, by the
@@ -32,7 +32,7 @@ pub fn lean_try_lemmas(
     );
     let inv_f = shape.theorem("try_inv_f");
     text.push_str(&format!(
-        "theorem {inv_f} {} {{{s} : {}}} {{{p} : {} \u{d7} Bool}} (h : {forward} {s} = Except.ok {p}) :\n    {backward} {p}.1 {p}.2 = Except.ok {s} :=\n  Roop.tryCatch_inv {} {} {} {} {} {} {s} {p} h\n",
+        "theorem {inv_f} {} {{{s} : {}}} {{{p} : {} \u{d7} Bool}} ({HYP} : {forward} {s} = Except.ok {p}) :\n    {backward} {p}.1 {p}.2 = Except.ok {s} :=\n  Roop.tryCatch_inv {} {} {} {} {} {} {s} {p} {HYP}\n",
         shape.implicit,
         shape.state,
         shape.state,

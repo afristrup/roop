@@ -1,6 +1,6 @@
 use crate::{
-    LoopLemmas, esc, esc_fn, esc_thm, is_mut_ref, lean_type, proof_script, tuple_expr, tuple_proj,
-    tuple_type, unfold_simp,
+    HYP, LoopLemmas, esc, esc_fn, esc_thm, is_mut_ref, lean_type, proof_script, tuple_expr,
+    tuple_proj, tuple_type, unfold_simp,
 };
 use roop_syntax::{FnDef, Param};
 
@@ -48,11 +48,11 @@ pub fn lean_theorems(
     if ancillas {
         for (name, callee) in [("ancilla_restored", &f), ("inv_ancilla_restored", &f_inv)] {
             text.push_str(&format!(
-                "theorem {} {} (h : {callee} {} = Except.error Roop.Fail.ancilla) : False := by\n{}\n",
+                "theorem {} {} ({HYP} : {callee} {} = Except.error Roop.Fail.ancilla) : False := by\n{}\n",
                 thm(name),
                 all_params.join(" "),
                 inputs.join(" "),
-                proof("h")
+                proof(HYP)
             ));
         }
     }
@@ -85,9 +85,9 @@ pub fn lean_theorems(
         .filter(|p| !is_mut_ref(&p.ty))
         .map(typed)
         .collect();
-    let roundtrip = proof("h \u{22a2}");
+    let roundtrip = proof(&format!("{HYP} \u{22a2}"));
     text.push_str(&format!(
-        "theorem {} {} ({OUT} : {tuple}) (h : {f} {} = Except.ok {OUT}) :\n    {f_inv} {} = Except.ok {} := by\n{roundtrip}\n",
+        "theorem {} {} ({OUT} : {tuple}) ({HYP} : {f} {} = Except.ok {OUT}) :\n    {f_inv} {} = Except.ok {} := by\n{roundtrip}\n",
         thm("inv_f"),
         all_params.join(" "),
         inputs.join(" "),
@@ -98,7 +98,7 @@ pub fn lean_theorems(
         return Some(text);
     }
     text.push_str(&format!(
-        "theorem {} {} ({OUT} : {tuple}) ({INIT} : {tuple}) (h : {f_inv} {} = Except.ok {INIT}) :\n    {f} {} = Except.ok {OUT} := by\n{roundtrip}\n",
+        "theorem {} {} ({OUT} : {tuple}) ({INIT} : {tuple}) ({HYP} : {f_inv} {} = Except.ok {INIT}) :\n    {f} {} = Except.ok {OUT} := by\n{roundtrip}\n",
         thm("f_inv"),
         read_only.join(" "),
         with_components(OUT).join(" "),

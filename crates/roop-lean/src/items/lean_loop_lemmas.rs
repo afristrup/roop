@@ -1,4 +1,4 @@
-use crate::{Lifted, LemmaShape, LoopLemmas, never_fails, no_ancilla_lemma, piece_lemmas};
+use crate::{HYP, LemmaShape, Lifted, LoopLemmas, never_fails, no_ancilla_lemma, piece_lemmas};
 
 /// Lemmas about one loop whose pieces were lifted out of its function: each
 /// body and step is undone by its inverse, and therefore the loop is, by the
@@ -48,7 +48,7 @@ pub fn lean_loop_lemmas(
         let theorem = shape.theorem(name);
         let applied: Vec<String> = six.iter().map(|part| shape.applied(part)).collect();
         text.push_str(&format!(
-            "theorem {theorem} {} {{{s} {r} : {}}} (h : Roop.janus {from} {x} = Except.ok {y}) :\n    Roop.janus {to} {y} = Except.ok {x} :=\n  Roop.janus_inv {} {} {} {x} {y} h\n",
+            "theorem {theorem} {} {{{s} {r} : {}}} ({HYP} : Roop.janus {from} {x} = Except.ok {y}) :\n    Roop.janus {to} {y} = Except.ok {x} :=\n  Roop.janus_inv {} {} {} {x} {y} {HYP}\n",
             shape.implicit,
             shape.state,
             applied.join(" "),

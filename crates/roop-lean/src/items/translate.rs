@@ -1,6 +1,6 @@
 use crate::{
-    Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, Translation, esc_fn, lean_commute, lean_enum,
-    lean_fn, lean_loop_lemmas, lean_struct, lean_theorems, lean_try_lemmas,
+    Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, Translation, esc_fn, lean_commute,
+    lean_enum, lean_fn, lean_loop_lemmas, lean_struct, lean_theorems, lean_try_lemmas,
 };
 use roop_check::is_irreversible_fn;
 use roop_syntax::{FnDef, Item, Program};
@@ -99,9 +99,9 @@ fn translate_fn(
     let mut text = format!("{}{}", forward.lifted, forward.text);
     let mut known = lemmas.clone();
     if text.contains("Roop.Stack") {
-        known.chain.extend(
-            ["Roop.Stack.push_pop", "Roop.Stack.pop_push"].map(String::from),
-        );
+        known
+            .chain
+            .extend(["Roop.Stack.push_pop", "Roop.Stack.pop_push"].map(String::from));
     }
     let mut fresh = LoopLemmas::default();
     let mut parallel = false;

@@ -1,4 +1,4 @@
-use crate::{LemmaShape, LoopLemmas, esc_fn, proof_script, unfold_simp};
+use crate::{HYP, LemmaShape, LoopLemmas, esc_fn, proof_script, unfold_simp};
 
 /// A lifted piece and its inverse undo each other: `inv_f` says the inverse
 /// restores what the piece produced, and with `both` so does the piece for
@@ -26,14 +26,14 @@ pub fn piece_lemmas(
     let mut text = String::new();
     for (suffix, from, to) in directions {
         text.push_str(&format!(
-            "theorem {} {} ({a} {b} : {}) (h : {from} {} {a} = Except.ok {b}) :\n    {to} {} {b} = Except.ok {a} := by\n{}{}{}\n",
+            "theorem {} {} ({a} {b} : {}) ({HYP} : {from} {} {a} = Except.ok {b}) :\n    {to} {} {b} = Except.ok {a} := by\n{}{}{}\n",
             shape.theorem(&format!("{part}_{suffix}")),
             shape.explicit,
             shape.state,
             shape.args,
             shape.args,
             shape.destructure(a),
-            unfold_simp(&unfold, "h \u{22a2}"),
+            unfold_simp(&unfold, &format!("{HYP} \u{22a2}")),
             proof_script(earlier),
         ));
     }

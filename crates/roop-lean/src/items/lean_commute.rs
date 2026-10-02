@@ -1,6 +1,4 @@
-use crate::{
-    Lifted, esc, esc_fn, esc_thm, lean_type, tuple_expr, tuple_proj, unfold_simp, unref,
-};
+use crate::{Lifted, esc, esc_fn, esc_thm, lean_type, tuple_expr, tuple_proj, unfold_simp, unref};
 
 /// Split every bounds check, then let the vector lemmas commute the writes.
 const SCRIPT: &str = "  repeat' roop_cases
