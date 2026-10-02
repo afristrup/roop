@@ -28,6 +28,7 @@ fn apple_m4_target_is_applied_to_every_function() {
     let ir = roundtrip(&roop_llvm::Options {
         triple: Some("arm64-apple-macosx".into()),
         cpu: Some("apple-m4".into()),
+        ..Default::default()
     });
     assert!(ir.contains("\"target-cpu\"=\"apple-m4\""));
     assert!(ir.contains("define internal void @axpy.par"));
