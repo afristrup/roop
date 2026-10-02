@@ -127,3 +127,92 @@ int main(void) {
 "#;
     assert_eq!(run(src, main), 0);
 }
+
+#[test]
+fn an_outer_failure_also_undoes_a_finished_inner_try() {
+    let src = "fn nest(x: &mut i64, y: &mut i64, a: &mut bool, b: &mut bool) {
+        try {
+            try {
+                x += 1;
+                if x > 100 { y += 1; } else { y -= 1; } fi x > 100;
+            } catch_rollback {
+                y ^= 7;
+            } -> a;
+            if y > 1000 { x += 1; } else { x -= 1; } fi y > 1000;
+        } catch_rollback {
+            x ^= 3;
+        } -> b;
+    }";
+    let main = r#"
+void nest(int64_t*, int64_t*, uint8_t*, uint8_t*);
+void nest_inv(int64_t*, int64_t*, uint8_t*, uint8_t*);
+int main(void) {
+    int64_t x = 5, y = 0; uint8_t a = 0, b = 0;
+    nest(&x, &y, &a, &b);
+    if (x != (5 ^ 3) || y != 0 || a != 0 || b != 1) return 1;
+    nest_inv(&x, &y, &a, &b);
+    return (x == 5 && y == 0 && a == 0 && b == 0) ? 0 : 2;
+}
+"#;
+    assert_eq!(run(src, main), 0);
+}
+
+#[test]
+fn an_uncall_that_fails_leaves_its_arguments_alone() {
+    let src = "fn f(x: &mut i64, y: &mut i64) {
+        if x > 0 { y += 1; } else { y -= 1; } fi y > 0;
+    }
+    fn caller(x: &mut i64, y: &mut i64, failed: &mut bool) {
+        try { uncall f(x, y); } catch_rollback { y ^= 9; } -> failed;
+    }";
+    let main = r#"
+void caller(int64_t*, int64_t*, uint8_t*);
+void caller_inv(int64_t*, int64_t*, uint8_t*);
+int main(void) {
+    int64_t x = -3, y = 5; uint8_t f = 0;
+    caller(&x, &y, &f);
+    if (f != 1 || x != -3 || y != (5 ^ 9)) return 1;
+    caller_inv(&x, &y, &f);
+    if (x != -3 || y != 5 || f != 0) return 2;
+
+    x = 4; y = 5;
+    caller(&x, &y, &f);
+    if (f != 0 || y != 4) return 3;
+    caller_inv(&x, &y, &f);
+    return (x == 4 && y == 5 && f == 0) ? 0 : 4;
+}
+"#;
+    assert_eq!(run(src, main), 0);
+}
+
+#[test]
+fn a_function_with_its_own_try_is_undone_when_its_caller_fails() {
+    let src = "fn inner(x: &mut i64, y: &mut i64, a: &mut bool) {
+        try {
+            x += 1;
+            if x > 100 { y += 1; } else { y -= 1; } fi x > 100;
+        } catch_rollback {
+            y ^= 7;
+        } -> a;
+    }
+    fn outer(x: &mut i64, y: &mut i64, a: &mut bool, b: &mut bool) {
+        try {
+            call inner(x, y, a);
+            if y > 1000 { x += 1; } else { x -= 1; } fi y > 1000;
+        } catch_rollback {
+            x ^= 3;
+        } -> b;
+    }";
+    let main = r#"
+void outer(int64_t*, int64_t*, uint8_t*, uint8_t*);
+void outer_inv(int64_t*, int64_t*, uint8_t*, uint8_t*);
+int main(void) {
+    int64_t x = 5, y = 0; uint8_t a = 0, b = 0;
+    outer(&x, &y, &a, &b);
+    if (x != (5 ^ 3) || y != 0 || a != 0 || b != 1) return 1;
+    outer_inv(&x, &y, &a, &b);
+    return (x == 5 && y == 0 && a == 0 && b == 0) ? 0 : 2;
+}
+"#;
+    assert_eq!(run(src, main), 0);
+}
