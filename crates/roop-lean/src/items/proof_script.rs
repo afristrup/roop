@@ -1,6 +1,6 @@
 use crate::LoopLemmas;
 
-const BASE: &str = "beq_iff_eq, Prod.eta, Vector.getElem_set_self, Vector.set_set, Vector.set_getElem_self, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel";
+const BASE: &str = "beq_iff_eq, Prod.eta, Prod.ext_iff, Vector.getElem_set_self, Vector.set_set, Vector.set_getElem_self, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel";
 
 /// Calls in sequence feed each other's results, one loop per round.
 const ROUNDS: usize = 4;
