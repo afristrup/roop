@@ -24,6 +24,31 @@ fn both(a: &mut i64, b: &mut i64, k: &i64) {
 }
 ```
 
+## Verification in Lean
+
+```
+roop lean prog.roop --check
+```
+
+translates the program to a pure Lean 4 model in the style of Aeneas: no
+mutation, each `&mut` parameter goes in and comes back as a result, a borrow
+reads a place into a local and writes it back, an ancilla is a temporary with a
+check that it is restored, and every reversible function `f` gets a second
+function `f_inv`. Integers are 64-bit bit-vectors, so arithmetic wraps exactly
+like the compiled code.
+
+For each reversible function Lean checks two theorems, `f_inv_f` and `f_f_inv`:
+running `f` then `f_inv` returns the inputs, and `f_inv` then `f` returns the
+outputs, so no information is lost. Functions with ancillas also get a theorem
+that neither direction ever fails with an unrestored ancilla. Lean is stricter
+than the roop checker: it rejects a branch whose exit assertion does not
+actually identify which side ran, which the checker cannot decide.
+
+Not yet covered: loops are translated, but their theorems need an induction and
+are reported as open; floating point is translated with no roundtrip claim,
+since `x + k - k` need not equal `x`; irreversible functions get a forward model
+only; `try`, channels and concurrent tasks are skipped and listed.
+
 ## Concurrent tasks and channels
 
 Adjacent `#[concurrent]` blocks run as tasks on their own threads. They share no
