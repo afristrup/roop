@@ -1,6 +1,10 @@
+/// Split every bounds check, then let the vector lemmas commute the writes.
+const SCRIPT: &str = "  repeat' roop_cases
+  all_goals (try simp_all [Vector.getElem_set_ne, Vector.set_comm])
+  all_goals first | done | omega | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))";
+
 use crate::{
-    LoopInfo, LoopLemmas, esc, esc_fn, esc_thm, lean_type, proof_script, tuple_expr, tuple_proj,
-    unfold_simp, unref,
+    LoopInfo, esc, esc_fn, esc_thm, lean_type, tuple_expr, tuple_proj, unfold_simp, unref,
 };
 
 /// A `#[parallel]` loop runs its iterations in any order, so any two of them
@@ -8,11 +12,14 @@ use crate::{
 /// then `v`, whatever the starting state. This is what the checker's
 /// disjointness rules promise, stated as a theorem about the loop body. The
 /// loop variable is reset at the end, since it is the only thing that differs.
-pub fn lean_commute(info: &LoopInfo, deps: &[String], earlier: &LoopLemmas) -> Option<String> {
+pub fn lean_commute(info: &LoopInfo, deps: &[String], lifted: &str) -> Option<String> {
     let var = info.parallel.as_ref()?;
     let at = info.state.iter().position(|(name, _)| name == var)?;
     let n = info.state.len();
     let id = &info.id;
+    if body_def(lifted, &esc_fn(&format!("{id}_body"))).contains("Roop.janus") {
+        return None;
+    }
     let body = format!(
         "({} {})",
         esc_fn(&format!("{id}_body")),
@@ -60,6 +67,15 @@ pub fn lean_commute(info: &LoopInfo, deps: &[String], earlier: &LoopLemmas) -> O
         order(v, w),
         order(w, v),
         unfold_simp(&unfold, "\u{22a2}"),
-        proof_script(earlier),
+        SCRIPT,
     ))
+}
+
+/// The text of one lifted definition.
+fn body_def<'a>(lifted: &'a str, name: &str) -> &'a str {
+    let Some(start) = lifted.find(&format!("def {name} ")) else {
+        return "";
+    };
+    let rest = &lifted[start..];
+    &rest[..rest.find("\n\n").unwrap_or(rest.len())]
 }

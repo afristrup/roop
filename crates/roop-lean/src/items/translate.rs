@@ -111,7 +111,7 @@ fn translate_fn(
             for info in &forward.loops {
                 let (lemma_text, names) = lean_loop_lemmas(info, deps, &known);
                 text.push_str(&lemma_text);
-                if let Some(commute) = lean_commute(info, deps, &known) {
+                if let Some(commute) = lean_commute(info, deps, &forward.lifted) {
                     text.push_str(&commute);
                     parallel = true;
                 }
