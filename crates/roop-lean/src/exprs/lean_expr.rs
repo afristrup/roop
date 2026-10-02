@@ -1,4 +1,4 @@
-use crate::{Ctx, Env, LeanError, esc, expr_type, is_float, read_place};
+use crate::{Ctx, Env, LeanError, esc, esc_ty, expr_type, is_float, read_place};
 use roop_syntax::{BinOp, Expr, UnOp};
 
 /// A Lean expression for a roop expression. Reads of array elements use
@@ -9,7 +9,7 @@ pub fn lean_expr(cx: &Ctx, env: &Env, expr: &Expr) -> Result<String, LeanError> 
         Expr::Int(i) => format!("({i} : Roop.I64)"),
         Expr::Float(f) => format!("({f:?} : Float)"),
         Expr::Bool(b) => b.to_string(),
-        Expr::Variant(e, v) => format!("{}.{}", esc(e), esc(v)),
+        Expr::Variant(e, v) => format!("{}.{}", esc_ty(e), esc(v)),
         Expr::Place(place) => read_place(cx, env, place)?,
         Expr::Unary(UnOp::Neg, inner) => format!("(-{})", lean_expr(cx, env, inner)?),
         Expr::Unary(UnOp::Not, inner) => format!("(!{})", lean_expr(cx, env, inner)?),

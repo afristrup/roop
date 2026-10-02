@@ -1,4 +1,4 @@
-use crate::esc;
+use crate::esc_ty;
 use roop_syntax::Type;
 
 /// The Lean type of a roop type. A reference stands for what it points at.
@@ -8,7 +8,7 @@ pub fn lean_type(ty: &Type) -> String {
             "i64" => "Roop.I64".into(),
             "f64" => "Float".into(),
             "bool" => "Bool".into(),
-            other => esc(other),
+            other => esc_ty(other),
         },
         Type::Array(elem, len) => format!("(Vector {} {len})", lean_type(elem)),
         Type::Ref { inner, .. } => lean_type(inner),

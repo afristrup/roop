@@ -1,4 +1,4 @@
-use crate::{LeanError, esc};
+use crate::{LeanError, esc, esc_ty};
 use roop_syntax::Pattern;
 
 pub fn pattern_test(scrutinee: &str, pattern: &Pattern) -> Result<String, LeanError> {
@@ -6,6 +6,6 @@ pub fn pattern_test(scrutinee: &str, pattern: &Pattern) -> Result<String, LeanEr
         Pattern::Wildcard => "true".into(),
         Pattern::Int(i) => format!("({scrutinee} == (({i}) : Roop.I64))"),
         Pattern::Bool(b) => format!("({scrutinee} == {b})"),
-        Pattern::Variant(e, v) => format!("({scrutinee} == {}.{})", esc(e), esc(v)),
+        Pattern::Variant(e, v) => format!("({scrutinee} == {}.{})", esc_ty(e), esc(v)),
     })
 }
