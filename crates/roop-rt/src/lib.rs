@@ -1,5 +1,5 @@
-mod parallel_for;
-mod send_ptr;
+mod gpu;
+mod parallel;
 
-pub use parallel_for::roop_parallel_for;
-use send_ptr::SendPtr;
+pub use gpu::roop_gpu_dispatch;
+pub use parallel::roop_parallel_for;
