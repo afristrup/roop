@@ -1,5 +1,5 @@
 use crate::{
-    LoopInfo, LoopLemmas, esc, esc_fn, esc_thm, lean_type, proof_script, tuple_type, unfold_simp,
+    Lifted, LoopLemmas, esc, esc_fn, esc_thm, lean_type, proof_script, tuple_type, unfold_simp,
     unref,
 };
 
@@ -9,7 +9,7 @@ use crate::{
 /// ancilla unless a piece does. Returns the text and the loop lemmas, which
 /// later proofs use whenever a loop's result is known.
 pub fn lean_loop_lemmas(
-    info: &LoopInfo,
+    info: &Lifted,
     deps: &[String],
     earlier: &LoopLemmas,
 ) -> (String, LoopLemmas) {

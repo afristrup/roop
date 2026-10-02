@@ -46,7 +46,7 @@ pub fn lean_fn(cx: &Ctx, def: &FnDef, dir: Dir) -> Result<FnText, LeanError> {
     Ok(FnText {
         text,
         lifted: out.lifted,
-        loops: out.loops,
+        pieces: out.pieces,
         ancillas: out.ancillas,
     })
 }

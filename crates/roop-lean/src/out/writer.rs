@@ -1,4 +1,4 @@
-use crate::LoopInfo;
+use crate::Lifted;
 
 /// Indented text being written, plus a counter for fresh names.
 #[derive(Default)]
@@ -8,7 +8,7 @@ pub struct Out {
     /// Top-level definitions the text refers to: the pieces of loops.
     pub lifted: String,
     /// Loops translated so far, inner loops before the loops around them.
-    pub loops: Vec<LoopInfo>,
+    pub pieces: Vec<Lifted>,
     /// Ancillas whose restoration is checked, forward or backward.
     pub ancillas: usize,
     next: usize,

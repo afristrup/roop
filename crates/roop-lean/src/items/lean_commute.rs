@@ -1,5 +1,5 @@
 use crate::{
-    LoopInfo, esc, esc_fn, esc_thm, lean_type, tuple_expr, tuple_proj, unfold_simp, unref,
+    Lifted, esc, esc_fn, esc_thm, lean_type, tuple_expr, tuple_proj, unfold_simp, unref,
 };
 
 /// Split every bounds check, then let the vector lemmas commute the writes.
@@ -13,7 +13,7 @@ const SCRIPT: &str = "  repeat' roop_cases
 /// then `v`, whatever the starting state, or both fail. This is what the checker's
 /// disjointness rules promise, stated as a theorem about the loop body. The
 /// loop variable is reset at the end, since it is the only thing that differs.
-pub fn lean_commute(info: &LoopInfo, deps: &[String], lifted: &str) -> Option<String> {
+pub fn lean_commute(info: &Lifted, deps: &[String], lifted: &str) -> Option<String> {
     let var = info.parallel.as_ref()?;
     let at = info.state.iter().position(|(name, _)| name == var)?;
     let n = info.state.len();

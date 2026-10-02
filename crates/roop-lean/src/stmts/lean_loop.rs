@@ -1,5 +1,5 @@
 use crate::{
-    Ctx, Dir, Env, LeanError, LoopInfo, Out, Piece, assign_place, esc, esc_fn, lean_piece,
+    Ctx, Dir, Env, LeanError, Lifted, Out, Piece, assign_place, esc, esc_fn, lean_piece,
     tuple_expr, tuple_proj,
 };
 use roop_check::body_effects;
@@ -33,7 +33,7 @@ pub fn lean_loop(
         .then(|| counted_loop(entry, step, until))
         .flatten()
         .map(|counted| counted.var.to_string());
-    let info = LoopInfo {
+    let info = Lifted {
         id: id.clone(),
         captures,
         state,
@@ -118,6 +118,6 @@ pub fn lean_loop(
             &tuple_proj(&result, k, info.state.len()),
         )?;
     }
-    out.loops.push(info);
+    out.pieces.push(info);
     Ok(())
 }

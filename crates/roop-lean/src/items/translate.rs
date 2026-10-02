@@ -108,7 +108,7 @@ fn translate_fn(
         text.push_str(&backward.text);
         let ancillas = forward.ancillas > 0 || backward.ancillas > 0;
         if !inexact {
-            for info in &forward.loops {
+            for info in &forward.pieces {
                 let (lemma_text, names) = lean_loop_lemmas(info, deps, &known);
                 text.push_str(&lemma_text);
                 if let Some(commute) = lean_commute(info, deps, &forward.lifted) {

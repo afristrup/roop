@@ -1,5 +1,5 @@
 use crate::{
-    Ctx, Dir, Env, LeanError, LoopInfo, Out, esc, lean_block, lean_expr, lean_type, tuple_expr,
+    Ctx, Dir, Env, LeanError, Lifted, Out, esc, lean_block, lean_expr, lean_type, tuple_expr,
     tuple_type, unpack_state, unref,
 };
 use roop_syntax::{Block, Expr};
@@ -15,7 +15,7 @@ pub fn lean_piece(
     cx: &Ctx,
     env: &Env,
     out: &mut Out,
-    info: &LoopInfo,
+    info: &Lifted,
     name: &str,
     piece: Piece,
     dir: Dir,
@@ -47,7 +47,7 @@ pub fn lean_piece(
         .map(|(n, t)| format!("({} : {})", esc(n), lean_type(t)))
         .collect();
     out.lifted.push_str(&inner.lifted);
-    out.loops.extend(inner.loops);
+    out.pieces.extend(inner.pieces);
     out.ancillas += inner.ancillas;
     out.lifted.push_str(&format!(
         "def {name} {} (s : {state_type}) : Roop.Res {result} := do\n{}\n",
