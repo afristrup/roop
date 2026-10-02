@@ -3,8 +3,8 @@ use super::{
 };
 use roop_syntax::{Block, Expr};
 
-/// Janus loop. Backward is the loop with entry and until swapped and the two
-/// bodies exchanged, each emitted backward.
+/// Janus loop. The run is S1 (S2 S1)*, so its reverse is S1' (S2' S1')*: the
+/// same shape with entry and until swapped and both blocks emitted backward.
 pub fn gen_from(
     g: &mut FnGen,
     entry: &Expr,
@@ -15,7 +15,7 @@ pub fn gen_from(
 ) -> Result<(), CodegenError> {
     let (start, first, second, stop) = match dir {
         Dir::Forward => (entry, body, step, until),
-        Dir::Backward => (until, step, body, entry),
+        Dir::Backward => (until, body, step, entry),
     };
     let on_entry = gen_expr(g, start)?;
     gen_assert(g, &on_entry)?;

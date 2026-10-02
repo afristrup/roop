@@ -142,8 +142,7 @@ fn failed_exit_assertion_traps() {
     let setup = "
   %x = alloca i64
   store i64 5, ptr %x
-  call void @f(ptr %x)
-  %ok0 = icmp eq i64 0, 0";
+  call void @f(ptr %x)";
     let ir = format!(
         "{}\n{}",
         support::ir(src),
