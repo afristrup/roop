@@ -168,4 +168,50 @@ theorem kleisli_dagger_inverts_the_log {A B : Type} (f : Rel A (B × G)) (b : B)
     show 1 = g * g⁻¹
     rw [Grp.mul_inv]
 
+/-- The outcome of a `try`: the group `Bool` under xor. Its writer monad is the
+exception monad with the outcome kept, so `try` composes reversibly. -/
+instance : Grp Bool where
+  mul := xor
+  one := false
+  inv := id
+  mul_assoc := by decide
+  one_mul := by decide
+  mul_one := by decide
+  inv_mul := by decide
+  mul_inv := by decide
+
+/-- The counter of an update `x += k`: machine integers under addition. -/
+instance {n : Nat} : Grp (BitVec n) where
+  mul := (· + ·)
+  one := 0
+  inv := (- ·)
+  mul_assoc := fun a b c => BitVec.add_assoc a b c
+  one_mul := fun a => BitVec.zero_add a
+  mul_one := fun a => BitVec.add_zero a
+  inv_mul := fun a => BitVec.add_left_neg a
+  mul_inv := fun a => by show a + -a = 0; bv_omega
+
+/-- The Frobenius law holds for the outcome of a `try`. -/
+theorem outcome_is_frobenius (a b c d : Bool) :
+    frobenius_left a b c d ↔ frobenius_right a b c d :=
+  frobenius_law a b c d
+
+/-- The Frobenius law holds for the updates `x += k`. -/
+theorem update_is_frobenius {n : Nat} (a b c d : BitVec n) :
+    frobenius_left a b c d ↔ frobenius_right a b c d :=
+  frobenius_law a b c d
+
+/-- Reversing a `try` that logs its outcome in `Bool` returns the same bit: the
+inverse of a set outcome is a set outcome, which is why `untry` reads it. -/
+theorem reversing_a_try_keeps_the_outcome {A B : Type} (f : Rel A (B × Bool)) (b : B) (a : A)
+    (k : Bool) : kleisli_dagger f b (a, k) ↔ f a (b, k) := by
+  rw [kleisli_dagger_inverts_the_log]
+  constructor
+  · rintro ⟨g, hf, hk⟩
+    have : k = g := hk
+    subst this
+    exact hf
+  · intro hf
+    exact ⟨k, hf, rfl⟩
+
 end Frobenius
