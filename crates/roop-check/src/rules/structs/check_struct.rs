@@ -16,6 +16,7 @@ pub fn check_struct(def: &StructDef, scope: Scope) -> Result<(), CheckError> {
     };
     let reversible = Scope {
         irrev: false,
+        logged: false,
         ..scope
     };
     for ctor in [build, unbuild] {

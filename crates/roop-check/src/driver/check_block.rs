@@ -16,9 +16,16 @@ pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
                     check_update(target, value, stmt.span)?;
                 }
             }
-            StmtKind::Overwrite { .. } if !scope.irrev => return Err(outside()),
-            StmtKind::Overwrite { .. } | StmtKind::Swap(..) => {}
+            StmtKind::Overwrite { .. } if !scope.irrev && !scope.logged => return Err(outside()),
+            StmtKind::Overwrite { target, value, .. } => {
+                if !scope.irrev {
+                    check_update(target, value, stmt.span)?;
+                }
+            }
+            StmtKind::Swap(..) => {}
             StmtKind::Send { .. } | StmtKind::Recv { .. } => {}
+            StmtKind::Push { .. } | StmtKind::Pop { .. } => {}
+            StmtKind::Logged { body, .. } => check_block(body, scope.inside_logged())?,
             StmtKind::Call { callee, .. } => {
                 if scope.irreversible_fns.contains(callee.as_str()) && !scope.irrev {
                     return Err(CheckError::CallsIrreversible {
@@ -53,11 +60,15 @@ pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
                 }
             }
             StmtKind::Borrow { source, body, .. } => check_borrow(source, body, stmt.span, scope)?,
-            StmtKind::Try { body, handler } => {
-                if !scope.irrev {
+            StmtKind::Try {
+                body,
+                handler,
+                outcome,
+            } => {
+                if outcome.is_none() && !scope.irrev {
                     return Err(outside());
                 }
-                check_try(body, handler, stmt.span, scope)?;
+                check_try(body, handler, outcome.as_ref(), stmt.span, scope)?;
             }
             StmtKind::From { body, step, .. } => {
                 check_block(body, scope)?;

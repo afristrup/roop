@@ -6,13 +6,24 @@ use std::collections::HashSet;
 #[derive(Clone, Copy)]
 pub struct Scope<'a> {
     pub irrev: bool,
+    /// Inside a `logged` block, where destroying updates push what they destroy.
+    pub logged: bool,
     pub irreversible_fns: &'a HashSet<&'a str>,
+    /// Functions a failed `try` could not roll back.
+    pub non_atomic_fns: &'a HashSet<&'a str>,
 }
 
 impl<'a> Scope<'a> {
     pub fn inside_irrev(self) -> Scope<'a> {
         Scope {
             irrev: true,
+            ..self
+        }
+    }
+
+    pub fn inside_logged(self) -> Scope<'a> {
+        Scope {
+            logged: true,
             ..self
         }
     }

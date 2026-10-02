@@ -103,6 +103,14 @@ pub enum CheckError {
     TryCannotFail {
         span: Span,
     },
+    NotUnwindable {
+        what: &'static str,
+        span: Span,
+    },
+    TryOutcomeWritten {
+        var: String,
+        span: Span,
+    },
     UnpairedBuild {
         name: String,
         span: Span,
@@ -229,6 +237,16 @@ impl fmt::Display for CheckError {
             Self::TryCannotFail { span } => write!(
                 f,
                 "try body has no exit assertion or call that could roll back at {}..{}",
+                span.start, span.end
+            ),
+            Self::NotUnwindable { what, span } => write!(
+                f,
+                "a try with an outcome cannot contain {what}, since a failure could not be undone, at {}..{}",
+                span.start, span.end
+            ),
+            Self::TryOutcomeWritten { var, span } => write!(
+                f,
+                "the outcome `{var}` is written by the try body or handler at {}..{}",
                 span.start, span.end
             ),
             Self::UnpairedBuild { name, span } => write!(

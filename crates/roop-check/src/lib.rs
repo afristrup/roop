@@ -11,7 +11,7 @@ pub use rules::check_parallel_body;
 pub use rules::{TaskItem, task_groups};
 pub use stmts::{
     BodyEffects, BodyFeatures, body_effects, body_features, channels_used, contains_irrev,
-    irreversible_fns, is_irreversible_fn,
+    irreversible_fns, is_irreversible_fn, non_atomic_fns,
 };
 
 use driver::*;

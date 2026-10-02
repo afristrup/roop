@@ -57,6 +57,26 @@ pub fn inverts(a: &StmtKind, b: &StmtKind) -> bool {
                 source: pb,
             },
         ) => ca == cb && pa == pb,
+        (
+            StmtKind::Push {
+                stack: sa,
+                source: pa,
+            },
+            StmtKind::Pop {
+                stack: sb,
+                target: pb,
+            },
+        )
+        | (
+            StmtKind::Pop {
+                stack: sa,
+                target: pa,
+            },
+            StmtKind::Push {
+                stack: sb,
+                source: pb,
+            },
+        ) => sa == sb && pa == pb,
         _ => false,
     }
 }
