@@ -24,7 +24,7 @@ pub fn proof_script(loop_lemmas: &[String]) -> String {
     format!(
         "  all_goals (try (repeat' (first | (split at *; all_goals (try simp [{LEMMAS}] at *)) | split)))
 {}  all_goals (try simp [{LEMMAS}] at *)
-  all_goals first | done | bv_omega | bv_decide | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))",
+  all_goals first | done | omega | bv_omega | bv_decide | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))",
         round.repeat(rounds)
     )
 }
