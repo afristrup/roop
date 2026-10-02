@@ -1,5 +1,6 @@
 use crate::{
-    CodegenError, Ctx, Dialect, Dir, FnGen, Slot, function_attrs, gen_block, llvm_type, mem_store,
+    CodegenError, Ctx, Dialect, Dir, FnGen, GenOutput, Slot, function_attrs, gen_block, llvm_type,
+    mem_store,
 };
 use roop_syntax::{Block, Param, Type};
 
