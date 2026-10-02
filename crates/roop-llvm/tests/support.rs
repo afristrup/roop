@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use roop_check::check;
-use roop_llvm::{Options, compile_with};
+use roop_llvm::{Compiled, Options, compile_all, compile_with};
 use roop_syntax::parse;
 use std::io::Write;
 use std::process::{Command, Stdio};
@@ -81,26 +81,89 @@ fn runtime_lib() -> std::path::PathBuf {
     std::path::PathBuf::from(target).join("debug/libroop_rt.a")
 }
 
-/// Compiles the IR with clang, links the roop runtime and returns the exit
-/// code. None when clang is not installed.
-pub fn run_native(ir: &str) -> Option<Option<i32>> {
+/// Compiles the IR modules with clang, links the roop runtime (and the Metal
+/// frameworks on macOS) and returns the exit code. None when clang is missing.
+pub fn run_native_modules(modules: &[&str]) -> Option<Option<i32>> {
     let clang = tool("clang")?;
-    let dir = std::env::temp_dir().join(format!("roop-{}-{:x}", std::process::id(), ir.len()));
+    let seed: usize = modules.iter().map(|m| m.len()).sum();
+    let dir = std::env::temp_dir().join(format!("roop-{}-{:x}", std::process::id(), seed));
     std::fs::create_dir_all(&dir).unwrap();
-    let (src, exe) = (dir.join("prog.ll"), dir.join("prog"));
-    std::fs::write(&src, ir).unwrap();
-    let build = Command::new(clang)
-        .arg(&src)
+    let exe = dir.join("prog");
+    let mut command = Command::new(clang);
+    for (i, ir) in modules.iter().enumerate() {
+        let src = dir.join(format!("m{i}.ll"));
+        std::fs::write(&src, ir).unwrap();
+        command.arg(src);
+    }
+    command
         .arg(runtime_lib())
-        .args(["-o"])
+        .arg("-o")
         .arg(&exe)
-        .args(["-lpthread", "-lm"])
-        .output()
-        .unwrap();
+        .args(["-lpthread", "-lm"]);
+    if cfg!(target_os = "macos") {
+        command.args(["-framework", "Metal", "-framework", "Foundation", "-lobjc"]);
+    }
+    let build = command.output().unwrap();
     assert!(
         build.status.success(),
         "{}",
         String::from_utf8_lossy(&build.stderr)
     );
     Some(Command::new(&exe).status().unwrap().code())
+}
+
+pub fn run_native(ir: &str) -> Option<Option<i32>> {
+    run_native_modules(&[ir])
+}
+
+pub fn compiled(src: &str, options: &Options) -> Compiled {
+    let program = parse(src).unwrap();
+    check(&program).unwrap();
+    compile_all(&program, options).unwrap()
+}
+
+/// AIR to a `.metallib` with Apple's tools. None when they are not installed.
+pub fn metallib(air_ir: &str) -> Option<Vec<u8>> {
+    let dir = std::env::temp_dir().join(format!(
+        "roop-air-{}-{:x}",
+        std::process::id(),
+        air_ir.len()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let (ll, air, lib) = (dir.join("k.ll"), dir.join("k.air"), dir.join("k.metallib"));
+    std::fs::write(&ll, air_ir).unwrap();
+    let compile = Command::new("xcrun")
+        .args(["-sdk", "macosx", "metal", "-c", "-x", "ir"])
+        .arg(&ll)
+        .arg("-o")
+        .arg(&air)
+        .output()
+        .ok()?;
+    assert!(
+        compile.status.success(),
+        "{}\n{air_ir}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let link = Command::new("xcrun")
+        .args(["-sdk", "macosx", "metallib"])
+        .arg(&air)
+        .arg("-o")
+        .arg(&lib)
+        .output()
+        .ok()?;
+    assert!(
+        link.status.success(),
+        "{}",
+        String::from_utf8_lossy(&link.stderr)
+    );
+    std::fs::read(&lib).ok()
+}
+
+/// IR module defining the symbols the host code declares as external.
+pub fn metallib_blob_module(bytes: &[u8]) -> String {
+    let escaped: String = bytes.iter().map(|b| format!("\\{b:02X}")).collect();
+    format!(
+        "@roop_metallib = constant [{n} x i8] c\"{escaped}\"\n@roop_metallib_len = constant i64 {n}\n",
+        n = bytes.len()
+    )
 }
