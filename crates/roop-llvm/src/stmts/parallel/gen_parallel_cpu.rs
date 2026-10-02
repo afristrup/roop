@@ -1,5 +1,5 @@
 use crate::{
-    CodegenError, Dir, FnGen, Value, bool_type, capture_env, gen_assert, gen_place, int_op,
+    CodegenError, Dir, FnGen, Value, bool_type, capture_env, gen_assert, gen_place,
     iteration_space, llvm_type, outline_body,
 };
 use roop_syntax::{Block, Expr, Place, Type, counted_loop};
@@ -14,8 +14,9 @@ pub fn gen_parallel_cpu(
     until: &Expr,
     dir: Dir,
 ) -> Result<(), CodegenError> {
-    let counted = counted_loop(entry, step, until)
-        .ok_or(CodegenError::InvalidOperand("parallel loop must be a counted loop"))?;
+    let counted = counted_loop(entry, step, until).ok_or(CodegenError::InvalidOperand(
+        "parallel loop must be a counted loop",
+    ))?;
     let space = iteration_space(g, &counted)?;
     let var = gen_place(g, &Place::Var(counted.var.into()))?;
     let (start, end) = match dir {
@@ -26,8 +27,17 @@ pub fn gen_parallel_cpu(
     let current = format!("%{}", g.fresh("t"));
     g.emit(&format!("{current} = load {ty}, ptr {}", var.addr));
     let at_start = format!("%{}", g.fresh("t"));
-    g.emit(&format!("{at_start} = icmp eq i64 {current}, {}", start.reg));
-    gen_assert(g, &Value { reg: at_start, ty: bool_type() })?;
+    g.emit(&format!(
+        "{at_start} = icmp eq i64 {current}, {}",
+        start.reg
+    ));
+    gen_assert(
+        g,
+        &Value {
+            reg: at_start,
+            ty: bool_type(),
+        },
+    )?;
 
     let env = capture_env(g);
     let symbol = outline_body(g, counted.var, body, dir)?;
@@ -36,6 +46,5 @@ pub fn gen_parallel_cpu(
         space.lo.reg, space.count, counted.step
     ));
     g.emit(&format!("store i64 {}, ptr {}", end.reg, var.addr));
-    let _ = int_op;
     Ok(())
 }

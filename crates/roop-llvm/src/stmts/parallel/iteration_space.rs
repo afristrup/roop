@@ -25,7 +25,13 @@ pub fn iteration_space(
     g.emit(&format!("{aligned} = icmp eq i64 {rem}, 0"));
     let ok = format!("%{}", g.fresh("t"));
     g.emit(&format!("{ok} = and i1 {ordered}, {aligned}"));
-    gen_assert(g, &Value { reg: ok, ty: bool_type() })?;
+    gen_assert(
+        g,
+        &Value {
+            reg: ok,
+            ty: bool_type(),
+        },
+    )?;
     let quotient = int_op(g, "sdiv", &span, &counted.step.to_string());
     let count = int_op(g, "add", &quotient, "1");
     Ok(IterationSpace { lo, hi, count })
