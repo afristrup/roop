@@ -35,14 +35,35 @@ fn runtime_lib() -> PathBuf {
     PathBuf::from(target).join("debug/libroop_rt.a")
 }
 
-/// 64 updates per element: plenty of work per byte, so the GPU is estimated faster.
-fn heavy_loop() -> String {
-    let body = ["a[i] += b[i] * k;"; 64].join(" ");
+/// A chain of `links` dependent ancilla updates per element: a lot of
+/// arithmetic per byte that the compiler cannot fold away.
+fn chain_loop(links: usize) -> String {
+    let opens: String = (1..=links)
+        .map(|j| format!("ancilla t{j}: i64 = 0 {{ "))
+        .collect();
+    let forward: Vec<String> = std::iter::once("t1 += b[i] * k;".to_string())
+        .chain((2..=links).map(|j| format!("t{j} += t{p} * t{p} + b[i];", p = j - 1)))
+        .collect();
+    let backward: Vec<String> = (2..=links)
+        .rev()
+        .map(|j| format!("t{j} -= t{p} * t{p} + b[i];", p = j - 1))
+        .chain(std::iter::once("t1 -= b[i] * k;".to_string()))
+        .collect();
     format!(
         "rev fn heavy(a: &mut [i64; 1000000], b: &[i64; 1000000], i: &mut i64, k: &i64) {{
-            #[parallel] from i == 0 {{ {body} }} loop {{ i += 1; }} until i == 999999;
-        }}"
+            #[parallel] from i == 0 {{ {opens}{} a[i] += t{links}; {} {} }} loop {{ i += 1; }} until i == 999999;
+        }}",
+        forward.join(" "),
+        backward.join(" "),
+        "}".repeat(links)
     )
+}
+
+/// One multiply-add per element: bound by memory, not arithmetic.
+fn streaming_loop() -> &'static str {
+    "rev fn axpy(a: &mut [i64; 4000000], b: &[i64; 4000000], i: &mut i64, k: &i64) {
+        #[parallel] from i == 0 { a[i] += b[i] * k; } loop { i += 1; } until i == 3999999;
+    }"
 }
 
 fn stderr(out: &Output) -> String {
@@ -50,11 +71,11 @@ fn stderr(out: &Output) -> String {
 }
 
 #[test]
-fn heavy_loop_goes_to_the_gpu_unless_auto_is_off() {
+fn arithmetic_heavy_loop_goes_to_the_gpu_unless_auto_is_off() {
     if !cfg!(target_os = "macos") {
         return;
     }
-    let on = project("auto-on", "[parallel]\nauto = true\n", &heavy_loop());
+    let on = project("auto-on", "[parallel]\nauto = true\n", &chain_loop(100));
     assert!(
         roop(&on, &["build", "prog.roop", "--emit", "ir"])
             .status
@@ -64,7 +85,7 @@ fn heavy_loop_goes_to_the_gpu_unless_auto_is_off() {
     assert!(ir.contains("call i32 @roop_gpu_dispatch(i32 0"), "{ir}");
     assert!(on.join("prog.air.ll").exists());
 
-    let off = project("auto-off", "[parallel]\nauto = false\n", &heavy_loop());
+    let off = project("auto-off", "[parallel]\nauto = false\n", &chain_loop(100));
     assert!(
         roop(&off, &["build", "prog.roop", "--emit", "ir"])
             .status
@@ -74,6 +95,19 @@ fn heavy_loop_goes_to_the_gpu_unless_auto_is_off() {
     assert!(ir.contains("call void @roop_parallel_for"));
     assert!(!ir.contains("call i32 @roop_gpu_dispatch"));
     assert!(!off.join("prog.air.ll").exists());
+}
+
+#[test]
+fn memory_bound_loop_stays_on_the_cpu_even_with_auto_on() {
+    let dir = project("streaming", "", streaming_loop());
+    assert!(
+        roop(&dir, &["build", "prog.roop", "--emit", "ir"])
+            .status
+            .success()
+    );
+    let ir = std::fs::read_to_string(dir.join("prog.ll")).unwrap();
+    assert!(ir.contains("call void @roop_parallel_for"));
+    assert!(!ir.contains("call i32 @roop_gpu_dispatch"));
 }
 
 #[test]
