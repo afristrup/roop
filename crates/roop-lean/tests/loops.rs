@@ -73,3 +73,21 @@ fn lean_rejects_a_loop_whose_body_is_not_reversible() {
         "Lean should not prove this loop reversible"
     );
 }
+
+#[test]
+fn lean_rejects_a_loop_with_a_corrupted_inverse_body() {
+    let mut t = support::translation(
+        "fn count(x: &mut i64, i: &mut i64, n: &i64) {
+            from i == 0 { x += 2; } loop { i += 1; } until i == n;
+         }",
+    );
+    assert!(support::lean_accepts(&t).is_ok());
+    t.lean = t.lean.replace(
+        "\u{ab}x\u{bb} := (\u{ab}x\u{bb} - (2 : Roop.I64))",
+        "\u{ab}x\u{bb} := (\u{ab}x\u{bb} - (3 : Roop.I64))",
+    );
+    assert!(
+        support::lean_accepts(&t).is_err(),
+        "the loop lemma must depend on the body being inverted correctly"
+    );
+}
