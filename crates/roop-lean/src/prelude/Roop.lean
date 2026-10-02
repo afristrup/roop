@@ -2,7 +2,6 @@ import Std.Tactic.BVDecide
 
 set_option linter.unusedSimpArgs false
 set_option linter.unusedVariables false
-set_option linter.unusedTactic false
 set_option maxRecDepth 4096
 
 namespace Roop
