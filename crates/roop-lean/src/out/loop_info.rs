@@ -7,4 +7,6 @@ pub struct LoopInfo {
     pub id: String,
     pub captures: Vec<(String, Type)>,
     pub state: Vec<(String, Type)>,
+    /// The loop variable of a `#[parallel]` loop.
+    pub parallel: Option<String>,
 }

@@ -32,7 +32,20 @@ pub fn lean_stmt(
             body,
             step,
             until,
-        } => lean_loop(cx, env, out, stmt.span.start, entry, body, step, until, dir),
+        } => {
+            let parallel = stmt.attrs.iter().any(|a| matches!(a, Attr::Parallel { .. }));
+            lean_loop(
+                cx,
+                env,
+                out,
+                (stmt.span.start, parallel),
+                entry,
+                body,
+                step,
+                until,
+                dir,
+            )
+        }
         StmtKind::Ancilla {
             name,
             ty,

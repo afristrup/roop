@@ -3,7 +3,7 @@ use crate::{
     tuple_expr, tuple_proj,
 };
 use roop_check::body_effects;
-use roop_syntax::{Block, Expr, Place};
+use roop_syntax::{Block, Expr, Place, counted_loop};
 
 /// A reversible loop as the prelude's `Roop.janus` over the tuple of variables
 /// the loop writes. Its pieces are lifted into top-level definitions: forward
@@ -15,6 +15,7 @@ pub fn lean_loop(
     env: &mut Env,
     out: &mut Out,
     at: usize,
+    parallel: bool,
     entry: &Expr,
     body: &Block,
     step: &Block,
@@ -28,10 +29,15 @@ pub fn lean_loop(
         .into_iter()
         .partition(|(name, _)| written.contains(name));
     let id = format!("{}__loop{at}", env.function);
+    let parallel = parallel
+        .then(|| counted_loop(entry, step, until))
+        .flatten()
+        .map(|counted| counted.var.to_string());
     let info = LoopInfo {
         id: id.clone(),
         captures,
         state,
+        parallel,
     };
     let piece = |part: &str| esc_fn(&format!("{id}_{part}"));
     let args: Vec<String> = info.captures.iter().map(|(n, _)| esc(n)).collect();
