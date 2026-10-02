@@ -1,7 +1,7 @@
 use crate::{
     CodegenError, Dialect, Dir, FnGen, gen_ancilla, gen_block, gen_borrow, gen_call, gen_chan,
-    gen_from, gen_if, gen_match, gen_parallel_auto, gen_parallel_cpu, gen_parallel_gpu, gen_recv,
-    gen_send, gen_swap, gen_try, gen_update, parallel_attr,
+    gen_from, gen_if, gen_match, gen_overwrite, gen_parallel_auto, gen_parallel_cpu,
+    gen_parallel_gpu, gen_recv, gen_send, gen_swap, gen_try, gen_update, parallel_attr,
 };
 use roop_syntax::{Stmt, StmtKind, Target};
 
@@ -52,6 +52,11 @@ pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError
         StmtKind::Uncall { callee, args } => gen_call(g, callee, args, true, dir),
         StmtKind::Try { body, handler } => gen_try(g, body, handler, dir),
         StmtKind::Block(body) => gen_block(g, body, dir),
+        StmtKind::Irrev(body) => match dir {
+            Dir::Forward => gen_block(g, body, dir),
+            Dir::Backward => Err(CodegenError::Unsupported("running an irrev block backward")),
+        },
+        StmtKind::Overwrite { target, op, value } => gen_overwrite(g, target, *op, value, dir),
         StmtKind::Chan { name, ty, body } => gen_chan(g, name, ty, body, dir),
         StmtKind::Send { chan, source } => gen_send(g, chan, source, dir),
         StmtKind::Recv { chan, target } => gen_recv(g, chan, target, dir),
