@@ -37,7 +37,7 @@ pub fn lean_loop(
     let args: Vec<String> = info.captures.iter().map(|(n, _)| esc(n)).collect();
     let applied = |part: &str| format!("({} {})", piece(part), args.join(" "));
 
-    let (first, second, janus) = match dir {
+    let janus = match dir {
         Dir::Forward => {
             lean_piece(
                 cx,
@@ -59,16 +59,12 @@ pub fn lean_loop(
             )?;
             lean_piece(cx, env, out, &info, &piece("body"), Piece::Block(body), dir)?;
             lean_piece(cx, env, out, &info, &piece("step"), Piece::Block(step), dir)?;
-            (
-                "body",
-                "step",
-                format!(
-                    "{} {} {} {}",
-                    applied("entry"),
-                    applied("stop"),
-                    applied("body"),
-                    applied("step")
-                ),
+            format!(
+                "{} {} {} {}",
+                applied("entry"),
+                applied("stop"),
+                applied("body"),
+                applied("step")
             )
         }
         Dir::Backward => {
@@ -90,20 +86,15 @@ pub fn lean_loop(
                 Piece::Block(step),
                 dir,
             )?;
-            (
-                "body_inv",
-                "step_inv",
-                format!(
-                    "{} {} {} {}",
-                    applied("stop"),
-                    applied("entry"),
-                    applied("body_inv"),
-                    applied("step_inv")
-                ),
+            format!(
+                "{} {} {} {}",
+                applied("stop"),
+                applied("entry"),
+                applied("body_inv"),
+                applied("step_inv")
             )
         }
     };
-    let _ = (first, second);
 
     let names: Vec<String> = info.state.iter().map(|(n, _)| esc(n)).collect();
     let result = out.fresh("__loop");

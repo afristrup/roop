@@ -32,7 +32,7 @@ pub fn lean_stmt(
             body,
             step,
             until,
-        } => lean_loop(cx, env, out, entry, body, step, until, dir),
+        } => lean_loop(cx, env, out, stmt.span.start, entry, body, step, until, dir),
         StmtKind::Ancilla {
             name,
             ty,
