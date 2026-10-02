@@ -1,6 +1,6 @@
 use crate::{
-    Ctx, Dir, Env, FnText, LeanError, Out, esc, esc_fn, is_mut_ref, lean_block, lean_type, tuple_expr,
-    tuple_type,
+    Ctx, Dir, Env, FnText, LeanError, Out, esc, esc_fn, is_mut_ref, lean_block, lean_type,
+    tuple_expr, tuple_type,
 };
 use roop_syntax::FnDef;
 

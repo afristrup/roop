@@ -82,16 +82,19 @@ struct Piece {
 }
 
 fn translate_fn(cx: &Ctx, def: &FnDef, deps: &[String]) -> Result<Piece, LeanError> {
-    let (mut text, loops) = lean_fn(cx, def, Dir::Forward)?;
+    let forward = lean_fn(cx, def, Dir::Forward)?;
+    let (mut text, loops) = (forward.text, forward.loops);
     let reversible = !is_irreversible_fn(def);
     let inexact = text.contains("Float");
     let mut open = Vec::new();
     if reversible {
-        text.push_str(&lean_fn(cx, def, Dir::Backward)?.0);
+        let backward = lean_fn(cx, def, Dir::Backward)?;
+        text.push_str(&backward.text);
+        let ancillas = forward.ancillas > 0 || backward.ancillas > 0;
         let theorems = if inexact {
             None
         } else {
-            lean_theorems(def, deps, loops > 0)
+            lean_theorems(def, deps, loops > 0, ancillas)
         };
         if let Some(theorems) = theorems {
             text.push_str(&theorems);
