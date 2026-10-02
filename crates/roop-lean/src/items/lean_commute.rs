@@ -10,7 +10,7 @@ const SCRIPT: &str = "  repeat' roop_cases
 
 /// A `#[parallel]` loop runs its iterations in any order, so any two of them
 /// must commute: running iteration `v` then `w` ends in the same state as `w`
-/// then `v`, whatever the starting state. This is what the checker's
+/// then `v`, whatever the starting state, or both fail. This is what the checker's
 /// disjointness rules promise, stated as a theorem about the loop body. The
 /// loop variable is reset at the end, since it is the only thing that differs.
 pub fn lean_commute(info: &LoopInfo, deps: &[String], lifted: &str) -> Option<String> {
@@ -57,11 +57,11 @@ pub fn lean_commute(info: &LoopInfo, deps: &[String], lifted: &str) -> Option<St
             with(&after("u"), "(0 : Roop.I64)"),
         )
     };
-    let mut unfold = vec![esc_fn(&format!("{id}_body"))];
+    let mut unfold = vec![esc_fn(&format!("{id}_body")), "Roop.agree".to_string()];
     unfold.extend(deps.iter().cloned());
     let (v, w) = ("\u{ab}__v\u{bb}", "\u{ab}__w\u{bb}");
     Some(format!(
-        "theorem {} {} {} ({v} {w} : Roop.I64) (hvw : {v} \u{2260} {w}) :\n    {} =\n    {} := by\n  have hne : {v}.toNat \u{2260} {w}.toNat := fun h => hvw (BitVec.eq_of_toNat_eq h)\n{}{}\n",
+        "theorem {} {} {} ({v} {w} : Roop.I64) (hvw : {v} \u{2260} {w}) :\n    Roop.agree\n    {}\n    {} := by\n  have hne : {v}.toNat \u{2260} {w}.toNat := fun h => hvw (BitVec.eq_of_toNat_eq h)\n{}{}\n",
         esc_thm(&format!("{id}_commute")),
         explicit.join(" "),
         typed.join(" "),

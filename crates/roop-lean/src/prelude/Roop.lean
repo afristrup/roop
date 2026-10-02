@@ -31,6 +31,13 @@ def aset {α : Type} {n : Nat} (v : Vector α n) (i : I64) (x : α) : Res (Vecto
 
 def fuelBound : Nat := 1000000
 
+/-- Two runs agree when both fail, whatever the reason, or both end in the same
+state. Parallel iterations may fail in any order, so that is all they promise. -/
+def agree {σ : Type} : Res σ → Res σ → Prop
+  | .ok a, .ok b => a = b
+  | .error _, .error _ => True
+  | _, _ => False
+
 /-- A reversible loop `from entry { body } loop { step } until stop`:
 assert `entry`, then alternate `body` and `step` until `stop` holds, asserting
 that `entry` is false again after every `step`. -/
