@@ -246,7 +246,7 @@ impl fmt::Display for CheckError {
             ),
             Self::TryOutcomeWritten { var, span } => write!(
                 f,
-                "the outcome `{var}` is written by the try body or handler at {}..{}",
+                "the outcome `{var}` is used by the try body or handler at {}..{}",
                 span.start, span.end
             ),
             Self::UnpairedBuild { name, span } => write!(

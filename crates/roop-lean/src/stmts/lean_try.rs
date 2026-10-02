@@ -23,9 +23,11 @@ pub fn lean_try(
     let mut written = body_effects(body).writes;
     written.extend(body_effects(handler).writes);
     written.extend(env.logged.iter().map(|h| place_root(h).to_string()));
+    let outcome_root = place_root(outcome);
     let (state, captures): (Vec<_>, Vec<_>) = env
         .visible()
         .into_iter()
+        .filter(|(name, _)| name != outcome_root)
         .partition(|(name, _)| written.contains(name));
     let id = format!("{}__try{at}", env.function);
     let info = Lifted {
