@@ -93,7 +93,11 @@ int main(void) {{
 }}
 "#
     );
-    assert_eq!(run(src, &main), -1, "undoing a state the function did not produce fails");
+    assert_eq!(
+        run(src, &main),
+        -1,
+        "undoing a state the function did not produce fails"
+    );
 }
 
 #[test]

@@ -1,5 +1,6 @@
 use crate::{
-    CodegenError, FnGen, Slot, StackParts, Value, bool_type, check_zero, gen_assert, mem_store, same_type, stack_elem_ptr, stack_len_ptr,
+    CodegenError, FnGen, Slot, StackParts, Value, bool_type, check_zero, gen_assert, mem_store,
+    same_type, stack_elem_ptr, stack_len_ptr,
 };
 
 /// Pushes a value. The free slot must be zero, which every pop leaves behind,

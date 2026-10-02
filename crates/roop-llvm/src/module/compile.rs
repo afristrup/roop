@@ -78,8 +78,15 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
                     let Some(ctor) = ctor else { continue };
                     let symbol = format!("{}_{suffix}", def.name);
                     let (params, body) = (&ctor.params, &ctor.body);
-                    let out =
-                        gen_function(&ctx, &symbol, Some(&def.name), params, body, Dir::Forward, false)?;
+                    let out = gen_function(
+                        &ctx,
+                        &symbol,
+                        Some(&def.name),
+                        params,
+                        body,
+                        Dir::Forward,
+                        false,
+                    )?;
                     host.push_str(&out.text);
                     host.push('\n');
                     kernels.extend(out.kernels);

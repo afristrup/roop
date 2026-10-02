@@ -17,8 +17,7 @@ pub fn check_try(
 ) -> Result<(), CheckError> {
     if let Some(outcome) = outcome {
         for block in [body, handler] {
-            if let Some((what, at)) =
-                find_non_unwindable(block, scope.logged, scope.non_atomic_fns)
+            if let Some((what, at)) = find_non_unwindable(block, scope.logged, scope.non_atomic_fns)
             {
                 return Err(CheckError::NotUnwindable { what, span: at });
             }

@@ -1,6 +1,7 @@
 use crate::{
-    CodegenError, Dir, FnGen, Value, apply_overwrite, bool_type, gen_assert, gen_binary, gen_expr,
-    gen_place, kind_of, drop_top, mem_load, mem_store, peek_top, push_value, same_type, stack_parts,
+    CodegenError, Dir, FnGen, Value, apply_overwrite, bool_type, drop_top, gen_assert, gen_binary,
+    gen_expr, gen_place, kind_of, mem_load, mem_store, peek_top, push_value, same_type,
+    stack_parts,
 };
 use roop_syntax::{BinOp, Expr, OverwriteOp, Place};
 

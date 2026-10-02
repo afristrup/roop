@@ -1,6 +1,5 @@
 use crate::{
-    CodegenError, Dir, FnGen, Kind, check_zero, gen_place, gen_unwinding, kind_of,
-    llvm_type,
+    CodegenError, Dir, FnGen, Kind, check_zero, gen_place, gen_unwinding, kind_of, llvm_type,
 };
 use roop_syntax::{Block, Place};
 
@@ -23,12 +22,13 @@ pub fn gen_tagged_try(
     let (set, test) = match kind {
         Kind::Bool => ("true", "icmp ne"),
         Kind::Int => ("1", "icmp ne"),
-        _ => return Err(CodegenError::InvalidOperand("the outcome must be bool or i64")),
+        _ => {
+            return Err(CodegenError::InvalidOperand(
+                "the outcome must be bool or i64",
+            ));
+        }
     };
-    let (zero, after) = (
-        if kind == Kind::Bool { "false" } else { "0" },
-        g.fresh("L"),
-    );
+    let (zero, after) = (if kind == Kind::Bool { "false" } else { "0" }, g.fresh("L"));
     match dir {
         Dir::Forward => {
             check_zero(g, &slot)?;

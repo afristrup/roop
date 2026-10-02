@@ -1,6 +1,6 @@
 use crate::{
-    CodegenError, Dir, FnGen, apply_overwrite, gen_expr, gen_logged_overwrite, gen_place,
-    mem_load, mem_store, same_type,
+    CodegenError, Dir, FnGen, apply_overwrite, gen_expr, gen_logged_overwrite, gen_place, mem_load,
+    mem_store, same_type,
 };
 use roop_syntax::{Expr, OverwriteOp, Place};
 

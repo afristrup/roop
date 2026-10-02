@@ -1,6 +1,6 @@
 use crate::{
-    CodegenError, Dir, FnGen, gen_call_status, gen_stmt, unwind_from, unwind_if, unwind_match,
-    unwind_scope, gen_tagged_try,
+    CodegenError, Dir, FnGen, gen_call_status, gen_stmt, gen_tagged_try, unwind_from, unwind_if,
+    unwind_match, unwind_scope,
 };
 use roop_syntax::{Stmt, StmtKind};
 

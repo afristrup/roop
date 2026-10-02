@@ -33,7 +33,10 @@ pub fn layout(ctx: &Ctx, ty: &Type) -> Result<(u64, u64), CodegenError> {
         Type::Stack(elem, cap) => {
             let (size, align) = layout(ctx, elem)?;
             let widest = align.max(8);
-            Ok(((8u64.next_multiple_of(align) + size * cap).next_multiple_of(widest), widest))
+            Ok((
+                (8u64.next_multiple_of(align) + size * cap).next_multiple_of(widest),
+                widest,
+            ))
         }
         Type::Ref { .. } => Ok((8, 8)),
     }

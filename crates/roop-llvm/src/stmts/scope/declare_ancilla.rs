@@ -2,11 +2,7 @@ use crate::{CodegenError, FnGen, Slot, gen_expr, llvm_type, mem_store, same_type
 use roop_syntax::{Expr, Type};
 
 /// Allocates the ancilla and stores its start value; `empty` is a zeroed stack.
-pub fn declare_ancilla(
-    g: &mut FnGen,
-    ty: &Type,
-    init: &Expr,
-) -> Result<Slot, CodegenError> {
+pub fn declare_ancilla(g: &mut FnGen, ty: &Type, init: &Expr) -> Result<Slot, CodegenError> {
     let llvm_ty = llvm_type(g.ctx, ty)?;
     let addr = g.alloca(&llvm_ty);
     let slot = Slot {

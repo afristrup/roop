@@ -22,7 +22,14 @@ fn collect_stmt(stmt: &Stmt, scope: &mut Vec<Binding>, out: &mut Vec<Access>) {
         StmtKind::Send { source: place, .. } | StmtKind::Recv { target: place, .. } => {
             written(place, scope, out)
         }
-        StmtKind::Push { stack, source: place } | StmtKind::Pop { stack, target: place } => {
+        StmtKind::Push {
+            stack,
+            source: place,
+        }
+        | StmtKind::Pop {
+            stack,
+            target: place,
+        } => {
             written(stack, scope, out);
             written(place, scope, out);
         }

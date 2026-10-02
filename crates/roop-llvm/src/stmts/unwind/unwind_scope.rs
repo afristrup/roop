@@ -3,12 +3,7 @@ use roop_syntax::{Stmt, StmtKind};
 
 /// Statements that only scope a name or a history around a block: the
 /// block does the unwinding, the scope just disappears.
-pub fn unwind_scope(
-    g: &mut FnGen,
-    stmt: &Stmt,
-    dir: Dir,
-    fail: &str,
-) -> Result<(), CodegenError> {
+pub fn unwind_scope(g: &mut FnGen, stmt: &Stmt, dir: Dir, fail: &str) -> Result<(), CodegenError> {
     match &stmt.kind {
         StmtKind::Ancilla {
             name,

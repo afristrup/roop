@@ -1,7 +1,8 @@
 use crate::{
     CodegenError, Dialect, Dir, FnGen, gen_ancilla, gen_block, gen_borrow, gen_call, gen_chan,
-    gen_from, gen_if, gen_logged, gen_match, gen_overwrite, gen_pop, gen_push, gen_parallel_auto, gen_parallel_cpu,
-    gen_parallel_gpu, gen_recv, gen_send, gen_swap, gen_try, gen_update, parallel_attr,
+    gen_from, gen_if, gen_logged, gen_match, gen_overwrite, gen_parallel_auto, gen_parallel_cpu,
+    gen_parallel_gpu, gen_pop, gen_push, gen_recv, gen_send, gen_swap, gen_try, gen_update,
+    parallel_attr,
 };
 use roop_syntax::{Stmt, StmtKind, Target};
 

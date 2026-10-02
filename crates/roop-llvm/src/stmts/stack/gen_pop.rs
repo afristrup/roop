@@ -3,12 +3,7 @@ use roop_syntax::Place;
 
 /// `pop s -> x` moves the top into `x`, which must be zero; backward it is a
 /// `push` of `x` back onto the stack.
-pub fn gen_pop(
-    g: &mut FnGen,
-    stack: &Place,
-    target: &Place,
-    dir: Dir,
-) -> Result<(), CodegenError> {
+pub fn gen_pop(g: &mut FnGen, stack: &Place, target: &Place, dir: Dir) -> Result<(), CodegenError> {
     let stack_slot = gen_place(g, stack)?;
     let parts = stack_parts(g, &stack_slot)?;
     let place = gen_place(g, target)?;
