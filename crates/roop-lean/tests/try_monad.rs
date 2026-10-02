@@ -74,9 +74,12 @@ fn lean_rejects_a_handler_whose_inverse_is_wrong() {
          }",
     );
     assert!(support::lean_accepts(&t).is_ok());
-    t.lean = t.lean.replace(
-        "\u{ab}x\u{bb} := (\u{ab}x\u{bb} + (1 : Roop.I64))\n  return (\u{ab}x\u{bb})\n\ndef Fn.\u{ab}guarded\u{bb}",
-        "\u{ab}x\u{bb} := (\u{ab}x\u{bb} + (2 : Roop.I64))\n  return (\u{ab}x\u{bb})\n\ndef Fn.\u{ab}guarded\u{bb}",
+    let at = t.lean.find("_handler_inv\u{bb}").expect("the inverse handler");
+    let (head, tail) = t.lean.split_at(at);
+    let tail = tail.replacen("(1 : Roop.I64)", "(2 : Roop.I64)", 1);
+    t.lean = format!("{head}{tail}");
+    assert!(
+        support::lean_accepts(&t).is_err(),
+        "the try is only undone if its handler is"
     );
-    let _ = &t;
 }
