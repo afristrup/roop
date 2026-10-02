@@ -25,17 +25,20 @@ pub fn gen_function(
     }
     for param in params {
         let arg = format!("%arg_{}", param.name);
-        let ty = llvm_type(ctx, &param.ty)?;
-        signature.push(format!("{ty} {arg}"));
+        let llty = llvm_type(ctx, &param.ty)?;
+        signature.push(format!("{llty} {arg}"));
         let slot = match &param.ty {
             Type::Ref { inner, .. } => Slot {
                 addr: arg,
                 ty: (**inner).clone(),
             },
             ty => {
-                let addr = g.alloca(&ty_llvm(&ty_str(&ty), &ty, ctx)?);
-                g.emit(&format!("store {ty_name} {arg}, ptr {addr}", ty_name = llvm_type(ctx, ty)?));
-                Slot { addr, ty: ty.clone() }
+                let addr = g.alloca(&llty);
+                g.emit(&format!("store {llty} {arg}, ptr {addr}"));
+                Slot {
+                    addr,
+                    ty: ty.clone(),
+                }
             }
         };
         g.vars.push((param.name.clone(), slot));
