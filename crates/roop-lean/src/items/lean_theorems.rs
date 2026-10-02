@@ -4,6 +4,11 @@ use roop_syntax::{FnDef, Param};
 /// The proof script. Unfold both functions, split every branch, simplify the
 /// results into equations, substitute them, and finish with simplification,
 /// linear bit-vector arithmetic, or a SAT call on the bit-blasted goal.
+/// Names of the generated result variables; double underscores keep them clear
+/// of user parameters.
+const OUT: &str = "\u{ab}__out\u{bb}";
+const INIT: &str = "\u{ab}__init\u{bb}";
+
 const SCRIPT: &str = "  all_goals (try (repeat' (first | split at h | split)))
   all_goals (try simp at *)
   all_goals (try subst_vars)
@@ -63,19 +68,19 @@ pub fn lean_theorems(def: &FnDef, deps: &[String], loops: bool) -> Option<String
         .map(typed)
         .collect();
     let mut text = format!(
-        "theorem {} {} (r : {tuple}) (h : {f} {} = Except.ok r) :\n    {f_inv} {} = Except.ok {} := by\n{proof}\n",
+        "theorem {} {} ({OUT} : {tuple}) (h : {f} {} = Except.ok {OUT}) :\n    {f_inv} {} = Except.ok {} := by\n{proof}\n",
         esc(&format!("{}_inv_f", def.name)),
         all_params.join(" "),
         inputs.join(" "),
-        with_components("r").join(" "),
+        with_components(OUT).join(" "),
         tuple_expr(&initial),
     );
     text.push_str(&format!(
-        "theorem {} {} (r : {tuple}) (s : {tuple}) (h : {f_inv} {} = Except.ok s) :\n    {f} {} = Except.ok r := by\n{proof}\n",
+        "theorem {} {} ({OUT} : {tuple}) ({INIT} : {tuple}) (h : {f_inv} {} = Except.ok {INIT}) :\n    {f} {} = Except.ok {OUT} := by\n{proof}\n",
         esc(&format!("{}_f_inv", def.name)),
         read_only.join(" "),
-        with_components("r").join(" "),
-        with_components("s").join(" "),
+        with_components(OUT).join(" "),
+        with_components(INIT).join(" "),
     ));
     Some(text)
 }
