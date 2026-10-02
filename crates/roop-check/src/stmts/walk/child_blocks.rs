@@ -10,10 +10,15 @@ pub fn child_blocks(stmt: &Stmt) -> Vec<&Block> {
         StmtKind::From { body, step, .. } => vec![body, step],
         StmtKind::Match { arms, .. } => arms.iter().map(|arm| &arm.body).collect(),
         StmtKind::Try { body, handler } => vec![body, handler],
-        StmtKind::Ancilla { body, .. } | StmtKind::Borrow { body, .. } => vec![body],
+        StmtKind::Ancilla { body, .. }
+        | StmtKind::Borrow { body, .. }
+        | StmtKind::Chan { body, .. } => vec![body],
+        StmtKind::Block(block) => vec![block],
         StmtKind::Update { .. }
         | StmtKind::Swap(..)
         | StmtKind::Call { .. }
-        | StmtKind::Uncall { .. } => Vec::new(),
+        | StmtKind::Uncall { .. }
+        | StmtKind::Send { .. }
+        | StmtKind::Recv { .. } => Vec::new(),
     }
 }

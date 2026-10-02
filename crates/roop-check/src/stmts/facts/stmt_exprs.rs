@@ -11,6 +11,12 @@ pub fn stmt_exprs(stmt: &Stmt) -> Vec<&Expr> {
             .collect(),
         StmtKind::Ancilla { init, .. } => vec![init],
         StmtKind::Call { args, .. } | StmtKind::Uncall { args, .. } => args.iter().collect(),
-        StmtKind::Swap(..) | StmtKind::Borrow { .. } | StmtKind::Try { .. } => Vec::new(),
+        StmtKind::Swap(..)
+        | StmtKind::Borrow { .. }
+        | StmtKind::Try { .. }
+        | StmtKind::Block(_)
+        | StmtKind::Chan { .. }
+        | StmtKind::Send { .. }
+        | StmtKind::Recv { .. } => Vec::new(),
     }
 }

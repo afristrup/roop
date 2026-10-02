@@ -11,6 +11,8 @@ pub fn stmt_places(stmt: &Stmt) -> Vec<&Place> {
             push_place(b, &mut out);
         }
         StmtKind::Borrow { source, .. } => push_place(source, &mut out),
+        StmtKind::Send { source, .. } => push_place(source, &mut out),
+        StmtKind::Recv { target, .. } => push_place(target, &mut out),
         _ => {}
     }
     for expr in stmt_exprs(stmt) {
