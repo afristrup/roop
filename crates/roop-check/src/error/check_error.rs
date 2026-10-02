@@ -36,6 +36,28 @@ pub enum CheckError {
         var: String,
         span: Span,
     },
+    ParallelNotLoop {
+        span: Span,
+    },
+    ParallelLoopShape {
+        span: Span,
+    },
+    ParallelBoundModified {
+        var: String,
+        span: Span,
+    },
+    ParallelInductionWritten {
+        var: String,
+        span: Span,
+    },
+    ParallelWriteNotDisjoint {
+        var: String,
+        span: Span,
+    },
+    ParallelCrossIteration {
+        var: String,
+        span: Span,
+    },
     TryCannotFail {
         span: Span,
     },
@@ -75,6 +97,36 @@ impl fmt::Display for CheckError {
             Self::BorrowIndexModified { var, span } => write!(
                 f,
                 "`{var}` selects a borrowed place and is modified in the borrow at {}..{}",
+                span.start, span.end
+            ),
+            Self::ParallelNotLoop { span } => write!(
+                f,
+                "#[parallel] applies only to from loops at {}..{}",
+                span.start, span.end
+            ),
+            Self::ParallelLoopShape { span } => write!(
+                f,
+                "#[parallel] needs `from v == lo {{..}} loop {{ v += k; }} until v == hi` with k > 0 at {}..{}",
+                span.start, span.end
+            ),
+            Self::ParallelBoundModified { var, span } => write!(
+                f,
+                "loop bound `{var}` is modified by the parallel body at {}..{}",
+                span.start, span.end
+            ),
+            Self::ParallelInductionWritten { var, span } => write!(
+                f,
+                "parallel body writes its induction variable `{var}` at {}..{}",
+                span.start, span.end
+            ),
+            Self::ParallelWriteNotDisjoint { var, span } => write!(
+                f,
+                "write to `{var}` is not indexed by the loop variable, so iterations collide at {}..{}",
+                span.start, span.end
+            ),
+            Self::ParallelCrossIteration { var, span } => write!(
+                f,
+                "an access to `{var}` overlaps another iteration's write at {}..{}",
                 span.start, span.end
             ),
             Self::TryCannotFail { span } => write!(

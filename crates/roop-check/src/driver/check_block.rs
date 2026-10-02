@@ -1,8 +1,9 @@
-use crate::{CheckError, check_ancilla, check_borrow, check_try, check_update};
+use crate::{CheckError, check_ancilla, check_borrow, check_parallel, check_try, check_update};
 use roop_syntax::{Block, StmtKind};
 
 pub fn check_block(block: &Block) -> Result<(), CheckError> {
     for stmt in &block.stmts {
+        check_parallel(stmt)?;
         match &stmt.kind {
             StmtKind::Update { target, value, .. } => check_update(target, value, stmt.span)?,
             StmtKind::Swap(..) | StmtKind::Call { .. } | StmtKind::Uncall { .. } => {}
