@@ -36,6 +36,7 @@ fn gpu_always() -> CostModel {
         gpu_launch_ns: 0.0,
         copy_bytes_per_ns: 1e9,
         gpu_ops_per_ns: 1e6,
+        gpu_bytes_per_ns: 1e9,
         ..CostModel::default()
     }
 }
@@ -48,6 +49,7 @@ fn gpu_when_large() -> CostModel {
         gpu_launch_ns: 1000.0,
         copy_bytes_per_ns: 1e9,
         gpu_ops_per_ns: 1e6,
+        gpu_bytes_per_ns: 1e9,
         ..CostModel::default()
     }
 }
