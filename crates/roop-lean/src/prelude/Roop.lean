@@ -259,6 +259,16 @@ theorem Stack.push_pop {α : Type} [HasZero α] [BEq α] [LawfulBEq α] {n : Nat
   · simp at h
 
 
+theorem Stack.push_ne_ancilla {α : Type} [HasZero α] [BEq α] {n : Nat} {s : Stack α n} {x : α} :
+    s.push x ≠ .error .ancilla := by
+  unfold Stack.push
+  split <;> (try split) <;> simp
+
+theorem Stack.pop_ne_ancilla {α : Type} [HasZero α] {n : Nat} {s : Stack α n} :
+    s.pop ≠ .error .ancilla := by
+  unfold Stack.pop
+  split <;> simp
+
 /-- `try body catch handler -> failed`: run the body; if it fails, its effects
 are gone (the model is pure, so they never happened), and the handler runs on
 the original state. The outcome says which side ran. -/
