@@ -65,6 +65,8 @@ pub enum Token<'a> {
     #[regex(r"[0-9]+\.[0-9]+")]
     Float(&'a str),
 
+    #[token("#")]
+    Hash,
     #[token("{")]
     LBrace,
     #[token("}")]

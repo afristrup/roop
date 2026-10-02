@@ -1,5 +1,7 @@
 use crate::{Block, Stmt, StmtKind, Token, UpdateOp};
-use crate::{Err, TokenInput, block, borrow_stmt, expr, ident, match_stmt, place, try_stmt, ty};
+use crate::{
+    Err, TokenInput, attr, block, borrow_stmt, expr, ident, match_stmt, place, try_stmt, ty,
+};
 use chumsky::prelude::*;
 
 pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clone {
@@ -94,7 +96,7 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
             .then_ignore(semi)
             .map(|(callee, args)| StmtKind::Uncall { callee, args });
 
-        update
+        let kind = update
             .or(swap)
             .or(if_)
             .or(match_)
@@ -103,8 +105,14 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
             .or(from)
             .or(ancilla)
             .or(call)
-            .or(uncall)
-            .map_with(|kind, e| Stmt {
+            .or(uncall);
+
+        attr()
+            .repeated()
+            .collect()
+            .then(kind)
+            .map_with(|(attrs, kind), e| Stmt {
+                attrs,
                 kind,
                 span: e.span(),
             })
