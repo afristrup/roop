@@ -1,0 +1,143 @@
+// Level 2 of the reversible BLAS: matrix-vector operations on row-major
+// matrices `[[T; N]; M]` (M rows, N columns). `i` routines work on 64-bit
+// integers and reverse exactly; `d` routines work on f64.
+//
+// Every update here is constructive, so each routine's inverse is the reverse
+// routine of the RBLAS paper: gemv undoes itself with `-alpha`, and a
+// triangular solve is the inverse of the matching multiply.
+
+// y <- alpha * A * x + y
+pub fn igemv<M, N>(y: &mut [i64; M], a: &[[i64; N]; M], x: &[i64; N], alpha: &i64) {
+    ancilla i: i64 = 0 {
+        #[parallel]
+        from i == 0 {
+            ancilla j: i64 = 0 {
+                from j == 0 { y[i] += alpha * a[i][j] * x[j]; } loop { j += 1; } until j == N - 1;
+                j -= N - 1;
+            }
+        } loop { i += 1; } until i == M - 1;
+        i -= M - 1;
+    }
+}
+
+// y <- alpha * A^T * x + y
+pub fn igemvt<M, N>(y: &mut [i64; N], a: &[[i64; N]; M], x: &[i64; M], alpha: &i64) {
+    ancilla j: i64 = 0 {
+        #[parallel]
+        from j == 0 {
+            ancilla i: i64 = 0 {
+                from i == 0 { y[j] += alpha * a[i][j] * x[i]; } loop { i += 1; } until i == M - 1;
+                i -= M - 1;
+            }
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    }
+}
+
+// A <- alpha * x * y^T + A
+pub fn iger<M, N>(a: &mut [[i64; N]; M], x: &[i64; M], y: &[i64; N], alpha: &i64) {
+    ancilla i: i64 = 0 {
+        #[parallel]
+        from i == 0 {
+            ancilla j: i64 = 0 {
+                from j == 0 { a[i][j] += alpha * x[i] * y[j]; } loop { j += 1; } until j == N - 1;
+                j -= N - 1;
+            }
+        } loop { i += 1; } until i == M - 1;
+        i -= M - 1;
+    }
+}
+
+// x <- L * x, where L is the unit lower triangle of `a`: the diagonal is
+// taken to be one and the entries on and above it are ignored. Unit
+// triangular matrices are the ones whose product loses no information, so the
+// multiply needs no history. Rows are updated from the bottom up, so every
+// row reads the old values above it.
+pub fn itrmv<N>(x: &mut [i64; N], a: &[[i64; N]; N]) {
+    ancilla k: i64 = 0 {
+        from k == 0 {
+            ancilla j: i64 = 0 {
+                from j == 0 {
+                    if j < N - 1 - k {
+                        x[N - 1 - k] += a[N - 1 - k][j] * x[j];
+                    } else { } fi j < N - 1 - k;
+                } loop { j += 1; } until j == N - 1;
+                j -= N - 1;
+            }
+        } loop { k += 1; } until k == N - 1;
+        k -= N - 1;
+    }
+}
+
+// x <- L^-1 * x: the triangular solve is the reverse routine of the multiply.
+pub fn itrsv<N>(x: &mut [i64; N], a: &[[i64; N]; N]) {
+    uncall itrmv<N>(x, a);
+}
+
+// y <- alpha * A * x + y
+pub fn dgemv<M, N>(y: &mut [f64; M], a: &[[f64; N]; M], x: &[f64; N], alpha: &f64) {
+    ancilla i: i64 = 0 {
+        #[parallel]
+        from i == 0 {
+            ancilla j: i64 = 0 {
+                from j == 0 { y[i] += alpha * a[i][j] * x[j]; } loop { j += 1; } until j == N - 1;
+                j -= N - 1;
+            }
+        } loop { i += 1; } until i == M - 1;
+        i -= M - 1;
+    }
+}
+
+// y <- alpha * A^T * x + y
+pub fn dgemvt<M, N>(y: &mut [f64; N], a: &[[f64; N]; M], x: &[f64; M], alpha: &f64) {
+    ancilla j: i64 = 0 {
+        #[parallel]
+        from j == 0 {
+            ancilla i: i64 = 0 {
+                from i == 0 { y[j] += alpha * a[i][j] * x[i]; } loop { i += 1; } until i == M - 1;
+                i -= M - 1;
+            }
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    }
+}
+
+// A <- alpha * x * y^T + A
+pub fn dger<M, N>(a: &mut [[f64; N]; M], x: &[f64; M], y: &[f64; N], alpha: &f64) {
+    ancilla i: i64 = 0 {
+        #[parallel]
+        from i == 0 {
+            ancilla j: i64 = 0 {
+                from j == 0 { a[i][j] += alpha * x[i] * y[j]; } loop { j += 1; } until j == N - 1;
+                j -= N - 1;
+            }
+        } loop { i += 1; } until i == M - 1;
+        i -= M - 1;
+    }
+}
+
+// x <- L * x, where L is the unit lower triangle of `a`: the diagonal is
+// taken to be one and the entries on and above it are ignored. Unit
+// triangular matrices are the ones whose product loses no information, so the
+// multiply needs no history. Rows are updated from the bottom up, so every
+// row reads the old values above it.
+pub fn dtrmv<N>(x: &mut [f64; N], a: &[[f64; N]; N]) {
+    ancilla k: i64 = 0 {
+        from k == 0 {
+            ancilla j: i64 = 0 {
+                from j == 0 {
+                    if j < N - 1 - k {
+                        x[N - 1 - k] += a[N - 1 - k][j] * x[j];
+                    } else { } fi j < N - 1 - k;
+                } loop { j += 1; } until j == N - 1;
+                j -= N - 1;
+            }
+        } loop { k += 1; } until k == N - 1;
+        k -= N - 1;
+    }
+}
+
+// x <- L^-1 * x: the triangular solve is the reverse routine of the multiply.
+pub fn dtrsv<N>(x: &mut [f64; N], a: &[[f64; N]; N]) {
+    uncall dtrmv<N>(x, a);
+}

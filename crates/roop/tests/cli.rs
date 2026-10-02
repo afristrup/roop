@@ -1,39 +1,9 @@
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+mod support;
+
+use std::process::Command;
+use support::{project, roop, stderr};
 
 const ROOP: &str = env!("CARGO_BIN_EXE_roop");
-
-fn project(name: &str, config: &str, source: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("roop-cli-{name}-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("Roop.toml"), config).unwrap();
-    std::fs::write(dir.join("prog.roop"), source).unwrap();
-    dir
-}
-
-fn roop(dir: &Path, args: &[&str]) -> Output {
-    Command::new(ROOP)
-        .current_dir(dir)
-        .args(args)
-        .env("ROOP_RT_LIB", runtime_lib())
-        .output()
-        .unwrap()
-}
-
-fn runtime_lib() -> PathBuf {
-    static BUILD: std::sync::Once = std::sync::Once::new();
-    BUILD.call_once(|| {
-        let cargo = Command::new(env!("CARGO"));
-        let status = {
-            let mut c = cargo;
-            c.args(["build", "-p", "roop-rt"]).status().unwrap()
-        };
-        assert!(status.success());
-    });
-    let target = std::env::var("CARGO_TARGET_DIR")
-        .unwrap_or_else(|_| format!("{}/../../target", env!("CARGO_MANIFEST_DIR")));
-    PathBuf::from(target).join("debug/libroop_rt.a")
-}
 
 /// A chain of `links` dependent ancilla updates per element: a lot of
 /// arithmetic per byte that the compiler cannot fold away.
@@ -64,10 +34,6 @@ fn streaming_loop() -> &'static str {
     "fn axpy(a: &mut [i64; 4000000], b: &[i64; 4000000], i: &mut i64, k: &i64) {
         #[parallel] from i == 0 { a[i] += b[i] * k; } loop { i += 1; } until i == 3999999;
     }"
-}
-
-fn stderr(out: &Output) -> String {
-    String::from_utf8_lossy(&out.stderr).into_owned()
 }
 
 #[test]
