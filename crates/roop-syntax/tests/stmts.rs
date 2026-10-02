@@ -69,3 +69,23 @@ fn parses_borrow() {
     let kind = first_stmt("borrow c = x { c += y; }");
     assert!(matches!(kind, StmtKind::Borrow { .. }));
 }
+
+#[test]
+fn parses_parallel_attribute_with_and_without_target() {
+    use roop_syntax::{Attr, Target};
+    let src = "rev fn f(a: &mut [i64; 4], i: &mut i64) {
+        #[parallel] from i == 0 { a[i] += 1; } loop { i += 1; } until i == 3;
+        #[parallel(metal)] from i == 0 { a[i] += 1; } loop { i += 1; } until i == 3;
+    }";
+    let program = parse(src).unwrap();
+    let Item::Fn(f) = &program.items[0] else {
+        panic!("expected fn")
+    };
+    assert_eq!(f.body.stmts[0].attrs, [Attr::Parallel { target: None }]);
+    assert_eq!(
+        f.body.stmts[1].attrs,
+        [Attr::Parallel {
+            target: Some(Target::Metal)
+        }]
+    );
+}

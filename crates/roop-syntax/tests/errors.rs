@@ -40,3 +40,9 @@ fn rejects_try_without_handler() {
 fn rejects_borrow_without_source() {
     assert!(parse("rev fn f(x: &mut i64) { borrow c { c += 1; } }").is_err());
 }
+
+#[test]
+fn rejects_unknown_attribute_and_target() {
+    assert!(parse("rev fn f(x: &mut i64) { #[inline] x += 1; }").is_err());
+    assert!(parse("rev fn f(x: &mut i64) { #[parallel(tpu)] x += 1; }").is_err());
+}
