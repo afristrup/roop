@@ -16,6 +16,10 @@ pub fn stmt_reads<'a>(stmt: &'a Stmt, out: &mut HashSet<&'a str>) {
         StmtKind::Send { source: p, .. } | StmtKind::Recv { target: p, .. } => {
             place_vars(p, out);
         }
+        StmtKind::Push { stack, source: p } | StmtKind::Pop { stack, target: p } => {
+            place_vars(stack, out);
+            place_vars(p, out);
+        }
         StmtKind::Call { args, .. } | StmtKind::Uncall { args, .. } => {
             for arg in args {
                 expr_vars(arg, out);

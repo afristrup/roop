@@ -14,6 +14,18 @@ pub fn stmt_writes<'a>(stmt: &'a Stmt, out: &mut HashSet<&'a str>) {
         StmtKind::Send { source: p, .. } | StmtKind::Recv { target: p, .. } => {
             out.insert(place_root(p));
         }
+        StmtKind::Push { stack, source } => {
+            out.insert(place_root(stack));
+            out.insert(place_root(source));
+        }
+        StmtKind::Pop { stack, target } => {
+            out.insert(place_root(stack));
+            out.insert(place_root(target));
+        }
+        StmtKind::Logged { history, body } => {
+            out.insert(place_root(history));
+            block_writes(body, out);
+        }
         StmtKind::Block(block) | StmtKind::Irrev(block) | StmtKind::Chan { body: block, .. } => {
             block_writes(block, out)
         }
@@ -40,9 +52,16 @@ pub fn stmt_writes<'a>(stmt: &'a Stmt, out: &mut HashSet<&'a str>) {
             }
             out.extend(inner);
         }
-        StmtKind::Try { body, handler } => {
+        StmtKind::Try {
+            body,
+            handler,
+            outcome,
+        } => {
             block_writes(body, out);
             block_writes(handler, out);
+            if let Some(outcome) = outcome {
+                out.insert(place_root(outcome));
+            }
         }
         StmtKind::Match { arms, .. } => {
             for arm in arms {

@@ -18,6 +18,9 @@ pub fn stmt_exprs(stmt: &Stmt) -> Vec<&Expr> {
         | StmtKind::Irrev(_)
         | StmtKind::Chan { .. }
         | StmtKind::Send { .. }
-        | StmtKind::Recv { .. } => Vec::new(),
+        | StmtKind::Recv { .. }
+        | StmtKind::Push { .. }
+        | StmtKind::Pop { .. }
+        | StmtKind::Logged { .. } => Vec::new(),
     }
 }

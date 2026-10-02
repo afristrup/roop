@@ -68,7 +68,7 @@ fn visit_expr(expr: &Expr, f: &mut BodyFeatures, cells: &mut Cells) {
             visit_expr(r, f, cells);
         }
         Expr::Place(place) => touch(place, false, f, cells),
-        Expr::Int(_) | Expr::Bool(_) | Expr::Variant(..) => {}
+        Expr::Int(_) | Expr::Bool(_) | Expr::Empty | Expr::Variant(..) => {}
     }
 }
 

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 pub fn expr_vars<'a>(expr: &'a Expr, out: &mut HashSet<&'a str>) {
     match expr {
-        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Variant(..) => {}
+        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Empty | Expr::Variant(..) => {}
         Expr::Place(place) => place_vars(place, out),
         Expr::Unary(_, inner) => expr_vars(inner, out),
         Expr::Binary(lhs, _, rhs) => {
