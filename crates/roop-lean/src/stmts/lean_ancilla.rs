@@ -24,6 +24,7 @@ pub fn lean_ancilla(
     env.vars.pop();
     result?;
     if !env.irreversible {
+        out.ancillas += 1;
         out.line(&format!(
             "Roop.check ({} == {}) Roop.Fail.ancilla",
             esc(name),

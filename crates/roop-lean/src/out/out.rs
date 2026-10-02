@@ -5,6 +5,8 @@ pub struct Out {
     pub indent: usize,
     /// Loops translated so far; their reversibility needs an induction.
     pub loops: usize,
+    /// Ancillas whose restoration is checked, forward or backward.
+    pub ancillas: usize,
     next: usize,
 }
 

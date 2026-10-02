@@ -1,13 +1,13 @@
 use crate::{
-    Ctx, Dir, Env, LeanError, Out, esc, esc_fn, is_mut_ref, lean_block, lean_type, tuple_expr,
+    Ctx, Dir, Env, FnText, LeanError, Out, esc, esc_fn, is_mut_ref, lean_block, lean_type, tuple_expr,
     tuple_type,
 };
 use roop_syntax::FnDef;
 
 /// The function as a pure Lean definition: its mutable parameters go in and
 /// come back as the result. Backward it is the inverse function `f_inv`.
-/// Returns the text and how many loops it contains.
-pub fn lean_fn(cx: &Ctx, def: &FnDef, dir: Dir) -> Result<(String, usize), LeanError> {
+
+pub fn lean_fn(cx: &Ctx, def: &FnDef, dir: Dir) -> Result<FnText, LeanError> {
     let name = match dir {
         Dir::Forward => def.name.clone(),
         Dir::Backward => format!("{}_inv", def.name),
@@ -43,5 +43,9 @@ pub fn lean_fn(cx: &Ctx, def: &FnDef, dir: Dir) -> Result<(String, usize), LeanE
         tuple_type(&result_types),
         out.text
     );
-    Ok((text, out.loops))
+    Ok(FnText {
+        text,
+        loops: out.loops,
+        ancillas: out.ancillas,
+    })
 }

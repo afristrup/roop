@@ -19,7 +19,7 @@ const SCRIPT: &str = "  all_goals (try (repeat' (first | (split at *; all_goals 
 /// running `f` and then `f_inv` returns the inputs, and `f_inv` then `f`
 /// returns the outputs. Together they say no information is lost.
 /// Functions with loops need an induction, so their proofs are left open.
-pub fn lean_theorems(def: &FnDef, deps: &[String], loops: bool) -> Option<String> {
+pub fn lean_theorems(def: &FnDef, deps: &[String], loops: bool, ancillas: bool) -> Option<String> {
     let mutable: Vec<&Param> = def.params.iter().filter(|p| is_mut_ref(&p.ty)).collect();
     if mutable.is_empty() {
         return None;
