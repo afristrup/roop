@@ -145,7 +145,7 @@ elab "roop_loop " l:ident : tactic => withMainContext do
   for decl in (← getLCtx) do
     if decl.isImplementationDetail then continue
     try
-      let app ← mkAppM l.getId #[decl.toExpr]
+      let app ← withReducible (mkAppM l.getId #[decl.toExpr])
       let ty ← inferType app
       liftMetaTactic fun g => do
         let (_, g) ← (← g.assert `this ty app).intro1
