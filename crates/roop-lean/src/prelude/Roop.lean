@@ -211,15 +211,18 @@ open Lean Elab Tactic Meta in
 in a hypothesis, and resolve that condition everywhere. -/
 elab "roop_cases" : tactic => withMainContext do
   let mut types := #[← instantiateMVars (← getMainTarget)]
+  let mut hyps : Array Syntax.Term := #[]
   for decl in (← getLCtx) do
     unless decl.isImplementationDetail do
       types := types.push (← instantiateMVars decl.type)
+      if ← isProp decl.type then
+        hyps := hyps.push (← Term.exprToSyntax decl.toExpr)
   let found := types.findSome? fun type => type.find? fun e =>
     (e.isAppOfArity ``dite 5 || e.isAppOfArity ``ite 5) && !(e.getArg! 1).hasLooseBVars
   let some e := found | throwError "no conditional left"
   let cond ← Term.exprToSyntax (e.getArg! 1)
   let hc := mkIdent `hc
   evalTactic (← `(tactic| by_cases $hc : $cond <;>
-    simp only [$hc:ident, ↓reduceDIte, ↓reduceIte] at *))
+    simp only [$hc:ident, ↓reduceDIte, ↓reduceIte] at $hyps* ⊢))
 
 end Roop
