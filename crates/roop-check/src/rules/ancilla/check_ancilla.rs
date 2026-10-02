@@ -1,4 +1,4 @@
-use crate::{CheckError, Pending, inverts, stmt_reads, stmt_writes};
+use crate::{CheckError, Pending, flatten_ancillas, inverts, stmt_reads, stmt_writes};
 use roop_syntax::{Block, Span, Stmt, StmtKind};
 use std::collections::HashSet;
 
@@ -7,7 +7,7 @@ use std::collections::HashSet;
 /// update read. Anything the matcher cannot prove is rejected.
 pub fn check_ancilla(name: &str, body: &Block, span: Span) -> Result<(), CheckError> {
     let mut stack: Vec<Pending> = Vec::new();
-    for stmt in &body.stmts {
+    for stmt in flatten_ancillas(body, name) {
         let mut writes = HashSet::new();
         stmt_writes(stmt, &mut writes);
         let touches = writes.contains(name);

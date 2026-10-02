@@ -55,3 +55,20 @@ fn accepts_call_then_uncall() {
         Ok(())
     );
 }
+
+#[test]
+fn accepts_updates_inside_nested_ancilla_blocks() {
+    let body = "ancilla t1: i64 = 0 { ancilla t2: i64 = 0 {
+        t1 += x; t2 += t1; y += t2; t2 -= t1; t1 -= x;
+    } }";
+    assert_eq!(run(body), Ok(()));
+}
+
+#[test]
+fn still_rejects_a_nested_ancilla_that_is_not_restored() {
+    let body = "ancilla t1: i64 = 0 { ancilla t2: i64 = 0 { t1 += x; t2 += t1; t1 -= x; } }";
+    assert!(matches!(
+        run(body),
+        Err(CheckError::AncillaNotRestored { name, .. }) if name == "t2"
+    ));
+}
