@@ -8,6 +8,7 @@ mod stmts;
 pub use driver::check;
 pub use error::CheckError;
 pub use rules::check_parallel_body;
+pub use stmts::{BodyEffects, body_effects};
 
 use driver::*;
 use exprs::*;

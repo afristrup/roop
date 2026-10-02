@@ -5,6 +5,5 @@ version.workspace = true
 
 [dependencies]
 roop-syntax = { path = "../roop-syntax" }
-
-[dev-dependencies]
 roop-check = { path = "../roop-check" }
+

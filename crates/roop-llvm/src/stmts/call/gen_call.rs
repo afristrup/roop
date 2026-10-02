@@ -1,4 +1,4 @@
-use crate::{CodegenError, Dir, FnGen, gen_expr, gen_place, llvm_type, same_type};
+use crate::{CodegenError, Dialect, Dir, FnGen, gen_expr, gen_place, llvm_type, same_type};
 use roop_syntax::{Expr, Type};
 
 /// `call` runs `@f` forward and `uncall` runs `@f_inv`; emitting backward
@@ -10,6 +10,9 @@ pub fn gen_call(
     is_uncall: bool,
     dir: Dir,
 ) -> Result<(), CodegenError> {
+    if g.dialect != Dialect::Host {
+        return Err(CodegenError::Unsupported("call inside a GPU kernel"));
+    }
     let def = g
         .ctx
         .fns
