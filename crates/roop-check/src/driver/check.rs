@@ -17,6 +17,7 @@ pub fn check(program: &Program) -> Result<(), CheckError> {
         logged: false,
         irreversible_fns: &irreversible,
         non_atomic_fns: &non_atomic,
+        facts: None,
     };
     for item in &program.items {
         match item {

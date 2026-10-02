@@ -1,5 +1,5 @@
 use crate::{
-    CheckError, Scope, check_ancilla, check_borrow, check_parallel, check_try, check_update,
+    CheckError, Facts, Scope, check_ancilla, check_borrow, check_parallel, check_try, check_update,
 };
 use roop_syntax::{Block, StmtKind};
 
@@ -13,13 +13,13 @@ pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
         match &stmt.kind {
             StmtKind::Update { target, value, .. } => {
                 if !scope.irrev {
-                    check_update(target, value, stmt.span)?;
+                    check_update(target, value, stmt.span, scope.facts)?;
                 }
             }
             StmtKind::Overwrite { .. } if !scope.irrev && !scope.logged => return Err(outside()),
             StmtKind::Overwrite { target, value, .. } => {
                 if !scope.irrev {
-                    check_update(target, value, stmt.span)?;
+                    check_update(target, value, stmt.span, scope.facts)?;
                 }
             }
             StmtKind::Swap(..) => {}
@@ -47,11 +47,22 @@ pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
             }
             StmtKind::Irrev(block) => check_block(block, scope.inside_irrev())?,
             StmtKind::If {
+                cond,
                 then_block,
                 else_block,
                 ..
             } => {
-                check_block(then_block, scope)?;
+                let fact = Facts {
+                    cond,
+                    parent: scope.facts,
+                };
+                check_block(
+                    then_block,
+                    Scope {
+                        facts: Some(&fact),
+                        ..scope
+                    },
+                )?;
                 check_block(else_block, scope)?;
             }
             StmtKind::Match { arms, .. } => {
