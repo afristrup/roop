@@ -10,12 +10,14 @@ pub fn proof_script(loop_lemmas: &[String]) -> String {
         .iter()
         .map(|lemma| format!("  all_goals (try roop_loop {lemma})\n"))
         .collect();
+    let round = format!(
+        "  all_goals (try simp [{LEMMAS}] at *)
+  all_goals (try subst_vars)
+{loops}"
+    );
     format!(
         "  all_goals (try (repeat' (first | (split at *; all_goals (try simp [{LEMMAS}] at *)) | split)))
-  all_goals (try simp [{LEMMAS}] at *)
-  all_goals (try subst_vars)
-  all_goals (try simp [{LEMMAS}] at *)
-{loops}  all_goals (try subst_vars)
+{}  all_goals (try subst_vars)
   all_goals (try simp_all [{LEMMAS}])
   all_goals (try subst_vars)
   all_goals (try simp [{LEMMAS}] at *)
