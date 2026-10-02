@@ -127,7 +127,8 @@ fn an_automatically_chosen_gpu_produces_the_same_results() {
     }
     let src = bare();
     let out = support::compiled(&src, &options(&[Target::Metal], gpu_friendly()));
-    let blob = support::metallib_blob_module(&support::metallib(&out.air.unwrap()).unwrap());
+    let lib = support::metallib(out.air.as_ref().unwrap()).unwrap();
+    let host_ir = roop_llvm::embed_blobs(&out.host, Some(&lib), None);
     let files = [
         ("m0.ll".to_string(), out.host.as_str()),
         ("m1.ll".to_string(), blob.as_str()),

@@ -43,7 +43,8 @@ fn run_metal(fuse: bool) {
         return;
     }
     let out = build("metal", fuse);
-    let blob = support::metallib_blob_module(&support::metallib(&out.air.unwrap()).unwrap());
+    let lib = support::metallib(out.air.as_ref().unwrap()).unwrap();
+    let host_ir = roop_llvm::embed_blobs(&out.host, Some(&lib), None);
     let files = [
         ("m0.ll".to_string(), out.host.as_str()),
         ("m1.ll".to_string(), blob.as_str()),
