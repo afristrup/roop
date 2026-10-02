@@ -1,5 +1,5 @@
-use crate::{StmtKind, Token};
 use crate::{Err, TokenInput, expr, ident, place};
+use crate::{StmtKind, Token};
 use chumsky::prelude::*;
 
 /// `send c <- place;`

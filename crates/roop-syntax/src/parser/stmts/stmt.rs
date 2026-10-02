@@ -1,6 +1,7 @@
 use crate::{Block, Stmt, StmtKind, Token, UpdateOp};
 use crate::{
-    Err, TokenInput, attr, block, borrow_stmt, expr, ident, match_stmt, place, try_stmt, ty,
+    Err, TokenInput, attr, block, borrow_stmt, chan_stmt, expr, ident, match_stmt, place, try_stmt,
+    ty,
 };
 use chumsky::prelude::*;
 
