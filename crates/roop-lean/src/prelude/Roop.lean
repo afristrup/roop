@@ -23,6 +23,118 @@ abbrev I64 := BitVec 64
 
 def check (c : Bool) (e : Fail) : Res Unit := if c then .ok () else .error e
 
+/-- A guarded multiplication `x *= e` runs when the factor is nonzero and the
+product does not overflow; its inverse `x /= e` when the factor is nonzero and
+the division is exact. Under those guards each undoes the other. -/
+def mulOk (x e : BitVec 64) : Bool := !(e == 0) && !(BitVec.smulOverflow x e)
+def divOk (x e : BitVec 64) : Bool :=
+  !(e == 0) && (BitVec.srem x e == 0) && !(x == BitVec.intMin 64 && e == -1)
+
+theorem toInt_ne_zero {e : BitVec 64} (h : e ≠ 0) : e.toInt ≠ 0 := by
+  intro hz
+  apply h
+  apply BitVec.eq_of_toInt_eq
+  simpa using hz
+
+theorem toInt_bounds (x : BitVec 64) : -9223372036854775808 ≤ x.toInt ∧ x.toInt < 9223372036854775808 := by
+  have h1 := BitVec.le_toInt (x := x)
+  have h2 := BitVec.toInt_lt (x := x)
+  simp at h1 h2
+  omega
+
+
+theorem toInt_zero64 : (0 : BitVec 64).toInt = 0 := by simp
+
+theorem scale_unscale (x e : BitVec 64) (h : mulOk x e = true) :
+    divOk (x * e) e = true ∧ BitVec.sdiv (x * e) e = x := by
+  simp only [mulOk, Bool.and_eq_true, Bool.not_eq_true', beq_eq_false_iff_ne, ne_eq] at h
+  obtain ⟨he, hs⟩ := h
+  have hs' : ¬ BitVec.smulOverflow x e = true := by simp [hs]
+  have hm := BitVec.toInt_mul_of_not_smulOverflow hs'
+  have hb := toInt_ne_zero he
+  have hx := toInt_bounds x
+  have hsd : BitVec.sdiv (x * e) e = x := by
+    apply BitVec.eq_of_toInt_eq
+    rw [BitVec.toInt_sdiv, hm, Int.mul_tdiv_cancel _ hb]
+    exact Int.bmod_eq_of_le (by omega) (by omega)
+  refine ⟨?_, hsd⟩
+  simp only [divOk, Bool.and_eq_true, Bool.not_eq_true', beq_eq_false_iff_ne, ne_eq, Bool.not_eq_true,
+    beq_iff_eq, Bool.and_eq_false_imp]
+  refine ⟨⟨he, ?_⟩, ?_⟩
+  · apply BitVec.eq_of_toInt_eq
+    rw [BitVec.toInt_srem, hm, Int.mul_tmod_left, toInt_zero64]
+  · intro hmin hneg
+    have h1 : (x * e).toInt = (BitVec.intMin 64).toInt := by rw [hmin]
+    have h2 : e.toInt = -1 := by rw [hneg]; simp
+    rw [hm, h2, BitVec.toInt_intMin] at h1
+    simp at h1
+    omega
+
+theorem unscale_scale (x e : BitVec 64) (h : divOk x e = true) :
+    mulOk (BitVec.sdiv x e) e = true ∧ BitVec.sdiv x e * e = x := by
+  simp only [divOk, Bool.and_eq_true, Bool.not_eq_true', beq_eq_false_iff_ne, ne_eq,
+    beq_iff_eq, Bool.and_eq_false_imp] at h
+  obtain ⟨⟨he, hr⟩, hn⟩ := h
+  have hb := toInt_ne_zero he
+  have hx := toInt_bounds x
+  have hr' : x.toInt.tmod e.toInt = 0 := by
+    have := congrArg BitVec.toInt hr
+    rwa [BitVec.toInt_srem, toInt_zero64] at this
+  have hdvd : e.toInt ∣ x.toInt := Int.dvd_of_tmod_eq_zero hr'
+  have hc : x.toInt.tdiv e.toInt * e.toInt = x.toInt := Int.tdiv_mul_cancel hdvd
+  obtain ⟨c, hcdef⟩ : ∃ c, c = x.toInt.tdiv e.toInt := ⟨_, rfl⟩
+  rw [← hcdef] at hc
+  have habs : c.natAbs ≤ x.toInt.natAbs := by
+    have h1 : x.toInt.natAbs = c.natAbs * e.toInt.natAbs := by
+      rw [← hc, Int.natAbs_mul]
+    have h2 : 0 < e.toInt.natAbs := Int.natAbs_pos.mpr hb
+    rw [h1]
+    exact Nat.le_mul_of_pos_right _ h2
+  have hnotmin : ¬ (c = 9223372036854775808) := by
+    intro hc2
+    have h1 : x.toInt.natAbs = c.natAbs * e.toInt.natAbs := by
+      rw [← hc, Int.natAbs_mul]
+    rw [hc2] at habs h1
+    have h3 : x.toInt = -9223372036854775808 := by omega
+    have h4 : e.toInt.natAbs = 1 := by
+      rw [h3] at h1
+      simp at h1
+      omega
+    have h5 : e.toInt = -1 ∨ e.toInt = 1 := by omega
+    rcases h5 with h5 | h5
+    · apply hn
+      · apply BitVec.eq_of_toInt_eq
+        rw [h3, BitVec.toInt_intMin]; simp
+      · apply BitVec.eq_of_toInt_eq
+        rw [h5]; simp
+    · rw [hc2, h5] at hc
+      omega
+  have hcr : -9223372036854775808 ≤ c ∧ c < 9223372036854775808 := by omega
+  have hq : (BitVec.sdiv x e).toInt = c := by
+    rw [BitVec.toInt_sdiv, ← hcdef]
+    exact Int.bmod_eq_of_le (by omega) (by omega)
+  have hnov : ¬ BitVec.smulOverflow (BitVec.sdiv x e) e = true := by
+    simp only [BitVec.smulOverflow, hq, hc, Bool.or_eq_true, decide_eq_true_eq, not_or]
+    omega
+  refine ⟨?_, ?_⟩
+  · simp only [mulOk, Bool.and_eq_true, Bool.not_eq_true', beq_eq_false_iff_ne, ne_eq]
+    exact ⟨he, by simpa using hnov⟩
+  · apply BitVec.eq_of_toInt_eq
+    rw [BitVec.toInt_mul_of_not_smulOverflow hnov, hq, hc]
+
+
+theorem divOk_mul {x e : BitVec 64} (h : mulOk x e = true) : divOk (x * e) e = true :=
+  (scale_unscale x e h).1
+
+theorem sdiv_mul {x e : BitVec 64} (h : mulOk x e = true) : BitVec.sdiv (x * e) e = x :=
+  (scale_unscale x e h).2
+
+theorem mulOk_div {x e : BitVec 64} (h : divOk x e = true) : mulOk (BitVec.sdiv x e) e = true :=
+  (unscale_scale x e h).1
+
+theorem mul_sdiv {x e : BitVec 64} (h : divOk x e = true) : BitVec.sdiv x e * e = x :=
+  (unscale_scale x e h).2
+
 def aget {α : Type} {n : Nat} (v : Vector α n) (i : I64) : Res α :=
   if h : i.toNat < n then .ok (v[i.toNat]'h) else .error .outOfBounds
 

@@ -1,11 +1,13 @@
-fn swap(a: &mut i64, b: &mut i64) {
+mod blas;
+
+pub fn swap(a: &mut i64, b: &mut i64) {
     a <=> b;
 }
 
-fn add(a: &mut i64, b: &i64) {
+pub fn add(a: &mut i64, b: &i64) {
     a += b;
 }
 
-fn xor(a: &mut i64, b: &i64) {
+pub fn xor(a: &mut i64, b: &i64) {
     a ^= b;
 }

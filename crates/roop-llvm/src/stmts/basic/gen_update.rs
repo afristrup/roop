@@ -1,6 +1,6 @@
 use crate::{
-    CodegenError, Dir, FnGen, Kind, gen_expr, gen_place, kind_of, llvm_type, mem_load, mem_store,
-    same_type,
+    CodegenError, Dir, FnGen, Kind, gen_expr, gen_place, guard_scale, kind_of, llvm_type, mem_load,
+    mem_store, same_type,
 };
 use roop_syntax::{Expr, Place, UpdateOp};
 
@@ -23,13 +23,20 @@ pub fn gen_update(
     let instr = match (kind, op) {
         (Kind::Int, UpdateOp::Add) => "add",
         (Kind::Int, UpdateOp::Sub) => "sub",
+        (Kind::Int, UpdateOp::Mul) => "mul",
+        (Kind::Int, UpdateOp::Div) => "sdiv",
         (Kind::Int | Kind::Bool, UpdateOp::Xor) => "xor",
         (Kind::Float, UpdateOp::Add) => "fadd",
         (Kind::Float, UpdateOp::Sub) => "fsub",
+        (Kind::Float, UpdateOp::Mul) => "fmul",
+        (Kind::Float, UpdateOp::Div) => "fdiv",
         _ => return Err(CodegenError::InvalidOperand("update not defined for type")),
     };
     let ty = llvm_type(g.ctx, &slot.ty)?;
     let old = mem_load(g, &slot)?;
+    if matches!(op, UpdateOp::Mul | UpdateOp::Div) {
+        guard_scale(g, op, kind, &old, &v)?;
+    }
     let new = format!("%{}", g.fresh("t"));
     g.emit(&format!("{new} = {instr} {ty} {}, {}", old.reg, v.reg));
     mem_store(g, &slot, &new)

@@ -1,4 +1,4 @@
-use roop_syntax::{Item, OverwriteOp, StmtKind, parse};
+use roop_syntax::{Item, OverwriteOp, StmtKind, UpdateOp, parse};
 
 fn first_stmt(body: &str) -> StmtKind {
     let program = parse(&format!(
@@ -35,8 +35,6 @@ fn the_rev_keyword_is_gone() {
 fn parses_overwrite_statements() {
     for (src, op) in [
         ("x = y + 1;", OverwriteOp::Assign),
-        ("x *= 2;", OverwriteOp::Mul),
-        ("x /= 2;", OverwriteOp::Div),
         ("x %= 2;", OverwriteOp::Rem),
     ] {
         match first_stmt(src) {
@@ -49,4 +47,14 @@ fn parses_overwrite_statements() {
 #[test]
 fn parses_irrev_blocks() {
     assert!(matches!(first_stmt("irrev { x = 0; }"), StmtKind::Irrev(_)));
+}
+
+#[test]
+fn star_and_slash_are_reversible_updates() {
+    for (src, want) in [("x *= 2;", UpdateOp::Mul), ("x /= 2;", UpdateOp::Div)] {
+        match first_stmt(src) {
+            StmtKind::Update { op, .. } => assert_eq!(op, want, "{src}"),
+            other => panic!("{src}: {other:?}"),
+        }
+    }
 }

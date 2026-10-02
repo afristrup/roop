@@ -24,7 +24,7 @@ pub fn gen_logged_overwrite(
     same_type(&slot.ty, &v.ty)?;
     match dir {
         Dir::Forward => {
-            if matches!(op, OverwriteOp::Div | OverwriteOp::Rem) {
+            if op == OverwriteOp::Rem {
                 nonzero(g, &v)?;
             }
             let old = mem_load(g, &slot)?;

@@ -7,7 +7,7 @@ fn run(src: &str) -> Result<(), CheckError> {
 
 #[test]
 fn a_plain_function_is_reversible_and_rejects_overwrites() {
-    for stmt in ["x = 1;", "x *= 2;", "x /= 2;", "x %= 2;"] {
+    for stmt in ["x = 1;", "x %= 2;"] {
         let src = format!("fn f(x: &mut i64) {{ {stmt} }}");
         assert!(
             matches!(run(&src), Err(CheckError::IrreversibleOutsideIrrev { .. })),
@@ -107,4 +107,17 @@ fn reversible_calls_between_plain_functions_are_fine() {
     let src = "fn inc(x: &mut i64) { x += 1; }
                fn twice(x: &mut i64) { call inc(x); call inc(x); uncall inc(x); }";
     assert_eq!(run(src), Ok(()));
+}
+
+#[test]
+fn scaling_is_reversible_and_needs_no_irrev() {
+    assert_eq!(
+        run("fn f(x: &mut i64, k: &i64) { x *= k; x /= 3; }"),
+        Ok(())
+    );
+}
+
+#[test]
+fn a_scaled_place_may_not_appear_in_its_own_factor() {
+    assert!(run("fn f(x: &mut i64) { x *= x; }").is_err());
 }

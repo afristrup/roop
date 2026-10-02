@@ -17,7 +17,6 @@ fn irrev_functions_overwrite_and_scale_in_place() {
     let src = "irrev fn crush(x: &mut i64, y: &mut i64, z: &mut f64) {
         x = y + 1;
         y *= 3;
-        y /= 2;
         y %= 5;
         z *= 2.5;
     }";
@@ -27,8 +26,8 @@ int main(void) {
     int64_t x = 100, y = 7;
     double z = 4.0;
     crush(&x, &y, &z);
-    /* x = 8, y = ((7 * 3) / 2) % 5 = 10 % 5 = 0, z = 10 */
-    return (x == 8 && y == 0 && z == 10.0) ? 0 : 1;
+    /* x = 8, y = (7 * 3) % 5 = 1, z = 10 */
+    return (x == 8 && y == 1 && z == 10.0) ? 0 : 1;
 }
 "#;
     assert_eq!(run(src, main), 0);

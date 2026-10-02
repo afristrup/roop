@@ -10,9 +10,6 @@ pub fn overwrite_value(
 ) -> Result<String, LeanError> {
     Ok(match (op, float) {
         (OverwriteOp::Assign, _) => e.to_string(),
-        (OverwriteOp::Mul, _) => format!("({old} * {e})"),
-        (OverwriteOp::Div, true) => format!("({old} / {e})"),
-        (OverwriteOp::Div, false) => format!("(BitVec.sdiv {old} {e})"),
         (OverwriteOp::Rem, false) => format!("(BitVec.srem {old} {e})"),
         (OverwriteOp::Rem, true) => {
             return Err(LeanError::Unsupported("remainder of floats".into()));

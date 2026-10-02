@@ -21,6 +21,8 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
             Token::PlusEq => UpdateOp::Add,
             Token::MinusEq => UpdateOp::Sub,
             Token::CaretEq => UpdateOp::Xor,
+            Token::StarEq => UpdateOp::Mul,
+            Token::SlashEq => UpdateOp::Div,
         };
         let update = place(expr())
             .then(update_op)

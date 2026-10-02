@@ -73,7 +73,7 @@ int main(void) {
 #[test]
 fn logged_updates_destroy_values_reversibly() {
     let src = "fn crush(x: &mut i64, y: &mut i64, h: &mut Stack<i64, 4>) {
-                   logged h { x = y + 1; y *= 3; }
+                   logged h { x = y + 1; y %= 5; }
                }";
     let main = format!(
         r#"{STACK4}
@@ -81,11 +81,11 @@ void crush(int64_t*, int64_t*, Stack4*);
 void crush_inv(int64_t*, int64_t*, Stack4*);
 int main(void) {{
     Stack4 h = {{0}};
-    int64_t x = 5, y = 2;
+    int64_t x = 5, y = 7;
     crush(&x, &y, &h);
-    if (x != 3 || y != 6 || h.len != 2 || h.data[0] != 5 || h.data[1] != 2) return 1;
+    if (x != 8 || y != 2 || h.len != 2 || h.data[0] != 5 || h.data[1] != 7) return 1;
     crush_inv(&x, &y, &h);
-    if (x != 5 || y != 2 || h.len != 0 || h.data[0] != 0 || h.data[1] != 0) return 2;
+    if (x != 5 || y != 7 || h.len != 0 || h.data[0] != 0 || h.data[1] != 0) return 2;
     crush(&x, &y, &h);
     x = 99;
     crush_inv(&x, &y, &h);

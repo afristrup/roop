@@ -6,7 +6,7 @@ fn push_pop_and_logged_updates_are_proved_reversible() {
         "fn park(x: &mut i64, s: &mut Stack<i64, 4>) { push s <- x; }
          fn fetch(x: &mut i64, s: &mut Stack<i64, 4>) { pop s -> x; }
          fn crush(x: &mut i64, y: &mut i64, h: &mut Stack<i64, 4>) {
-             logged h { x = y + 1; y *= 3; }
+             logged h { x = y + 1; y %= 5; }
          }",
     );
     assert_eq!(t.reversible, ["park", "fetch", "crush"]);

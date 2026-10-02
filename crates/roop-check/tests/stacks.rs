@@ -10,7 +10,7 @@ const HEAD: &str = "fn f(x: &mut i64, y: &mut i64, h: &mut Stack<i64, 8>, failed
 #[test]
 fn logged_blocks_make_destroying_updates_reversible() {
     assert_eq!(
-        run(&format!("{HEAD} {{ logged h {{ x = y + 1; y *= 3; }} }}")),
+        run(&format!("{HEAD} {{ logged h {{ x = y + 1; y %= 5; }} }}")),
         Ok(())
     );
 }

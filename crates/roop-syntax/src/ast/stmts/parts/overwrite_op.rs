@@ -2,7 +2,5 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OverwriteOp {
     Assign,
-    Mul,
-    Div,
     Rem,
 }

@@ -3,6 +3,10 @@ pub enum UpdateOp {
     Add,
     Sub,
     Xor,
+    /// Guarded: traps unless the factor is nonzero and nothing overflows.
+    Mul,
+    /// Guarded: traps unless the factor is nonzero and the division is exact.
+    Div,
 }
 
 impl UpdateOp {
@@ -11,6 +15,8 @@ impl UpdateOp {
             Self::Add => Self::Sub,
             Self::Sub => Self::Add,
             Self::Xor => Self::Xor,
+            Self::Mul => Self::Div,
+            Self::Div => Self::Mul,
         }
     }
 }
