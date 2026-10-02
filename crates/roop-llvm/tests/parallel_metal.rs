@@ -45,6 +45,6 @@ fn parallel_loop_runs_and_reverses_on_the_apple_gpu() {
     let host_ir = roop_llvm::embed_blobs(&out.host, Some(&lib), None);
     let host = format!("{}\n{}", host_ir, harness());
     support::verify(&host);
-    let code = support::run_native_modules(&[&host, &blob]).unwrap();
+    let code = support::run_native_modules(&[&host]).unwrap();
     assert_eq!(code, Some(0));
 }

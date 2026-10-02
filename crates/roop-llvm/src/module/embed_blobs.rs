@@ -8,7 +8,11 @@ pub fn embed_blobs(host: &str, metallib: Option<&[u8]>, ptx: Option<&str>) -> St
     ptx_text.push(0);
     host.replace(
         "@roop_metallib = external constant i8",
-        &format!("@roop_metallib = constant [{} x i8] c\"{}\"", lib.len(), bytes(lib)),
+        &format!(
+            "@roop_metallib = constant [{} x i8] c\"{}\"",
+            lib.len(),
+            bytes(lib)
+        ),
     )
     .replace(
         "@roop_metallib_len = external constant i64",
@@ -16,6 +20,10 @@ pub fn embed_blobs(host: &str, metallib: Option<&[u8]>, ptx: Option<&str>) -> St
     )
     .replace(
         "@roop_ptx = external constant i8",
-        &format!("@roop_ptx = constant [{} x i8] c\"{}\"", ptx_text.len(), bytes(&ptx_text)),
+        &format!(
+            "@roop_ptx = constant [{} x i8] c\"{}\"",
+            ptx_text.len(),
+            bytes(&ptx_text)
+        ),
     )
 }
