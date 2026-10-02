@@ -1,4 +1,4 @@
-use crate::gpu::{OK, RoopBuf, UNAVAILABLE, metal_dispatch};
+use crate::gpu::{RoopBuf, UNAVAILABLE, cuda_dispatch, metal_dispatch};
 use std::ffi::{CStr, c_char, c_void};
 
 /// Runs a generated kernel on a GPU. `kind` 0 is Metal (`blob` is a
@@ -30,11 +30,14 @@ pub unsafe extern "C" fn roop_gpu_dispatch(
             let blob = unsafe { std::slice::from_raw_parts(blob as *const u8, blob_len as usize) };
             metal_dispatch(blob, &kernel, bufs, [lo, step, count])
         }
+        1 => {
+            let ptx = unsafe { CStr::from_ptr(blob as *const c_char) }.to_bytes_with_nul();
+            cuda_dispatch(ptx, &kernel, bufs, [lo, step, count])
+        }
         _ => UNAVAILABLE,
     };
     if status == UNAVAILABLE {
         eprintln!("roop: no GPU backend available for kernel `{kernel}`");
     }
-    let _ = OK;
     status
 }

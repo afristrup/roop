@@ -10,3 +10,6 @@ crate-type = ["staticlib", "rlib"]
 objc2 = "0.6"
 objc2-foundation = "0.3"
 objc2-metal = "0.3"
+
+[dependencies]
+libloading = "0.8"
