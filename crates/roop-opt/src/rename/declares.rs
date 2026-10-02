@@ -3,6 +3,7 @@ use roop_syntax::{Block, StmtKind};
 /// Whether any ancilla or borrow in the block binds `name`.
 pub fn declares(block: &Block, name: &str) -> bool {
     block.stmts.iter().any(|stmt| match &stmt.kind {
+        StmtKind::Block(body) | StmtKind::Chan { body, .. } => declares(body, name),
         StmtKind::Ancilla { name: n, body, .. } | StmtKind::Borrow { name: n, body, .. } => {
             n == name || declares(body, name)
         }

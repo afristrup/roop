@@ -51,6 +51,12 @@ pub fn map_blocks(stmt: &Stmt, f: &impl Fn(&Block) -> Block) -> Stmt {
             init: init.clone(),
             body: f(body),
         },
+        StmtKind::Block(body) => StmtKind::Block(f(body)),
+        StmtKind::Chan { name, ty, body } => StmtKind::Chan {
+            name: name.clone(),
+            ty: ty.clone(),
+            body: f(body),
+        },
         StmtKind::Borrow { name, source, body } => StmtKind::Borrow {
             name: name.clone(),
             source: source.clone(),

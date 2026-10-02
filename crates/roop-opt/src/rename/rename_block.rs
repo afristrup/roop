@@ -77,6 +77,20 @@ fn rename_stmt(stmt: &Stmt, from: &str, to: &str) -> Stmt {
             source: p(source),
             body: b(body),
         },
+        StmtKind::Block(body) => StmtKind::Block(b(body)),
+        StmtKind::Chan { name, ty, body } => StmtKind::Chan {
+            name: name.clone(),
+            ty: ty.clone(),
+            body: b(body),
+        },
+        StmtKind::Send { chan, source } => StmtKind::Send {
+            chan: chan.clone(),
+            source: p(source),
+        },
+        StmtKind::Recv { chan, target } => StmtKind::Recv {
+            chan: chan.clone(),
+            target: p(target),
+        },
         StmtKind::Call { callee, args } => StmtKind::Call {
             callee: callee.clone(),
             args: args.iter().map(e).collect(),
