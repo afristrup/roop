@@ -44,10 +44,26 @@ that neither direction ever fails with an unrestored ancilla. Lean is stricter
 than the roop checker: it rejects a branch whose exit assertion does not
 actually identify which side ran, which the checker cannot decide.
 
-Not yet covered: loops are translated, but their theorems need an induction and
-are reported as open; floating point is translated with no roundtrip claim,
-since `x + k - k` need not equal `x`; irreversible functions get a forward model
-only; `try`, channels and concurrent tasks are skipped and listed.
+Loops are covered too. Each loop's entry, exit, body and step are lifted into
+top-level definitions, Lean proves that the inverse body and step undo the body
+and step, and a general lemma about the reversible loop (`Roop.janus_inv`, in the
+prelude) turns that into the loop's own roundtrip. Loops inside loops, calls
+between functions and loops in a branch all compose, and a loop whose body is
+not reversible is rejected like any other function.
+
+For a `#[parallel]` loop Lean also proves what the checker's disjointness rules
+promise: any two iterations commute. Running iteration `v` then `w` ends in the
+same state as `w` then `v`, or both fail, whatever the starting state. That is
+the condition for threads or a GPU to run them in any order. A loop that reads
+what another iteration writes, or accumulates into a shared variable, fails the
+proof.
+
+Not covered: floating point is translated with no roundtrip claim, since
+`x + k - k` need not equal `x`; irreversible functions get a forward model only;
+`try`, channels and concurrent tasks are skipped and listed; borrow
+exclusivity and the disjointness of `#[concurrent]` tasks are checked by the
+compiler but not stated as theorems; the commutation theorem is skipped for a
+parallel loop with another loop in its body.
 
 ## Concurrent tasks and channels
 
