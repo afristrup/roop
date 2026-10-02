@@ -3,7 +3,7 @@ use roop_syntax::{Expr, Place};
 
 pub fn expr_places<'a>(expr: &'a Expr, out: &mut Vec<&'a Place>) {
     match expr {
-        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) => {}
+        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Variant(..) => {}
         Expr::Place(place) => {
             out.push(place);
             place_index_reads(place, out);

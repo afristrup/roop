@@ -3,15 +3,50 @@ use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum CheckError {
-    SelfReferentialUpdate { var: String, span: Span },
-    AncillaNotRestored { name: String, span: Span },
-    AncillaTouchedInControlFlow { name: String, span: Span },
-    NonExhaustiveMatch { span: Span },
-    BorrowedPlaceUsed { var: String, span: Span },
-    BorrowIndexModified { var: String, span: Span },
-    TryCannotFail { span: Span },
-    UnpairedBuild { name: String, span: Span },
-    UnbuildNotInverse { name: String, span: Span },
+    SelfReferentialUpdate {
+        var: String,
+        span: Span,
+    },
+    AncillaNotRestored {
+        name: String,
+        span: Span,
+    },
+    AncillaTouchedInControlFlow {
+        name: String,
+        span: Span,
+    },
+    NonExhaustiveMatch {
+        span: Span,
+    },
+    UnknownVariant {
+        enum_name: String,
+        variant: String,
+        span: Span,
+    },
+    DuplicateVariant {
+        enum_name: String,
+        variant: String,
+        span: Span,
+    },
+    BorrowedPlaceUsed {
+        var: String,
+        span: Span,
+    },
+    BorrowIndexModified {
+        var: String,
+        span: Span,
+    },
+    TryCannotFail {
+        span: Span,
+    },
+    UnpairedBuild {
+        name: String,
+        span: Span,
+    },
+    UnbuildNotInverse {
+        name: String,
+        span: Span,
+    },
 }
 
 impl fmt::Display for CheckError {
@@ -57,11 +92,27 @@ impl fmt::Display for CheckError {
                 "unbuild of `{name}` is not provably the inverse of build at {}..{}",
                 span.start, span.end
             ),
-            Self::NonExhaustiveMatch { span } => write!(
+            Self::UnknownVariant {
+                enum_name,
+                variant,
+                span,
+            } => write!(
                 f,
-                "match has no wildcard arm at {}..{}",
+                "unknown variant `{enum_name}::{variant}` at {}..{}",
                 span.start, span.end
             ),
+            Self::DuplicateVariant {
+                enum_name,
+                variant,
+                span,
+            } => write!(
+                f,
+                "enum `{enum_name}` repeats variant `{variant}` at {}..{}",
+                span.start, span.end
+            ),
+            Self::NonExhaustiveMatch { span } => {
+                write!(f, "match is not exhaustive at {}..{}", span.start, span.end)
+            }
         }
     }
 }

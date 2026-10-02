@@ -1,4 +1,4 @@
-use super::{CheckError, check_ancilla, check_borrow, check_match, check_try, check_update};
+use super::{CheckError, check_ancilla, check_borrow, check_try, check_update};
 use roop_syntax::{Block, StmtKind};
 
 pub fn check_block(block: &Block) -> Result<(), CheckError> {
@@ -14,7 +14,11 @@ pub fn check_block(block: &Block) -> Result<(), CheckError> {
                 check_block(then_block)?;
                 check_block(else_block)?;
             }
-            StmtKind::Match { arms, .. } => check_match(arms, stmt.span)?,
+            StmtKind::Match { arms, .. } => {
+                for arm in arms {
+                    check_block(&arm.body)?;
+                }
+            }
             StmtKind::Borrow { source, body, .. } => check_borrow(source, body, stmt.span)?,
             StmtKind::Try { body, handler } => check_try(body, handler, stmt.span)?,
             StmtKind::From { body, step, .. } => {

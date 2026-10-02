@@ -25,6 +25,7 @@ pub fn item<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>> + Clon
 
     module
         .or(use_)
+        .or(enum_def().map(Item::Enum))
         .or(struct_def().map(Item::Struct))
         .or(fn_def)
 }
