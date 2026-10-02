@@ -18,4 +18,4 @@ use stmts::*;
 use types::*;
 
 pub use items::{Translation, translate};
-pub use prelude::PRELUDE;
+pub use prelude::{PRELUDE, SESSION_PRELUDE};

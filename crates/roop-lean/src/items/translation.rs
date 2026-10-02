@@ -16,6 +16,8 @@ pub struct Translation {
     pub one_way: Vec<String>,
     /// Functions whose `#[parallel]` loops are proved order-independent.
     pub parallel: Vec<String>,
+    /// Sessions whose checkpoint compliance Lean proved.
+    pub sessions: Vec<String>,
     /// Functions that could not be translated, with the reason.
     pub skipped: Vec<(String, String)>,
 }

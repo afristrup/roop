@@ -26,7 +26,7 @@ impl<'a> Ctx<'a> {
                 Item::Struct(def) => ctx.structs.insert(&def.name, def).map(drop),
                 Item::Enum(def) => ctx.enums.insert(&def.name, def).map(drop),
                 Item::Fn(def) => ctx.fns.insert(&def.name, def).map(drop),
-                Item::Mod(_) | Item::Use(_) => None,
+                Item::Mod(_) | Item::Use(_) | Item::Session(_) => None,
             };
         }
         ctx.irreversible = ctx

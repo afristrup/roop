@@ -1,4 +1,4 @@
-use crate::{EnumDef, FnDef, StructDef, UseDecl};
+use crate::{EnumDef, FnDef, SessionDef, StructDef, UseDecl};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
@@ -7,4 +7,5 @@ pub enum Item {
     Enum(EnumDef),
     Struct(StructDef),
     Fn(FnDef),
+    Session(SessionDef),
 }

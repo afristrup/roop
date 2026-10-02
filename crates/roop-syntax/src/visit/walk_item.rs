@@ -26,6 +26,6 @@ pub fn walk_item(v: &mut dyn Visitor, item: &mut Item) {
                 walk_build(v, build);
             }
         }
-        Item::Enum(_) | Item::Mod(_) | Item::Use(_) => {}
+        Item::Enum(_) | Item::Session(_) | Item::Mod(_) | Item::Use(_) => {}
     }
 }

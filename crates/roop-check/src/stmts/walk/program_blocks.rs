@@ -12,7 +12,7 @@ pub fn program_blocks(program: &Program) -> Vec<&Block> {
                     .flatten()
                     .map(|b| &b.body),
             ),
-            Item::Mod(_) | Item::Use(_) | Item::Enum(_) => {}
+            Item::Mod(_) | Item::Use(_) | Item::Enum(_) | Item::Session(_) => {}
         }
     }
     blocks

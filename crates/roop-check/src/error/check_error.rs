@@ -119,6 +119,17 @@ pub enum CheckError {
         name: String,
         span: Span,
     },
+    SessionMalformed {
+        session: String,
+        reason: String,
+        span: Span,
+    },
+    SessionNotCompliant {
+        session: String,
+        path: Vec<String>,
+        reason: String,
+        span: Span,
+    },
 }
 
 impl fmt::Display for CheckError {
@@ -280,6 +291,31 @@ impl fmt::Display for CheckError {
             Self::NonExhaustiveMatch { span } => {
                 write!(f, "match is not exhaustive at {}..{}", span.start, span.end)
             }
+            Self::SessionMalformed {
+                session,
+                reason,
+                span,
+            } => write!(
+                f,
+                "session `{session}` is not well formed: {reason} at {}..{}",
+                span.start, span.end
+            ),
+            Self::SessionNotCompliant {
+                session,
+                path,
+                reason,
+                span,
+            } => write!(
+                f,
+                "session `{session}` is not checkpoint compliant: {reason}{} at {}..{}",
+                if path.is_empty() {
+                    String::new()
+                } else {
+                    format!(" (after {})", path.join(", "))
+                },
+                span.start,
+                span.end
+            ),
         }
     }
 }

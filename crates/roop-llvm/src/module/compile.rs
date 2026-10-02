@@ -92,7 +92,7 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
                     kernels.extend(out.kernels);
                 }
             }
-            Item::Mod(_) | Item::Use(_) | Item::Enum(_) => {}
+            Item::Mod(_) | Item::Use(_) | Item::Enum(_) | Item::Session(_) => {}
         }
     }
     let pick = |dialect: Dialect| -> Vec<&Kernel> {

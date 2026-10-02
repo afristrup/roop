@@ -47,6 +47,7 @@ fn set_name(item: &mut Item, name: String) {
         Item::Fn(f) => f.name = name,
         Item::Struct(s) => s.name = name,
         Item::Enum(e) => e.name = name,
+        Item::Session(s) => s.name = name,
         Item::Mod(_) | Item::Use(_) => {}
     }
 }

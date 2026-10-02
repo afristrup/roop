@@ -23,7 +23,7 @@ impl<'a> Ctx<'a> {
                 Item::Struct(def) => drop(ctx.structs.insert(&def.name, def)),
                 Item::Enum(def) => drop(ctx.enums.insert(&def.name, def)),
                 Item::Fn(def) => drop(ctx.fns.insert(&def.name, def)),
-                Item::Mod(_) | Item::Use(_) => {}
+                Item::Mod(_) | Item::Use(_) | Item::Session(_) => {}
             }
         }
         ctx

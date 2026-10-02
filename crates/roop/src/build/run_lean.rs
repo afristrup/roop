@@ -27,6 +27,12 @@ pub fn run_lean(args: &LeanArgs) -> Result<(), CliError> {
             list(&t.parallel)
         );
     }
+    if !t.sessions.is_empty() {
+        println!(
+            "  sessions proved checkpoint compliant: {}",
+            list(&t.sessions)
+        );
+    }
     if !t.inexact.is_empty() {
         println!(
             "  floating point, no roundtrip claimed: {}",

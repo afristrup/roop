@@ -1,6 +1,6 @@
 use crate::{
-    CheckError, Scope, check_block, check_concurrency, check_resolution, check_struct, enum_table,
-    irreversible_fns, non_atomic_fns, program_blocks,
+    CheckError, Scope, check_block, check_concurrency, check_resolution, check_session,
+    check_struct, enum_table, irreversible_fns, non_atomic_fns, program_blocks,
 };
 use roop_syntax::{Item, Program};
 
@@ -29,6 +29,7 @@ pub fn check(program: &Program) -> Result<(), CheckError> {
                 check_block(&f.body, scope)?
             }
             Item::Struct(def) => check_struct(def, reversible)?,
+            Item::Session(def) => check_session(def)?,
             Item::Mod(_) | Item::Use(_) | Item::Enum(_) => {}
         }
     }

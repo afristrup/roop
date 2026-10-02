@@ -1,6 +1,7 @@
 use crate::{
-    Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, Translation, esc_fn, lean_commute,
-    lean_enum, lean_fn, lean_loop_lemmas, lean_struct, lean_theorems, lean_try_lemmas,
+    Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, SESSION_PRELUDE, Translation, esc_fn,
+    lean_commute, lean_enum, lean_fn, lean_loop_lemmas, lean_session, lean_struct, lean_theorems,
+    lean_try_lemmas,
 };
 use roop_check::is_irreversible_fn;
 use roop_syntax::{FnDef, Item, Program};
@@ -21,6 +22,25 @@ pub fn translate(program: &Program) -> Translation {
         if let Item::Struct(def) = item {
             lean.push_str(&lean_struct(def));
         }
+    }
+    let sessions: Vec<_> = program
+        .items
+        .iter()
+        .filter_map(|item| {
+            if let Item::Session(def) = item {
+                Some(def)
+            } else {
+                None
+            }
+        })
+        .collect();
+    if !sessions.is_empty() {
+        lean.push_str(SESSION_PRELUDE);
+        lean.push('\n');
+    }
+    for def in sessions {
+        lean.push_str(&lean_session(def));
+        result.sessions.push(def.name.clone());
     }
 
     let mut pending: Vec<&FnDef> = program
