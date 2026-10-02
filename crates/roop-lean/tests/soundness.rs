@@ -1,20 +1,16 @@
 mod support;
 
 #[test]
-fn lean_rejects_a_branch_whose_exit_assertion_does_not_identify_it() {
-    // The roop checker accepts this: it has an exit assertion. But `y > 0`
-    // holds after both branches, so the inverse cannot tell which one ran
-    // (x = -1, y = 3 takes the else branch and the inverse undoes the other).
-    let t = support::translation(
+fn a_branch_exit_assertion_that_decides_the_branch_is_proved_reversible() {
+    // `y > 0` holds after the then branch and fails after the else branch, so
+    // the inverse can tell which one ran: when a run gets through both
+    // assertions, it can be undone. When it does not, the program traps.
+    let t = support::verified(
         "fn f(x: &mut i64, y: &mut i64) {
             if x > 0 { y += x; } else { y -= x; } fi y > 0;
          }",
     );
-    assert!(t.skipped.is_empty());
-    assert!(
-        support::lean_accepts(&t).is_err(),
-        "Lean should not prove this reversible"
-    );
+    assert_eq!(t.reversible, ["f"]);
 }
 
 #[test]

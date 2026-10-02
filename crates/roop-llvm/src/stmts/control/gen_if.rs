@@ -1,8 +1,9 @@
 use crate::{CodegenError, Dir, FnGen, bool_type, gen_assert, gen_block, gen_expr, same_type};
-use roop_syntax::{Block, Expr};
+use roop_syntax::{Block, Expr, UnOp};
 
-/// Backward, the exit assertion selects the branch and the entry condition
-/// becomes the assertion.
+/// The exit assertion holds after the then branch and fails after the else
+/// branch, which is what lets it select the branch backward: there the exit
+/// assertion is the entry condition and the entry condition is the assertion.
 pub fn gen_if(
     g: &mut FnGen,
     cond: &Expr,
@@ -22,13 +23,17 @@ pub fn gen_if(
         "br i1 {}, label %{then_l}, label %{else_l}",
         c.reg
     ));
-    g.label(&then_l);
-    gen_block(g, then_block, dir)?;
-    g.emit(&format!("br label %{join}"));
-    g.label(&else_l);
-    gen_block(g, else_block, dir)?;
-    g.emit(&format!("br label %{join}"));
+    let negated = Expr::Unary(UnOp::Not, Box::new(assertion.clone()));
+    for (label, block, expected) in [
+        (then_l, then_block, assertion),
+        (else_l, else_block, &negated),
+    ] {
+        g.label(&label);
+        gen_block(g, block, dir)?;
+        let a = gen_expr(g, expected)?;
+        gen_assert(g, &a)?;
+        g.emit(&format!("br label %{join}"));
+    }
     g.label(&join);
-    let a = gen_expr(g, assertion)?;
-    gen_assert(g, &a)
+    Ok(())
 }

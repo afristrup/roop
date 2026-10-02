@@ -61,9 +61,12 @@ fn a_function_calling_a_function_with_a_loop_uses_its_lemmas() {
 #[test]
 fn lean_rejects_a_loop_whose_body_is_not_reversible() {
     let t = support::translation(
-        "fn f(x: &mut i64, y: &mut i64, i: &mut i64) {
+        "fn f(x: &i64, y: &mut i64, i: &mut i64) {
             from i == 0 {
-                if x > 0 { y += x; } else { y -= x; } fi y > 0;
+                match x {
+                    0 => { y += 1; } assert y > 0;
+                    _ => { y += 2; } assert y > 0;
+                }
             } loop { i += 1; } until i == 3;
          }",
     );

@@ -121,7 +121,7 @@ const GUARDED: &str = "irrev fn guarded(x: &mut i64, y: &mut i64, z: &mut i64, w
     try {
         chan c: i64 {
             #[concurrent] { x += 5; send c <- y; }
-            #[concurrent] { recv c -> z; if z > 100 { w += 1; } fi w > 0; }
+            #[concurrent] { recv c -> z; if z > 100 { w += 1; } fi true; }
         }
     } catch_rollback { w += 7; }
 }";
@@ -161,7 +161,7 @@ fn a_task_that_fails_before_sending_does_not_leave_its_peer_waiting_forever() {
     let src = "irrev fn stuck(x: &mut i64, y: &mut i64, z: &mut i64, w: &mut i64) {
         try {
             chan c: i64 {
-                #[concurrent] { if x > 100 { w += 1; } fi w > 0; send c <- y; }
+                #[concurrent] { if x > 100 { w += 1; } fi true; send c <- y; }
                 #[concurrent] { recv c -> z; }
             }
         } catch_rollback { w += 3; }
@@ -204,7 +204,7 @@ fn a_failure_inside_a_parallel_loop_rolls_back_arrays_written_by_worker_threads(
         try {
             #[parallel(cpu)] from i == 0 {
                 a[i] += 10;
-                if a[i] > 100 { a[i] += 1; } fi a[i] > 100;
+                if a[i] > 100 { a[i] += 1; } fi true;
             } loop { i += 1; } until i == 63;
         } catch_rollback { s += 1; }
     }";

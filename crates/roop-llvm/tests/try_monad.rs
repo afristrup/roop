@@ -18,7 +18,7 @@ fn a_failed_body_is_undone_by_running_it_backward_and_the_handler_sees_the_old_s
         try {
             x += 5;
             y += x;
-            if x > 100 { y -= 1; } else { y += 1; } fi x > 100;
+            if x > 100 { y -= 1; } else { y += 1; } fi x > 0;
         } catch_rollback {
             x -= 1;
         } -> failed;
@@ -48,7 +48,7 @@ fn a_failure_in_a_later_iteration_undoes_the_finished_iterations() {
     let src = "fn drive(x: &mut i64, i: &mut i64, failed: &mut bool) {
         try {
             from i == 0 {
-                if i < 3 { x += 1; } else { x += 2; } fi i < 3;
+                if i < 3 { x += 1; } else { x += 2; } fi true;
             } loop { i += 1; } until i == 5;
         } catch_rollback {
             x ^= 255;
@@ -73,7 +73,7 @@ fn a_failing_callee_undoes_itself_before_the_try_handles_it() {
     let src = "fn risky(x: &mut i64, y: &mut i64) {
         x += 1;
         y += x;
-        if y > 50 { x += 100; } else { x -= 1000; } fi y > 50;
+        if y > 50 { x += 100; } else { x -= 1000; } fi true;
     }
     fn caller(x: &mut i64, y: &mut i64, failed: &mut bool) {
         try {
@@ -138,7 +138,7 @@ fn an_outer_failure_also_undoes_a_finished_inner_try() {
             } catch_rollback {
                 y ^= 7;
             } -> a;
-            if y > 1000 { x += 1; } else { x -= 1; } fi y > 1000;
+            if y > 1000 { x += 1; } else { x -= 1; } fi true;
         } catch_rollback {
             x ^= 3;
         } -> b;
@@ -198,7 +198,7 @@ fn a_function_with_its_own_try_is_undone_when_its_caller_fails() {
     fn outer(x: &mut i64, y: &mut i64, a: &mut bool, b: &mut bool) {
         try {
             call inner(x, y, a);
-            if y > 1000 { x += 1; } else { x -= 1; } fi y > 1000;
+            if y > 1000 { x += 1; } else { x -= 1; } fi true;
         } catch_rollback {
             x ^= 3;
         } -> b;
