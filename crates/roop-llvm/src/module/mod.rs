@@ -11,6 +11,7 @@ mod module_header;
 mod options;
 mod parallel_options;
 mod ptx_module;
+mod try_variants;
 mod type_decls;
 
 pub use air_arg_metadata::*;
@@ -26,4 +27,5 @@ pub use module_header::*;
 pub use options::*;
 pub use parallel_options::*;
 pub use ptx_module::*;
+pub use try_variants::*;
 pub use type_decls::*;

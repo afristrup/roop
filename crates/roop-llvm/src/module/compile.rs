@@ -1,6 +1,6 @@
 use crate::{
     CodegenError, Compiled, Ctx, Dialect, Dir, Kernel, Options, air_module, gen_function,
-    module_header, ptx_module, type_decls,
+    module_header, ptx_module, try_variants, type_decls,
 };
 use roop_syntax::{Item, Program};
 
@@ -39,6 +39,7 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
          @roop_metallib_len = external constant i64\n\
          @roop_ptx = external constant i8\n\n",
     );
+    let variants = try_variants(&ctx);
     let mut kernels: Vec<Kernel> = Vec::new();
     for item in &program.items {
         match item {
@@ -51,7 +52,22 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
                 .into_iter()
                 .filter(|(_, dir)| has_inverse || *dir == Dir::Forward)
                 {
-                    let out = gen_function(&ctx, &symbol, None, &f.params, &f.body, dir)?;
+                    let out = gen_function(&ctx, &symbol, None, &f.params, &f.body, dir, false)?;
+                    host.push_str(&out.text);
+                    host.push('\n');
+                    kernels.extend(out.kernels);
+                }
+                for inverse in [false, true] {
+                    if !variants.contains(&(f.name.clone(), inverse)) {
+                        continue;
+                    }
+                    let (dir, suffix) = if inverse {
+                        (Dir::Backward, "_inv_try")
+                    } else {
+                        (Dir::Forward, "_try")
+                    };
+                    let symbol = format!("{}{suffix}", f.name);
+                    let out = gen_function(&ctx, &symbol, None, &f.params, &f.body, dir, true)?;
                     host.push_str(&out.text);
                     host.push('\n');
                     kernels.extend(out.kernels);
@@ -63,7 +79,7 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
                     let symbol = format!("{}_{suffix}", def.name);
                     let (params, body) = (&ctor.params, &ctor.body);
                     let out =
-                        gen_function(&ctx, &symbol, Some(&def.name), params, body, Dir::Forward)?;
+                        gen_function(&ctx, &symbol, Some(&def.name), params, body, Dir::Forward, false)?;
                     host.push_str(&out.text);
                     host.push('\n');
                     kernels.extend(out.kernels);

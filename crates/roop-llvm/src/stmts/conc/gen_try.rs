@@ -1,5 +1,6 @@
 use crate::{
-    AbortMode, CodegenError, Dialect, Dir, FnGen, Slot, chan_handle, copy_bytes, gen_block, layout,
+    AbortMode, CodegenError, Dialect, Dir, FnGen, Slot, chan_handle, copy_bytes, gen_block,
+    gen_try_outcome, layout,
 };
 use roop_check::{body_effects, channels_used};
 use roop_syntax::{Block, Place, Type};
@@ -17,8 +18,8 @@ pub fn gen_try(
     outcome: Option<&Place>,
     dir: Dir,
 ) -> Result<(), CodegenError> {
-    if outcome.is_some() {
-        return Err(CodegenError::Unsupported("try with an outcome"));
+    if let Some(outcome) = outcome {
+        return gen_try_outcome(g, body, handler, outcome, dir);
     }
     if dir == Dir::Backward {
         return Err(CodegenError::Unsupported(

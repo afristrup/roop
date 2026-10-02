@@ -1,6 +1,6 @@
 use crate::{
-    CodegenError, Ctx, Dialect, Dir, FnGen, GenOutput, Slot, function_attrs, gen_block, llvm_type,
-    mem_store,
+    CodegenError, Ctx, Dialect, Dir, FnGen, GenOutput, Slot, function_attrs, gen_block,
+    gen_unwinding, llvm_type, mem_store,
 };
 use roop_syntax::{Block, Param, Type};
 
@@ -13,6 +13,7 @@ pub fn gen_function(
     params: &[Param],
     body: &Block,
     dir: Dir,
+    unwinding: bool,
 ) -> Result<GenOutput, CodegenError> {
     let mut g = FnGen::new(ctx, symbol.into(), Dialect::Host);
     let mut signature = Vec::new();
@@ -50,9 +51,19 @@ pub fn gen_function(
         };
         g.vars.push((param.name.clone(), slot));
     }
-    gen_block(&mut g, body, dir)?;
+    let (ret, tail) = if unwinding {
+        let fail = g.fresh("L");
+        gen_unwinding(&mut g, body, dir, &fail)?;
+        g.emit("ret i32 0");
+        g.label(&fail);
+        g.emit("ret i32 1");
+        ("i32", "")
+    } else {
+        gen_block(&mut g, body, dir)?;
+        ("void", "  ret void\n")
+    };
     let text = format!(
-        "define void @{symbol}({}){} {{\nentry:\n{}{}  ret void\n}}\n{}{}",
+        "define {ret} @{symbol}({}){} {{\nentry:\n{}{}{tail}}}\n{}{}",
         signature.join(", "),
         function_attrs(ctx),
         g.allocas,
