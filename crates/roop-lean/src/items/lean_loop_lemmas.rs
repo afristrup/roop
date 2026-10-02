@@ -4,8 +4,9 @@ use crate::{
 
 /// Lemmas about one loop whose pieces were lifted out of its function: each
 /// body and step is undone by its inverse, and therefore the loop is, by the
-/// prelude's `Roop.janus_inv`. Returns the text and the names of the loop
-/// lemmas, which later proofs use whenever a loop's result is known.
+/// prelude's `Roop.janus_inv`. Neither can a loop fail on an unrestored
+/// ancilla unless a piece does. Returns the text and the loop lemmas, which
+/// later proofs use whenever a loop's result is known.
 pub fn lean_loop_lemmas(
     info: &LoopInfo,
     deps: &[String],
@@ -105,5 +106,49 @@ pub fn lean_loop_lemmas(
         lemma_of("body", "f_inv"),
         lemma_of("step", "f_inv"),
     ));
-    (text, vec![inv_f, f_inv])
+    let mut rewrite = Vec::new();
+    for part in ["entry", "stop", "body", "step", "body_inv", "step_inv"] {
+        let piece = esc_fn(&format!("{id}_{part}"));
+        let mut unfold = vec![piece.clone()];
+        unfold.extend(deps.iter().cloned());
+        text.push_str(&format!(
+            "theorem {} {} ({a} : {state}) (h : {piece} {} {a} = Except.error Roop.Fail.ancilla) : False := by\n{}{}{}\n",
+            esc_thm(&format!("{id}_{part}_no_ancilla")),
+            explicit.join(" "),
+            args.join(" "),
+            destructure(a),
+            unfold_simp(&unfold, "h"),
+            proof_script(earlier),
+        ));
+    }
+    let never = |part: &str| {
+        format!(
+            "(fun {a} h => {} {} {a} h)",
+            esc_thm(&format!("{id}_{part}_no_ancilla")),
+            args.join(" ")
+        )
+    };
+    for (name, order) in [
+        ("loop_no_ancilla", ["entry", "stop", "body", "step"]),
+        ("loop_inv_no_ancilla", ["stop", "entry", "body_inv", "step_inv"]),
+    ] {
+        let janus: Vec<String> = order.iter().map(|part| applied(part)).collect();
+        let thm = esc_thm(&format!("{id}_{name}"));
+        let witnesses: Vec<String> = order.iter().map(|part| never(part)).collect();
+        text.push_str(&format!(
+            "theorem {thm} {} {{{s} : {state}}} :\n    Roop.janus {} {s} \u{2260} Except.error Roop.Fail.ancilla :=\n  Roop.janus_no_ancilla {} {} {s}\n",
+            implicit.join(" "),
+            janus.join(" "),
+            janus.join(" "),
+            witnesses.join(" "),
+        ));
+        rewrite.push(thm);
+    }
+    (
+        text,
+        LoopLemmas {
+            chain: vec![inv_f, f_inv],
+            rewrite,
+        },
+    )
 }
