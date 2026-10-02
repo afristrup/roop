@@ -89,9 +89,17 @@ pub enum CheckError {
         chan: String,
         span: Span,
     },
-    IrreversibleOutsideIrrev { span: Span },
-    CallsIrreversible { callee: String, span: Span },
-    UncallIrreversible { callee: String, span: Span },
+    IrreversibleOutsideIrrev {
+        span: Span,
+    },
+    CallsIrreversible {
+        callee: String,
+        span: Span,
+    },
+    UncallIrreversible {
+        callee: String,
+        span: Span,
+    },
     TryCannotFail {
         span: Span,
     },

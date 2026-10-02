@@ -11,6 +11,9 @@ pub struct Scope<'a> {
 
 impl<'a> Scope<'a> {
     pub fn inside_irrev(self) -> Scope<'a> {
-        Scope { irrev: true, ..self }
+        Scope {
+            irrev: true,
+            ..self
+        }
     }
 }
