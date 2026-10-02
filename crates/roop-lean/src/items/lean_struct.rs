@@ -10,6 +10,16 @@ pub fn lean_struct(def: &StructDef) -> String {
             lean_type(&field.ty)
         ));
     }
-    text.push('\n');
+    let ty = esc_ty(&def.name);
+    let fields: Vec<String> = def
+        .fields
+        .iter()
+        .map(|f| format!("(s).{}", esc(&f.name)))
+        .collect();
+    // A struct rebuilt from its own fields is itself.
+    text.push_str(&format!(
+        "\n@[simp] theorem {ty}.eta_fields (s : {ty}) : {ty}.mk {} = s := rfl\n\n",
+        fields.join(" ")
+    ));
     text
 }

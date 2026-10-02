@@ -1,4 +1,5 @@
 mod blas;
+mod complex;
 mod session;
 
 pub fn swap(a: &mut i64, b: &mut i64) {

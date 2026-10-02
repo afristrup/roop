@@ -134,10 +134,10 @@ fn translate_fn(
     let mut fresh = LoopLemmas::default();
     let mut parallel = false;
     let mut fn_one_way = false;
-    let mut inexact = text.contains("Float");
+    let mut inexact = text.contains("Float") || mentions_float_struct(cx, &text);
     if reversible {
         let backward = lean_fn(cx, def, Dir::Backward)?;
-        inexact |= backward.lifted.contains("Float");
+        inexact |= backward.lifted.contains("Float") || mentions_float_struct(cx, &backward.lifted);
         text.push_str(&backward.lifted);
         text.push_str(&backward.text);
         let ancillas = forward.ancillas > 0 || backward.ancillas > 0;
@@ -173,4 +173,10 @@ fn translate_fn(
         one_way: reversible && !inexact && fn_one_way,
         lemmas: fresh,
     })
+}
+
+fn mentions_float_struct(cx: &Ctx, text: &str) -> bool {
+    cx.float_structs
+        .iter()
+        .any(|name| text.contains(&crate::esc_ty(name)))
 }

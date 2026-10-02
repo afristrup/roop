@@ -163,3 +163,45 @@ pub fn dtrmm<M, N>(b: &mut [[f64; N]; M], a: &[[f64; M]; M]) {
 pub fn dtrsm<M, N>(b: &mut [[f64; N]; M], a: &[[f64; M]; M]) {
     uncall dtrmm<M, N>(b, a);
 }
+
+// C <- alpha * (A * B^T + B * A^T) + C
+pub fn isyr2k<N, K>(c: &mut [[i64; N]; N], a: &[[i64; K]; N], b: &[[i64; K]; N], alpha: &i64) {
+    ancilla i: i64 = 0 {
+        #[parallel]
+        from i == 0 {
+            ancilla j: i64 = 0 {
+                from j == 0 {
+                    ancilla l: i64 = 0 {
+                        from l == 0 {
+                            c[i][j] += alpha * a[i][l] * b[j][l] + alpha * b[i][l] * a[j][l];
+                        } loop { l += 1; } until l == K - 1;
+                        l -= K - 1;
+                    }
+                } loop { j += 1; } until j == N - 1;
+                j -= N - 1;
+            }
+        } loop { i += 1; } until i == N - 1;
+        i -= N - 1;
+    }
+}
+
+// C <- alpha * (A * B^T + B * A^T) + C
+pub fn dsyr2k<N, K>(c: &mut [[f64; N]; N], a: &[[f64; K]; N], b: &[[f64; K]; N], alpha: &f64) {
+    ancilla i: i64 = 0 {
+        #[parallel]
+        from i == 0 {
+            ancilla j: i64 = 0 {
+                from j == 0 {
+                    ancilla l: i64 = 0 {
+                        from l == 0 {
+                            c[i][j] += alpha * a[i][l] * b[j][l] + alpha * b[i][l] * a[j][l];
+                        } loop { l += 1; } until l == K - 1;
+                        l -= K - 1;
+                    }
+                } loop { j += 1; } until j == N - 1;
+                j -= N - 1;
+            }
+        } loop { i += 1; } until i == N - 1;
+        i -= N - 1;
+    }
+}

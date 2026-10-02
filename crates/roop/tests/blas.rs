@@ -112,3 +112,126 @@ fn lean_proves_the_blas_routines_reversible() {
     }
     assert!(report.contains("Lean accepted the file"), "{report}");
 }
+
+const EXTRA_PROGRAM: &str = "
+use std::complex::Gaussian;
+use std::complex::gaxpy;
+use std::complex::gdotu;
+use std::blas::level1::irot;
+use std::blas::level3::dgemm;
+
+fn zi(y: &mut [Gaussian; 2], x: &[Gaussian; 2], a: &Gaussian) { call gaxpy<2>(y, x, a); }
+fn dot(r: &mut Gaussian, x: &[Gaussian; 2], y: &[Gaussian; 2]) { call gdotu<2>(r, x, y); }
+fn rotate(x: &mut [i64; 3], y: &mut [i64; 3], a: &i64, b: &i64) { call irot<3>(x, y, a, b); }
+fn mm(c: &mut [[f64; 16]; 16], a: &[[f64; 16]; 16], b: &[[f64; 16]; 16], k: &f64) {
+    call dgemm<16, 16, 16>(c, a, b, k);
+}
+";
+
+const EXTRA_MAIN: &str = r#"
+#include <math.h>
+#include <stdint.h>
+typedef struct { int64_t re, im; } Gaussian;
+void zi(Gaussian*, Gaussian*, Gaussian*);   void zi_inv(Gaussian*, Gaussian*, Gaussian*);
+void dot(Gaussian*, Gaussian*, Gaussian*);
+void rotate(int64_t*, int64_t*, int64_t*, int64_t*);
+void rotate_inv(int64_t*, int64_t*, int64_t*, int64_t*);
+void mm(double*, double*, double*, double*); void mm_inv(double*, double*, double*, double*);
+
+static uint64_t state = 12345;
+static double uniform(void) {
+    state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+    return (double)(state >> 11) / 9007199254740992.0;
+}
+
+int main(void) {
+    /* multiplying by i: (3 + 4i) -> (-4 + 3i) */
+    Gaussian y[2] = {{1, 2}, {0, 0}}, x[2] = {{3, 4}, {1, 0}}, i = {0, 1};
+    zi(y, x, &i);
+    if (y[0].re != -3 || y[0].im != 5 || y[1].re != 0 || y[1].im != 1) return 1;
+    zi_inv(y, x, &i);
+    if (y[0].re != 1 || y[0].im != 2 || y[1].re != 0 || y[1].im != 0) return 2;
+
+    Gaussian r = {0, 0}, p[2] = {{1, 1}, {2, 0}}, q[2] = {{3, 1}, {0, 5}};
+    dot(&r, p, q);
+    /* (1+i)(3+i) + 2*5i = 2 + 4i + 10i */
+    if (r.re != 2 || r.im != 14) return 3;
+
+    /* A quarter turn, as three shears: (2, 5) -> (-5, 2), and back exactly. */
+    int64_t rx[3] = {1, 2, 0}, ry[3] = {0, 5, 0}, a = -1, b = 1;
+    rotate(rx, ry, &a, &b);
+    if (rx[0] != 0 || ry[0] != 1 || rx[1] != -5 || ry[1] != 2 || rx[2] != 0 || ry[2] != 0) return 4;
+    rotate_inv(rx, ry, &a, &b);
+    if (rx[0] != 1 || ry[0] != 0 || rx[1] != 2 || ry[1] != 5) return 5;
+
+    /* The accuracy test of the RBLAS paper: fill with a + R*b, run forward then
+       reverse, and measure the root mean square deviation from the input. */
+    static double A[256], B[256], C[256], C0[256];
+    double alpha = 1.0;
+    for (int m = 0; m < 256; m++) {
+        A[m] = 1000 + uniform() * 1000;
+        B[m] = 1000 + uniform() * 1000;
+        C[m] = C0[m] = 1000 + uniform() * 1000;
+    }
+    mm(C, A, B, &alpha);
+    if (fabs(C[0] - C0[0]) < 1.0) return 6;
+    mm_inv(C, A, B, &alpha);
+    double sum = 0;
+    for (int m = 0; m < 256; m++) sum += (C[m] - C0[m]) * (C[m] - C0[m]);
+    double rms = sqrt(sum / 256);
+    return rms < 1e-6 ? 0 : 7;
+}
+"#;
+
+#[test]
+fn complex_rotation_and_the_papers_accuracy_test() {
+    let config = format!("[modules]\nstd = \"{}\"\n", std_dir().display());
+    let dir = project("blas-extra", &config, EXTRA_PROGRAM);
+    std::fs::write(dir.join("main.c"), EXTRA_MAIN).unwrap();
+    let out = roop(
+        &dir,
+        &["build", "prog.roop", "--link", "main.c", "-o", "prog"],
+    );
+    assert!(out.status.success(), "{}", stderr(&out));
+    let code = Command::new(dir.join("prog")).status().unwrap().code();
+    assert_eq!(code, Some(0), "check #{code:?} in the C driver failed");
+}
+
+#[test]
+fn lean_proves_gaussian_rotation_and_syr2k_reversible_and_flags_floats() {
+    let config = format!("[modules]\nstd = \"{}\"\n", std_dir().display());
+    let src = "
+use std::complex::Gaussian;
+use std::complex::Complex;
+use std::complex::gaxpy;
+use std::complex::ggemm;
+use std::complex::zaxpy;
+use std::blas::level1::irot;
+use std::blas::level3::isyr2k;
+
+fn exact(y: &mut [Gaussian; 3], x: &[Gaussian; 3], a: &Gaussian) { call gaxpy<3>(y, x, a); }
+fn product(c: &mut [[Gaussian; 2]; 2], a: &[[Gaussian; 2]; 2], b: &[[Gaussian; 2]; 2], k: &Gaussian) {
+    call ggemm<2, 2, 2>(c, a, b, k);
+}
+fn rough(y: &mut [Complex; 3], x: &[Complex; 3], a: &Complex) { call zaxpy<3>(y, x, a); }
+fn turn(x: &mut [i64; 4], y: &mut [i64; 4], a: &i64, b: &i64) { call irot<4>(x, y, a, b); }
+fn sym(c: &mut [[i64; 3]; 3], a: &[[i64; 2]; 3], b: &[[i64; 2]; 3], k: &i64) { call isyr2k<3, 2>(c, a, b, k); }
+";
+    let dir = project("blas-extra-lean", &config, src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    let proved = report
+        .lines()
+        .find(|l| l.contains("theorems proved"))
+        .unwrap();
+    for name in ["exact", "product", "turn", "sym"] {
+        assert!(proved.contains(name), "{name} not proved: {report}");
+    }
+    let inexact = report
+        .lines()
+        .find(|l| l.contains("floating point"))
+        .unwrap();
+    assert!(inexact.contains("rough"), "{report}");
+    assert!(!proved.contains("rough"), "{report}");
+}

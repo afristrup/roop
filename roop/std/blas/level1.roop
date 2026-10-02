@@ -94,3 +94,37 @@ pub fn ifill<N>(x: &mut [i64; N], value: &i64, history: &mut Stack<i64, N>) {
         i -= N - 1;
     }
 }
+
+// A Givens rotation of the pairs (x[i], y[i]) as three shears: x += a*y,
+// y += b*x, x += a*y. With a = -tan(theta/2) and b = sin(theta) this turns
+// every pair by theta. Each shear is constructive, so the rotation is exactly
+// reversible in integers, where a plain rotation (c*x + s*y, c*y - s*x) could
+// not be, and its reverse routine is the rotation by -theta.
+pub fn irot<N>(x: &mut [i64; N], y: &mut [i64; N], a: &i64, b: &i64) {
+    ancilla i: i64 = 0 {
+        #[parallel]
+        from i == 0 {
+            x[i] += a * y[i];
+            y[i] += b * x[i];
+            x[i] += a * y[i];
+        } loop { i += 1; } until i == N - 1;
+        i -= N - 1;
+    }
+}
+
+// A Givens rotation of the pairs (x[i], y[i]) as three shears: x += a*y,
+// y += b*x, x += a*y. With a = -tan(theta/2) and b = sin(theta) this turns
+// every pair by theta. Each shear is constructive, so the rotation is exactly
+// reversible in integers, where a plain rotation (c*x + s*y, c*y - s*x) could
+// not be, and its reverse routine is the rotation by -theta.
+pub fn drot<N>(x: &mut [f64; N], y: &mut [f64; N], a: &f64, b: &f64) {
+    ancilla i: i64 = 0 {
+        #[parallel]
+        from i == 0 {
+            x[i] += a * y[i];
+            y[i] += b * x[i];
+            x[i] += a * y[i];
+        } loop { i += 1; } until i == N - 1;
+        i -= N - 1;
+    }
+}

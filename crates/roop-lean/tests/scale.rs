@@ -26,3 +26,17 @@ fn float_scaling_is_translated_but_claims_no_roundtrip() {
     assert_eq!(t.inexact, ["grow"]);
     assert!(support::lean_accepts(&t).is_ok());
 }
+
+#[test]
+fn a_struct_with_a_float_inside_makes_its_functions_inexact() {
+    let t = support::translation(
+        "struct Point { x: f64, y: f64 }
+         struct Segment { start: Point, stop: Point }
+         struct Counter { n: i64 }
+         fn nudge(s: &mut Segment, d: &f64) { s.start.x += d; }
+         fn bump(c: &mut Counter, k: &i64) { c.n += k; }",
+    );
+    assert_eq!(t.inexact, ["nudge"]);
+    assert_eq!(t.reversible, ["bump"]);
+    assert!(support::lean_accepts(&t).is_ok());
+}

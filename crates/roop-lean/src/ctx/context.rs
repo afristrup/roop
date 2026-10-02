@@ -1,3 +1,4 @@
+use crate::float_structs;
 use roop_syntax::{EnumDef, FnDef, Item, Program, StructDef};
 use std::collections::{HashMap, HashSet};
 
@@ -8,6 +9,8 @@ pub struct Ctx<'a> {
     pub enums: HashMap<&'a str, &'a EnumDef>,
     pub fns: HashMap<&'a str, &'a FnDef>,
     pub translated: HashSet<String>,
+    /// Structs with an `f64` inside, whose arithmetic is not exact.
+    pub float_structs: HashSet<String>,
 }
 
 impl<'a> Ctx<'a> {
@@ -17,6 +20,7 @@ impl<'a> Ctx<'a> {
             enums: HashMap::new(),
             fns: HashMap::new(),
             translated: HashSet::new(),
+            float_structs: HashSet::new(),
         };
         for item in &program.items {
             match item {
@@ -26,6 +30,7 @@ impl<'a> Ctx<'a> {
                 Item::Mod(_) | Item::Use(_) | Item::Session(_) => {}
             }
         }
+        ctx.float_structs = float_structs(&ctx.structs);
         ctx
     }
 }

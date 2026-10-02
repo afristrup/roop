@@ -2,9 +2,9 @@ use crate::{Lifted, esc, esc_fn, esc_thm, lean_type, tuple_expr, tuple_proj, unf
 
 /// Split every bounds check, then let the vector lemmas commute the writes.
 const SCRIPT: &str = "  repeat' roop_cases
-  all_goals (try simp_all [Vector.getElem_set_ne, Vector.set_comm])
+  all_goals (try simp only [Vector.getElem_set_self, Vector.set_set, Vector.getElem_set_ne _ _ hne, Vector.getElem_set_ne _ _ hne', Prod.mk.injEq])
   all_goals (try (repeat' (apply And.intro)))
-  all_goals first | done | omega | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))";
+  all_goals first | done | omega | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega); done) | (simp_all [Vector.getElem_set_ne, Vector.set_comm]; done)";
 
 /// A `#[parallel]` loop runs its iterations in any order, so any two of them
 /// must commute: running iteration `v` then `w` ends in the same state as `w`
