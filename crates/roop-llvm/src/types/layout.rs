@@ -39,5 +39,6 @@ pub fn layout(ctx: &Ctx, ty: &Type) -> Result<(u64, u64), CodegenError> {
             ))
         }
         Type::Ref { .. } => Ok((8, 8)),
+        Type::Param { len, .. } => Err(CodegenError::Uninstantiated(len.clone())),
     }
 }

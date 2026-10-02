@@ -6,6 +6,7 @@ pub enum CodegenError {
     TypeMismatch { expected: String, found: String },
     InvalidOperand(&'static str),
     Unsupported(&'static str),
+    Uninstantiated(String),
 }
 
 impl fmt::Display for CodegenError {
@@ -16,6 +17,9 @@ impl fmt::Display for CodegenError {
                 write!(f, "expected {expected}, found {found}")
             }
             Self::InvalidOperand(what) => write!(f, "invalid operand: {what}"),
+            Self::Uninstantiated(len) => {
+                write!(f, "generic length `{len}` was not instantiated")
+            }
             Self::Unsupported(what) => write!(f, "unsupported in code generation: {what}"),
         }
     }

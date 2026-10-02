@@ -1,4 +1,4 @@
-use crate::{Block, Stmt, StmtKind, Token, UpdateOp};
+use crate::{Block, Expr, Place, Stmt, StmtKind, Token, UpdateOp, comma_list};
 use crate::{
     Err, TokenInput, attr, block, borrow_stmt, chan_stmt, expr, ident, irrev_stmt, logged_stmt,
     match_stmt, overwrite_stmt, place, pop_stmt, push_stmt, recv_stmt, send_stmt, try_stmt, ty,
@@ -90,16 +90,37 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
             .allow_trailing()
             .collect()
             .delimited_by(just(Token::LParen), just(Token::RParen));
+        let length = select! { Token::Int(s) => s }
+            .try_map(|s, span| {
+                s.parse::<i64>()
+                    .map(Expr::Int)
+                    .map_err(|e| Rich::custom(span, e.to_string()))
+            })
+            .or(ident().map(|name| Expr::Place(Place::Var(name))));
+        let generic_args = comma_list(length)
+            .delimited_by(just(Token::Lt), just(Token::Gt))
+            .or_not()
+            .map(Option::unwrap_or_default);
         let call = just(Token::Call)
             .ignore_then(ident())
+            .then(generic_args.clone())
             .then(args.clone())
             .then_ignore(semi.clone())
-            .map(|(callee, args)| StmtKind::Call { callee, args });
+            .map(|((callee, generics), args)| StmtKind::Call {
+                callee,
+                generics,
+                args,
+            });
         let uncall = just(Token::Uncall)
             .ignore_then(ident())
+            .then(generic_args)
             .then(args)
             .then_ignore(semi)
-            .map(|(callee, args)| StmtKind::Uncall { callee, args });
+            .map(|((callee, generics), args)| StmtKind::Uncall {
+                callee,
+                generics,
+                args,
+            });
 
         let kind = update
             .or(swap)

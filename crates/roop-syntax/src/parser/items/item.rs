@@ -1,4 +1,6 @@
-use crate::{Err, TokenInput, block, comma_list, enum_def, ident, param, stmt, struct_def};
+use crate::{
+    Err, TokenInput, block, comma_list, enum_def, generics, ident, param, stmt, struct_def,
+};
 use crate::{FnDef, Item, Token, UseDecl};
 use chumsky::prelude::*;
 
@@ -22,11 +24,13 @@ pub fn item<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>> + Clon
         .then(just(Token::Irrev).or_not())
         .then_ignore(just(Token::Fn))
         .then(ident())
+        .then(generics().or_not())
         .then(comma_list(param()).delimited_by(just(Token::LParen), just(Token::RParen)))
         .then(block(stmt()))
-        .map(|((((public, irrev), name), params), body)| {
+        .map(|(((((public, irrev), name), generics), params), body)| {
             Item::Fn(FnDef {
                 name,
+                generics: generics.unwrap_or_default(),
                 params,
                 body,
                 irreversible: irrev.is_some(),

@@ -16,19 +16,34 @@ pub fn ty<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Type, Err<'a>> + Clone 
             s.parse::<u64>()
                 .map_err(|e| Rich::custom(span, e.to_string()))
         });
+        let sized = len.map(Ok).or(ident().map(Err));
         let array = ty
             .clone()
             .then_ignore(just(Token::Semi))
-            .then(len)
+            .then(sized.clone())
             .delimited_by(just(Token::LBracket), just(Token::RBracket))
-            .map(|(t, n)| Type::Array(Box::new(t), n));
+            .map(|(t, n)| match n {
+                Ok(n) => Type::Array(Box::new(t), n),
+                Err(len) => Type::Param {
+                    elem: Box::new(t),
+                    len,
+                    stack: false,
+                },
+            });
         let stack = select! { Token::Ident("Stack") => () }
             .ignore_then(
                 ty.then_ignore(just(Token::Comma))
-                    .then(len)
+                    .then(sized)
                     .delimited_by(just(Token::Lt), just(Token::Gt)),
             )
-            .map(|(t, n)| Type::Stack(Box::new(t), n));
+            .map(|(t, n)| match n {
+                Ok(n) => Type::Stack(Box::new(t), n),
+                Err(len) => Type::Param {
+                    elem: Box::new(t),
+                    len,
+                    stack: true,
+                },
+            });
         stack.or(named).or(reference).or(array)
     })
 }

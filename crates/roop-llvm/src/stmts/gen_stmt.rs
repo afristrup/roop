@@ -49,8 +49,8 @@ pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError
             body,
         } => gen_ancilla(g, name, ty, init, body, dir),
         StmtKind::Borrow { name, source, body } => gen_borrow(g, name, source, body, dir),
-        StmtKind::Call { callee, args } => gen_call(g, callee, args, false, dir),
-        StmtKind::Uncall { callee, args } => gen_call(g, callee, args, true, dir),
+        StmtKind::Call { callee, args, .. } => gen_call(g, callee, args, false, dir),
+        StmtKind::Uncall { callee, args, .. } => gen_call(g, callee, args, true, dir),
         StmtKind::Try {
             body,
             handler,

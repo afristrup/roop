@@ -60,8 +60,8 @@ pub fn lean_stmt(
         StmtKind::Borrow { name, source, body } => {
             lean_borrow(cx, env, out, name, source, body, dir)
         }
-        StmtKind::Call { callee, args } => lean_call(cx, env, out, callee, args, false, dir),
-        StmtKind::Uncall { callee, args } => lean_call(cx, env, out, callee, args, true, dir),
+        StmtKind::Call { callee, args, .. } => lean_call(cx, env, out, callee, args, false, dir),
+        StmtKind::Uncall { callee, args, .. } => lean_call(cx, env, out, callee, args, true, dir),
         StmtKind::Block(body) => lean_block(cx, env, out, body, dir),
         StmtKind::Irrev(body) => match dir {
             Dir::Forward => lean_block(cx, env, out, body, dir),

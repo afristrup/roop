@@ -1,5 +1,5 @@
 use crate::{
-    ModuleError, Tree, build_scope, global_name, item_name, lookup, order, prune, visit_item,
+    ModuleError, Tree, build_scope, global_name, item_name, lookup, order, prune, rename_names,
 };
 use roop_syntax::{Item, Program};
 
@@ -25,7 +25,7 @@ pub fn flatten(tree: &Tree) -> Result<Program, ModuleError> {
                 continue;
             };
             let mut item = item.clone();
-            visit_item(&mut item, &mut |n| {
+            rename_names(&mut item, &mut |n| {
                 if let Some(global) = lookup(scope, n) {
                     *n = global;
                 }

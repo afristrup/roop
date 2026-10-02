@@ -88,10 +88,13 @@ pub enum StmtKind {
     },
     Call {
         callee: String,
+        /// Lengths for a generic callee: `call f<8>(..)`.
+        generics: Vec<Expr>,
         args: Vec<Expr>,
     },
     Uncall {
         callee: String,
+        generics: Vec<Expr>,
         args: Vec<Expr>,
     },
 }

@@ -1,4 +1,4 @@
-use crate::{item_name, lookup, visit_item};
+use crate::{item_name, lookup, rename_names};
 use roop_syntax::Item;
 use std::collections::{HashMap, HashSet};
 
@@ -19,7 +19,7 @@ pub fn prune(items: Vec<Item>, keep: usize) -> Vec<Item> {
     let mut work: Vec<usize> = (0..keep).collect();
     while let Some(i) = work.pop() {
         let mut item = items[i].clone();
-        visit_item(&mut item, &mut |name| {
+        rename_names(&mut item, &mut |name| {
             let Some(target) = lookup(&index, name) else {
                 return;
             };

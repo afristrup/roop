@@ -114,12 +114,22 @@ fn rename_stmt(stmt: &Stmt, from: &str, to: &str) -> Stmt {
             chan: chan.clone(),
             target: p(target),
         },
-        StmtKind::Call { callee, args } => StmtKind::Call {
+        StmtKind::Call {
+            callee,
+            generics,
+            args,
+        } => StmtKind::Call {
             callee: callee.clone(),
+            generics: generics.clone(),
             args: args.iter().map(e).collect(),
         },
-        StmtKind::Uncall { callee, args } => StmtKind::Uncall {
+        StmtKind::Uncall {
+            callee,
+            generics,
+            args,
+        } => StmtKind::Uncall {
             callee: callee.clone(),
+            generics: generics.clone(),
             args: args.iter().map(e).collect(),
         },
     };

@@ -18,8 +18,8 @@ pub fn gen_unwinding_stmt(
         | StmtKind::Push { .. }
         | StmtKind::Pop { .. }
         | StmtKind::Overwrite { .. } => gen_stmt(g, stmt, dir),
-        StmtKind::Call { callee, args } => gen_call_status(g, callee, args, false, dir, fail),
-        StmtKind::Uncall { callee, args } => gen_call_status(g, callee, args, true, dir, fail),
+        StmtKind::Call { callee, args, .. } => gen_call_status(g, callee, args, false, dir, fail),
+        StmtKind::Uncall { callee, args, .. } => gen_call_status(g, callee, args, true, dir, fail),
         StmtKind::If {
             cond,
             then_block,

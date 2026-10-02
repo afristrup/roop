@@ -21,20 +21,24 @@ pub fn inverts(a: &StmtKind, b: &StmtKind) -> bool {
             StmtKind::Call {
                 callee: ca,
                 args: aa,
+                ..
             },
             StmtKind::Uncall {
                 callee: cb,
                 args: ab,
+                ..
             },
         )
         | (
             StmtKind::Uncall {
                 callee: ca,
                 args: aa,
+                ..
             },
             StmtKind::Call {
                 callee: cb,
                 args: ab,
+                ..
             },
         ) => ca == cb && aa == ab,
         (

@@ -3,9 +3,10 @@ use roop_syntax::Program;
 use std::path::Path;
 
 /// Loads `input` and the modules it uses, configured by the nearest
-/// `Roop.toml`.
+/// `Roop.toml`, with generic functions instantiated.
 pub fn load_source(input: &Path, config: &roop_config::Config) -> Result<Program, CliError> {
-    roop_modules::load_program(input, config).map_err(CliError::Modules)
+    let program = roop_modules::load_program(input, config).map_err(CliError::Modules)?;
+    roop_opt::monomorphize(&program).map_err(CliError::Generics)
 }
 
 /// The nearest `Roop.toml` above `input`.
