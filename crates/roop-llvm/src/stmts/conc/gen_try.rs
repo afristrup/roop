@@ -2,7 +2,7 @@ use crate::{
     AbortMode, CodegenError, Dialect, Dir, FnGen, Slot, chan_handle, copy_bytes, gen_block, layout,
 };
 use roop_check::{body_effects, channels_used};
-use roop_syntax::{Block, Type};
+use roop_syntax::{Block, Place, Type};
 
 /// `try { body } catch_rollback { handler }`. The variables the body writes and
 /// the channels it uses are checkpointed on entry. If an assertion fails
@@ -10,7 +10,16 @@ use roop_syntax::{Block, Type};
 /// tasks, all of them stop, the checkpoint is restored, and the handler runs.
 /// A task group inside rolls back as one unit, which is the paper's
 /// synchronous rollback: no task can undo its part while a peer keeps its own.
-pub fn gen_try(g: &mut FnGen, body: &Block, handler: &Block, dir: Dir) -> Result<(), CodegenError> {
+pub fn gen_try(
+    g: &mut FnGen,
+    body: &Block,
+    handler: &Block,
+    outcome: Option<&Place>,
+    dir: Dir,
+) -> Result<(), CodegenError> {
+    if outcome.is_some() {
+        return Err(CodegenError::Unsupported("try with an outcome"));
+    }
     if dir == Dir::Backward {
         return Err(CodegenError::Unsupported(
             "reversing try ... catch_rollback",

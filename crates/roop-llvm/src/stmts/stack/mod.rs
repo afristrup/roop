@@ -1,4 +1,5 @@
 mod gen_logged;
+mod gen_logged_overwrite;
 mod gen_pop;
 mod gen_push;
 mod move_off;
@@ -10,6 +11,7 @@ mod stack_len_ptr;
 mod stack_parts;
 
 pub use gen_logged::*;
+pub use gen_logged_overwrite::*;
 pub use gen_pop::*;
 pub use gen_push::*;
 pub use move_off::*;
