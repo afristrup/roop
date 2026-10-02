@@ -42,7 +42,7 @@ pub fn build(args: &BuildArgs) -> Result<(), CliError> {
     std::fs::write(&host_path, host).map_err(|e| CliError::Io("writing IR".into(), e))?;
 
     let mut command = clang()?;
-    command.arg(&host_path);
+    command.arg("-O2").arg(&host_path);
     match args.emit {
         Emit::Object => {
             command.arg("-c");
