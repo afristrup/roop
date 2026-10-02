@@ -1,4 +1,4 @@
-use super::{Block, Expr, Place, Type, UpdateOp};
+use super::{Block, Expr, MatchArm, Place, Type, UpdateOp};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StmtKind {
@@ -13,6 +13,10 @@ pub enum StmtKind {
         then_block: Block,
         else_block: Block,
         exit: Expr,
+    },
+    Match {
+        scrutinee: Expr,
+        arms: Vec<MatchArm>,
     },
     From {
         entry: Expr,

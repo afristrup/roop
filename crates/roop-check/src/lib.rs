@@ -1,6 +1,7 @@
 mod check;
 mod check_ancilla;
 mod check_block;
+mod check_match;
 mod check_update;
 mod error;
 mod expr_places;
@@ -17,6 +18,7 @@ mod stmt_writes;
 
 use check_ancilla::check_ancilla;
 use check_block::check_block;
+use check_match::check_match;
 use check_update::check_update;
 use expr_places::expr_places;
 use expr_vars::expr_vars;

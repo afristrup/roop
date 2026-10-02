@@ -46,3 +46,14 @@ fn parses_ancilla_call_uncall() {
         StmtKind::Uncall { .. }
     ));
 }
+
+#[test]
+fn parses_match_with_exit_assertions() {
+    let kind = first_stmt(
+        "match x { 0 => { y += 1; } assert y == 1; true => { y -= 1; } assert y != 1; _ => { } assert y == 0; }",
+    );
+    let StmtKind::Match { arms, .. } = kind else {
+        panic!("expected match")
+    };
+    assert_eq!(arms.len(), 3);
+}

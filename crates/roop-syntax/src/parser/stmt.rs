@@ -1,10 +1,11 @@
-use super::{Err, TokenInput, block, expr, ident, place, ty};
+use super::{Err, TokenInput, block, expr, ident, match_stmt, place, ty};
 use crate::{Block, Stmt, StmtKind, Token, UpdateOp};
 use chumsky::prelude::*;
 
 pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clone {
     recursive(|stmt| {
         let blk = block(stmt);
+        let match_ = match_stmt(blk.clone());
         let semi = just(Token::Semi);
 
         let update_op = select! {
@@ -94,6 +95,7 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
         update
             .or(swap)
             .or(if_)
+            .or(match_)
             .or(from)
             .or(ancilla)
             .or(call)

@@ -6,6 +6,7 @@ pub enum CheckError {
     SelfReferentialUpdate { var: String, span: Span },
     AncillaNotRestored { name: String, span: Span },
     AncillaTouchedInControlFlow { name: String, span: Span },
+    NonExhaustiveMatch { span: Span },
 }
 
 impl fmt::Display for CheckError {
@@ -24,6 +25,11 @@ impl fmt::Display for CheckError {
             Self::AncillaTouchedInControlFlow { name, span } => write!(
                 f,
                 "ancilla `{name}` is modified inside control flow at {}..{}",
+                span.start, span.end
+            ),
+            Self::NonExhaustiveMatch { span } => write!(
+                f,
+                "match has no wildcard arm at {}..{}",
                 span.start, span.end
             ),
         }

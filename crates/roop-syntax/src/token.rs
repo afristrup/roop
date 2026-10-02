@@ -35,6 +35,12 @@ pub enum Token<'a> {
     Uncall,
     #[token("mut")]
     Mut,
+    #[token("match")]
+    Match,
+    #[token("assert")]
+    Assert,
+    #[token("_")]
+    Underscore,
     #[token("true")]
     True,
     #[token("false")]
@@ -71,6 +77,8 @@ pub enum Token<'a> {
     Dot,
     #[token("->")]
     Arrow,
+    #[token("=>")]
+    FatArrow,
     #[token("=")]
     Assign,
     #[token("+=")]
