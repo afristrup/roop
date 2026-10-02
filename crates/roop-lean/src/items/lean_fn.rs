@@ -6,7 +6,6 @@ use roop_syntax::FnDef;
 
 /// The function as a pure Lean definition: its mutable parameters go in and
 /// come back as the result. Backward it is the inverse function `f_inv`.
-
 pub fn lean_fn(cx: &Ctx, def: &FnDef, dir: Dir) -> Result<FnText, LeanError> {
     let name = match dir {
         Dir::Forward => def.name.clone(),

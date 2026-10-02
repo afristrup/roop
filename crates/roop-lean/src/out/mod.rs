@@ -1,3 +1,3 @@
-mod out;
+mod writer;
 
-pub use out::*;
+pub use writer::*;

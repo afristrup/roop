@@ -1,3 +1,3 @@
-mod prelude;
+mod text;
 
-pub use prelude::*;
+pub use text::*;
