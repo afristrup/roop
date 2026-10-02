@@ -316,6 +316,7 @@ version = "0.1.0"
 dependencies = [
  "roop-check",
  "roop-config",
+ "roop-lean",
  "roop-llvm",
  "roop-opt",
  "roop-syntax",

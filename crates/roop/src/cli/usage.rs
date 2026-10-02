@@ -1,4 +1,5 @@
-pub const USAGE: &str = "usage: roop build <input.roop> [-o <output>] [--emit ir|obj|exe] [--link <file>]...
+pub const USAGE: &str =
+    "usage: roop build <input.roop> [-o <output>] [--emit ir|obj|exe] [--link <file>]...
        roop lean <input.roop> [-o <output.lean>] [--check]
 
   build        compile to LLVM IR, an object, or an executable

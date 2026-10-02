@@ -44,5 +44,5 @@ pub fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, CliErro
         output,
         emit,
         link,
-    })
+    }))
 }

@@ -15,5 +15,9 @@ pub fn parse_lean_args(mut args: impl Iterator<Item = String>) -> Result<LeanArg
     }
     let input = input.ok_or_else(usage)?;
     let output = output.unwrap_or_else(|| input.with_extension("lean"));
-    Ok(LeanArgs { input, output, check })
+    Ok(LeanArgs {
+        input,
+        output,
+        check,
+    })
 }

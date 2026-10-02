@@ -13,15 +13,24 @@ pub fn run_lean(args: &LeanArgs) -> Result<(), CliError> {
 
     let list = |names: &[String]| names.join(", ");
     println!("wrote {}", args.output.display());
-    println!("  reversible, theorems proved by Lean: {}", count(&t.reversible, &t.open));
+    println!(
+        "  reversible, theorems proved by Lean: {}",
+        count(&t.reversible, &t.open)
+    );
     if !t.open.is_empty() {
         println!("  open (loops need an induction): {}", list(&t.open));
     }
     if !t.inexact.is_empty() {
-        println!("  floating point, no roundtrip claimed: {}", list(&t.inexact));
+        println!(
+            "  floating point, no roundtrip claimed: {}",
+            list(&t.inexact)
+        );
     }
     if !t.forward_only.is_empty() {
-        println!("  irreversible, forward model only: {}", list(&t.forward_only));
+        println!(
+            "  irreversible, forward model only: {}",
+            list(&t.forward_only)
+        );
     }
     for (name, why) in &t.skipped {
         println!("  skipped {name}: {why}");
