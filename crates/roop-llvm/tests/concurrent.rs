@@ -73,21 +73,21 @@ fn many_messages_keep_their_order() {
         .collect::<Vec<_>>()
         .join(" ");
     let src = format!(
-        "rev fn pipe(a: &mut [i64; {n}], b: &mut [i64; {n}]) {{
+        "rev fn pipeline(a: &mut [i64; {n}], b: &mut [i64; {n}]) {{
             chan c: i64 {{ #[concurrent] {{ {sends} }} #[concurrent] {{ {recvs} }} }}
         }}"
     );
     let main = format!(
         r#"
-void pipe(int64_t*, int64_t*);
-void pipe_inv(int64_t*, int64_t*);
+void pipeline(int64_t*, int64_t*);
+void pipeline_inv(int64_t*, int64_t*);
 int main(void) {{
     alarm(10);
     int64_t a[{n}], b[{n}];
     for (int i = 0; i < {n}; i++) {{ a[i] = 100 + i; b[i] = 0; }}
-    pipe(a, b);
+    pipeline(a, b);
     for (int i = 0; i < {n}; i++) if (a[i] != 0 || b[i] != 100 + i) return 1;
-    pipe_inv(a, b);
+    pipeline_inv(a, b);
     for (int i = 0; i < {n}; i++) if (a[i] != 100 + i || b[i] != 0) return 2;
     return 0;
 }}
@@ -231,6 +231,7 @@ fn nested_tries_roll_back_to_the_innermost_checkpoint() {
                 y += 5;
                 if x > 0 { y += 1; } fi y > 100;
             } catch_rollback { z += 1; }
+            if x > 0 { z += 0; } fi x > 0;
         } catch_rollback { z += 100; }
     }";
     let main = r#"
