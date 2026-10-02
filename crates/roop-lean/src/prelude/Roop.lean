@@ -192,6 +192,122 @@ theorem janus_no_ancilla {σ : Type} (E S : σ → Res Bool) (B P : σ → Res �
     · simp only [if_true] at h
       exact janusGo_no_ancilla E S B P hE hS hB hP _ s h
 
+/-- The value a place holds when it is empty: what a push leaves behind. -/
+class HasZero (α : Type) where
+  zero : α
+
+instance {n : Nat} : HasZero (BitVec n) := ⟨0⟩
+instance : HasZero Bool := ⟨false⟩
+instance : HasZero Float := ⟨0.0⟩
+
+/-- A history stack of at most `n` values. Slots above `len` hold zero, so
+pushing and popping are exact inverses. -/
+@[ext] structure Stack (α : Type) (n : Nat) where
+  len : Nat
+  data : Vector α n
+  deriving DecidableEq
+
+def Stack.empty {α : Type} [HasZero α] {n : Nat} : Stack α n :=
+  ⟨0, Vector.replicate n HasZero.zero⟩
+
+def Stack.push {α : Type} [HasZero α] [BEq α] {n : Nat} (s : Stack α n) (x : α) :
+    Res (Stack α n) :=
+  if h : s.len < n then
+    if s.data[s.len]'h == HasZero.zero then .ok ⟨s.len + 1, s.data.set s.len x h⟩
+    else .error .assertion
+  else .error .outOfBounds
+
+def Stack.pop {α : Type} [HasZero α] {n : Nat} (s : Stack α n) : Res (α × Stack α n) :=
+  if h : 0 < s.len ∧ s.len - 1 < n then
+    .ok (s.data[s.len - 1]'h.2, ⟨s.len - 1, s.data.set (s.len - 1) HasZero.zero h.2⟩)
+  else .error .outOfBounds
+
+theorem Stack.pop_push {α : Type} [HasZero α] [BEq α] [LawfulBEq α] {n : Nat}
+    (s s' : Stack α n) (x : α) (h : s.pop = .ok (x, s')) : s'.push x = .ok s := by
+  unfold Stack.pop at h
+  split at h
+  · rename_i hh
+    simp only [Except.ok.injEq, Prod.mk.injEq] at h
+    obtain ⟨hx, hs⟩ := h
+    subst hx hs
+    unfold Stack.push
+    simp only
+    have hlt : s.len - 1 < n := hh.2
+    simp [hlt]
+    have e : s.len - 1 + 1 = s.len := by omega
+    rw [e]
+  · simp at h
+
+
+theorem Stack.push_pop {α : Type} [HasZero α] [BEq α] [LawfulBEq α] {n : Nat}
+    (s s' : Stack α n) (x : α) (h : s.push x = .ok s') : s'.pop = .ok (x, s) := by
+  unfold Stack.push at h
+  split at h
+  · rename_i hh
+    split at h
+    · rename_i hz
+      simp only [Except.ok.injEq] at h
+      subst h
+      unfold Stack.pop
+      have hlt : s.len + 1 - 1 < n := by omega
+      simp [hlt]
+      have hz' : s.data[s.len] = HasZero.zero := beq_iff_eq.mp hz
+      have back : s.data.set s.len HasZero.zero hh = s.data := by
+        rw [← hz']; exact Vector.set_getElem_self ..
+      simp [hh, back]
+    · simp at h
+  · simp at h
+
+
+/-- `try body catch handler -> failed`: run the body; if it fails, its effects
+are gone (the model is pure, so they never happened), and the handler runs on
+the original state. The outcome says which side ran. -/
+def tryCatch {σ : Type} (body handler : σ → Res σ) (s : σ) : Res (σ × Bool) :=
+  match body s with
+  | .ok t => .ok (t, false)
+  | .error _ => do let t ← handler s; pure (t, true)
+
+/-- Reversing a `try`: the outcome selects the side to undo. -/
+def untry {σ : Type} (body_inv handler_inv : σ → Res σ) (s : σ) (failed : Bool) : Res σ :=
+  if failed then handler_inv s else body_inv s
+
+theorem tryCatch_inv {σ : Type} (B H Bi Hi : σ → Res σ)
+    (hb : ∀ a b, B a = .ok b → Bi b = .ok a) (hh : ∀ a b, H a = .ok b → Hi b = .ok a)
+    (s r : σ) (t : Bool) (h : tryCatch B H s = .ok (r, t)) : untry Bi Hi r t = .ok s := by
+  unfold tryCatch at h
+  rcases e : B s with err | u
+  · simp only [e, bind, Except.bind, pure, Except.pure] at h
+    rcases e2 : H s with err2 | v
+    · simp [e2] at h
+    · simp only [e2] at h
+      simp only [Except.ok.injEq, Prod.mk.injEq] at h
+      obtain ⟨rfl, rfl⟩ := h
+      simp [untry, hh _ _ e2]
+  · simp only [e] at h
+    simp only [Except.ok.injEq, Prod.mk.injEq] at h
+    obtain ⟨rfl, rfl⟩ := h
+    simp [untry, hb _ _ e]
+
+theorem tryCatch_no_ancilla {σ : Type} (B H : σ → Res σ)
+    (hH : ∀ s, H s ≠ .error .ancilla) (s : σ) :
+    tryCatch B H s ≠ .error .ancilla := by
+  intro h
+  unfold tryCatch at h
+  rcases e : B s with err | u
+  · simp only [e, bind, Except.bind, pure, Except.pure] at h
+    rcases e2 : H s with err2 | v
+    · simp only [e2, Except.error.injEq] at h; exact hH s (e2 ▸ h ▸ rfl)
+    · simp [e2] at h
+  · simp [e] at h
+
+theorem untry_no_ancilla {σ : Type} (Bi Hi : σ → Res σ)
+    (hB : ∀ s, Bi s ≠ .error .ancilla) (hH : ∀ s, Hi s ≠ .error .ancilla)
+    (s : σ) (t : Bool) : untry Bi Hi s t ≠ .error .ancilla := by
+  unfold untry
+  split
+  · exact hH s
+  · exact hB s
+
 open Lean Elab Tactic Meta in
 /-- Applies a loop lemma to every hypothesis that mentions the same loop pieces
 as the lemma's premise, and keeps the results. -/
