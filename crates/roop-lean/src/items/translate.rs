@@ -1,5 +1,5 @@
 use crate::{
-    Ctx, Dir, LeanError, PRELUDE, Translation, esc_fn, lean_enum, lean_fn, lean_loop_lemmas,
+    Ctx, Dir, LoopLemmas, LeanError, PRELUDE, Translation, esc_fn, lean_enum, lean_fn, lean_loop_lemmas,
     lean_struct, lean_theorems,
 };
 use roop_check::is_irreversible_fn;
@@ -29,7 +29,7 @@ pub fn translate(program: &Program) -> Translation {
         .filter_map(|i| if let Item::Fn(f) = i { Some(f) } else { None })
         .collect();
     let mut deps: Vec<String> = Vec::new();
-    let mut lemmas: Vec<String> = Vec::new();
+    let mut lemmas = LoopLemmas::default();
     while !pending.is_empty() {
         let mut waiting = Vec::new();
         let mut progressed = false;
@@ -80,19 +80,20 @@ struct Piece {
     reversible: bool,
     inexact: bool,
     /// Lemmas about the function's loops, for the proofs that come after.
-    lemmas: Vec<String>,
+    lemmas: LoopLemmas,
 }
 
 fn translate_fn(
     cx: &Ctx,
     def: &FnDef,
     deps: &[String],
-    lemmas: &[String],
+    lemmas: &LoopLemmas,
 ) -> Result<Piece, LeanError> {
     let forward = lean_fn(cx, def, Dir::Forward)?;
     let reversible = !is_irreversible_fn(def);
     let mut text = format!("{}{}", forward.lifted, forward.text);
-    let mut known = lemmas.to_vec();
+    let mut known = lemmas.clone();
+    let mut fresh = LoopLemmas::default();
     let mut inexact = text.contains("Float");
     if reversible {
         let backward = lean_fn(cx, def, Dir::Backward)?;
@@ -104,7 +105,8 @@ fn translate_fn(
             for info in &forward.loops {
                 let (lemma_text, names) = lean_loop_lemmas(info, deps, &known);
                 text.push_str(&lemma_text);
-                known.extend(names);
+                known.extend(names.clone());
+                fresh.extend(names);
             }
             if let Some(theorems) = lean_theorems(def, deps, &known, ancillas) {
                 text.push_str(&theorems);
@@ -115,6 +117,6 @@ fn translate_fn(
         text,
         reversible,
         inexact,
-        lemmas: known[lemmas.len()..].to_vec(),
+        lemmas: fresh,
     })
 }

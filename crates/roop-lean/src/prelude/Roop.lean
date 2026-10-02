@@ -166,8 +166,8 @@ theorem janusGo_no_ancilla {σ : Type} (E S : σ → Res Bool) (B P : σ → Res
               cases c
               · simp only [Bool.not_false, if_true] at h
                 exact ih s' h
-              · simp at h
-        · simp at h
+              · simp [pure, Except.pure] at h
+        · simp [pure, Except.pure] at h
 
 /-- A loop whose entry, exit, body and step never fail on an unrestored ancilla
 never does either. -/
@@ -181,7 +181,7 @@ theorem janus_no_ancilla {σ : Type} (E S : σ → Res Bool) (B P : σ → Res �
   · simp only [he, Except.error.injEq] at h; exact hE s (he ▸ h ▸ rfl)
   · simp only [he, check] at h
     cases c
-    · simp at h
+    · simp [pure, Except.pure] at h
     · simp only [if_true] at h
       exact janusGo_no_ancilla E S B P hE hS hB hP _ s h
 

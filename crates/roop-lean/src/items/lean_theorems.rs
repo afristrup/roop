@@ -1,5 +1,5 @@
 use crate::{
-    esc, esc_fn, esc_thm, is_mut_ref, lean_type, proof_script, tuple_expr, tuple_proj, tuple_type,
+    LoopLemmas, esc, esc_fn, esc_thm, is_mut_ref, lean_type, proof_script, tuple_expr, tuple_proj, tuple_type,
     unfold_simp,
 };
 use roop_syntax::{FnDef, Param};
@@ -19,7 +19,7 @@ const INIT: &str = "\u{ab}__init\u{bb}";
 pub fn lean_theorems(
     def: &FnDef,
     deps: &[String],
-    loop_lemmas: &[String],
+    loop_lemmas: &LoopLemmas,
     ancillas: bool,
 ) -> Option<String> {
     let mutable: Vec<&Param> = def.params.iter().filter(|p| is_mut_ref(&p.ty)).collect();
