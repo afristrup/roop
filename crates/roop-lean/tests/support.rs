@@ -54,3 +54,17 @@ pub fn verified(src: &str) -> Translation {
     }
     t
 }
+
+/// Runs Lean on a file. `Ok(())` when Lean accepts it or is not installed.
+pub fn lean_checks(file: &std::path::Path) -> Result<(), String> {
+    let Some(lean) = lean() else {
+        return Ok(());
+    };
+    let out = Command::new(lean).arg(file).output().unwrap();
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    if out.status.success() && !text.contains(" error") {
+        Ok(())
+    } else {
+        Err(text)
+    }
+}
