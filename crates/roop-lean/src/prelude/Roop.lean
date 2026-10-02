@@ -315,7 +315,7 @@ open Lean Elab Tactic Meta in
 as the lemma's premise, and keeps the results. -/
 elab "roop_loop " l:ident : tactic => withMainContext do
   let needed ← forallTelescope (← getConstInfo l.getId).type fun xs _ => do
-    return (← inferType xs.back!).getUsedConstants.filter (·.getRoot == `Fn)
+    return (← inferType xs.back!).getUsedConstants.filter fun c => c.getRoot == `Fn || `Roop.Stack.isPrefixOf c
   for decl in (← getLCtx) do
     if decl.isImplementationDetail then continue
     let present := decl.type.getUsedConstants

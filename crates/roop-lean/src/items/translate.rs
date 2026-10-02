@@ -98,6 +98,11 @@ fn translate_fn(
     let reversible = !is_irreversible_fn(def);
     let mut text = format!("{}{}", forward.lifted, forward.text);
     let mut known = lemmas.clone();
+    if text.contains("Roop.Stack") {
+        known.chain.extend(
+            ["Roop.Stack.push_pop", "Roop.Stack.pop_push"].map(String::from),
+        );
+    }
     let mut fresh = LoopLemmas::default();
     let mut parallel = false;
     let mut inexact = text.contains("Float");
