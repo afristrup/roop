@@ -23,6 +23,15 @@ pub enum StmtKind {
         source: Place,
         body: Block,
     },
+    /// Irreversible code, like `unsafe`: the reversibility checks are lifted
+    /// inside, and the enclosing function has no inverse.
+    Irrev(Block),
+    /// Destroys the old value of `target`. Only allowed in irreversible code.
+    Overwrite {
+        target: Place,
+        op: OverwriteOp,
+        value: Expr,
+    },
     /// A bare block, mainly the body of a `#[concurrent]` task.
     Block(Block),
     /// A channel for messages of type `ty`, alive for `body`.

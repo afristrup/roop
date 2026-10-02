@@ -9,8 +9,8 @@ pub enum Token<'a> {
     Mod,
     #[token("use")]
     Use,
-    #[token("rev")]
-    Rev,
+    #[token("irrev")]
+    Irrev,
     #[token("enum")]
     Enum,
     #[token("struct")]
@@ -103,6 +103,12 @@ pub enum Token<'a> {
     FatArrow,
     #[token("=")]
     Assign,
+    #[token("*=")]
+    StarEq,
+    #[token("/=")]
+    SlashEq,
+    #[token("%=")]
+    PercentEq,
     #[token("+=")]
     PlusEq,
     #[token("-=")]
