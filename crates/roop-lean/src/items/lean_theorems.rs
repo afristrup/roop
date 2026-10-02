@@ -13,7 +13,7 @@ const SCRIPT: &str = "  all_goals (try (repeat' (first | (split at *; all_goals 
   all_goals (try simp at *)
   all_goals (try subst_vars)
   all_goals (try simp_all [beq_iff_eq, Vector.getElem_set_self, Vector.set_set, Vector.set_getElem_self, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel])
-  all_goals first | done | bv_omega | bv_decide | (ext <;> simp [Vector.getElem_set] <;> (try split) <;> (try simp_all))";
+  all_goals first | done | bv_omega | bv_decide | (ext : 2 <;> simp [Vector.getElem_set] <;> (try split) <;> (try simp_all))";
 
 /// The two reversibility theorems of a function with mutable parameters:
 /// running `f` and then `f_inv` returns the inputs, and `f_inv` then `f`
