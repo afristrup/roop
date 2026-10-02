@@ -138,4 +138,17 @@ theorem janus_inv {σ : Type} (E S : σ → Res Bool) (B P Bi Pi : σ → Res σ
       rw [show fuelBound - k - 1 + k + 1 = fuelBound by omega] at back
       simp [runN_stop run, check, back]
 
+open Lean Elab Tactic Meta in
+/-- Applies a loop lemma to every hypothesis it accepts and keeps the results. -/
+elab "roop_loop " l:ident : tactic => withMainContext do
+  for decl in (← getLCtx) do
+    if decl.isImplementationDetail then continue
+    try
+      let app ← mkAppM l.getId #[decl.toExpr]
+      let ty ← inferType app
+      liftMetaTactic fun g => do
+        let (_, g) ← (← g.assert `this ty app).intro1
+        return [g]
+    catch _ => pure ()
+
 end Roop
