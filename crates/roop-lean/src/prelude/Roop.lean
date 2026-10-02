@@ -222,7 +222,10 @@ elab "roop_cases" : tactic => withMainContext do
   let some e := found | throwError "no conditional left"
   let cond ← Term.exprToSyntax (e.getArg! 1)
   let hc := mkIdent `hc
-  evalTactic (← `(tactic| by_cases $hc : $cond <;>
-    simp only [$hc:ident, ↓reduceDIte, ↓reduceIte] at $hyps* ⊢))
+  let mut tac ← `(tactic| by_cases $hc : $cond)
+  for h in hyps do
+    tac ← `(tactic| ($tac <;> try simp only [$hc:ident, ↓reduceDIte, ↓reduceIte] at $h:term))
+  tac ← `(tactic| ($tac <;> try simp only [$hc:ident, ↓reduceDIte, ↓reduceIte]))
+  evalTactic tac
 
 end Roop
