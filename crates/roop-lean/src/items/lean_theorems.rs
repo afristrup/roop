@@ -12,7 +12,7 @@ const INIT: &str = "\u{ab}__init\u{bb}";
 const SCRIPT: &str = "  all_goals (try (repeat' (first | split at h | split)))
   all_goals (try simp at *)
   all_goals (try subst_vars)
-  all_goals (try simp_all [BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel])
+  all_goals (try simp_all [beq_iff_eq, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel])
   all_goals first | done | bv_omega | bv_decide";
 
 /// The two reversibility theorems of a function with mutable parameters:

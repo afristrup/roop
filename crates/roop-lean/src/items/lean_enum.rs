@@ -6,6 +6,6 @@ pub fn lean_enum(def: &EnumDef) -> String {
     for variant in &def.variants {
         text.push_str(&format!("  | {}\n", esc(variant)));
     }
-    text.push_str("  deriving DecidableEq, BEq, Repr\n\n");
+    text.push_str("  deriving DecidableEq, Repr\n\n");
     text
 }
