@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use roop_check::check;
-use roop_llvm::compile;
+use roop_llvm::{Options, compile_with};
 use roop_syntax::parse;
 use std::io::Write;
 use std::process::{Command, Stdio};
@@ -22,9 +22,13 @@ fn tool(name: &str) -> Option<String> {
 }
 
 pub fn ir(src: &str) -> String {
+    ir_with(src, &Options::default())
+}
+
+pub fn ir_with(src: &str, options: &Options) -> String {
     let program = parse(src).unwrap();
     check(&program).unwrap();
-    compile(&program).unwrap()
+    compile_with(&program, options).unwrap()
 }
 
 /// Runs `tool` with the IR on stdin. None when the tool is not installed.
