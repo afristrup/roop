@@ -1,12 +1,11 @@
+mod api;
 mod ast;
-mod parse;
-mod parse_error;
+mod common;
+mod lex;
 mod parser;
-mod span;
-mod token;
 
+pub use api::*;
 pub use ast::*;
-pub use parse::parse;
-pub use parse_error::ParseError;
-pub use span::Span;
-pub use token::Token;
+pub use common::*;
+pub use lex::*;
+use parser::*;
