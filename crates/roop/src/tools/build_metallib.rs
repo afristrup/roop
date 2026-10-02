@@ -4,7 +4,7 @@ use std::process::Command;
 
 /// AIR text to a `.metallib`, using Apple's `metal` and `metallib`.
 pub fn build_metallib(air_ir: &str, dir: &Path) -> Result<Vec<u8>, CliError> {
-    let io = |what: &str| move |e| CliError::Io(what.to_string(), e);
+    let io = |what: &'static str| move |e| CliError::Io(what.to_string(), e);
     let (ll, air, lib) = (
         dir.join("kernels.ll"),
         dir.join("kernels.air"),
