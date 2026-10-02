@@ -17,7 +17,7 @@ fn run(aligned: bool) -> i32 {
     let alloc = if aligned {
         format!("aligned_alloc(16384, {N} * 8)")
     } else {
-        format!("malloc({N} * 8 + 16)")
+        format!("(int64_t*)((char*)malloc({N} * 8 + 64) + 8)")
     };
     let main = format!(
         r#"
