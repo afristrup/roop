@@ -9,7 +9,8 @@ pub fn outline_body(
     body: &Block,
     dir: Dir,
 ) -> Result<String, CodegenError> {
-    let symbol = format!("{}.par{}", g.symbol, g.fresh(""));
+    let id = g.fresh("");
+    let symbol = format!("{}.par{id}", g.symbol);
     let mut child = FnGen::new(g.ctx, symbol.clone());
     let n = g.vars.len();
     for (i, (name, slot)) in g.vars.clone().into_iter().enumerate() {
