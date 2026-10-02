@@ -128,7 +128,7 @@ fn rejects_channel_operations_whose_protocol_is_not_static() {
 fn a_task_may_not_roll_back_half_a_conversation() {
     // The paper's synchrony principle: rollback must involve both sides.
     let body = "chan c: i64 {
-        #[concurrent] { try { send c <- x; if k > 0 { y += 1; } fi y > 0; } catch_rollback { } }
+        #[concurrent] { irrev { try { send c <- x; if k > 0 { y += 1; } fi y > 0; } catch_rollback { } } }
         #[concurrent] { recv c -> z; }
     }";
     assert!(matches!(
@@ -139,10 +139,10 @@ fn a_task_may_not_roll_back_half_a_conversation() {
 
 #[test]
 fn rolling_back_the_whole_group_is_fine() {
-    let body = "chan c: i64 { try {
+    let body = "irrev { chan c: i64 { try {
         #[concurrent] { send c <- x; }
         #[concurrent] { recv c -> y; if k > 0 { z += 1; } fi z > 0; }
-    } catch_rollback { } }";
+    } catch_rollback { } } }";
     assert_eq!(run(body), Ok(()));
 }
 
