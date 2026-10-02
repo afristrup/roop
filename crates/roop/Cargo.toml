@@ -13,3 +13,4 @@ roop-check = { path = "../roop-check" }
 roop-opt = { path = "../roop-opt" }
 roop-llvm = { path = "../roop-llvm" }
 roop-config = { path = "../roop-config" }
+roop-lean = { path = "../roop-lean" }
