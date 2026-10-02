@@ -11,6 +11,7 @@ pub fn lean_type(ty: &Type) -> String {
             other => esc_ty(other),
         },
         Type::Array(elem, len) => format!("(Vector {} {len})", lean_type(elem)),
+        Type::Stack(elem, cap) => format!("(Roop.Stack {} {cap})", lean_type(elem)),
         Type::Ref { inner, .. } => lean_type(inner),
     }
 }

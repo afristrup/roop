@@ -273,7 +273,9 @@ def untry {σ : Type} (body_inv handler_inv : σ → Res σ) (s : σ) (failed : 
 
 theorem tryCatch_inv {σ : Type} (B H Bi Hi : σ → Res σ)
     (hb : ∀ a b, B a = .ok b → Bi b = .ok a) (hh : ∀ a b, H a = .ok b → Hi b = .ok a)
-    (s r : σ) (t : Bool) (h : tryCatch B H s = .ok (r, t)) : untry Bi Hi r t = .ok s := by
+    (s : σ) (p : σ × Bool) (h : tryCatch B H s = .ok p) : untry Bi Hi p.1 p.2 = .ok s := by
+  obtain ⟨r, t⟩ := p
+  simp only
   unfold tryCatch at h
   rcases e : B s with err | u
   · simp only [e, bind, Except.bind, pure, Except.pure] at h

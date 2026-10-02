@@ -24,6 +24,7 @@ pub fn lean_piece(
         vars: info.captures.iter().chain(&info.state).cloned().collect(),
         irreversible: env.irreversible,
         function: env.function.clone(),
+        logged: env.logged.clone(),
     };
     let mut inner = Out::default();
     inner.indent = 1;

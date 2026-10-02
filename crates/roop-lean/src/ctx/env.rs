@@ -1,4 +1,4 @@
-use roop_syntax::Type;
+use roop_syntax::{Place, Type};
 
 /// Variables in scope with their types, innermost last.
 #[derive(Clone, Default)]
@@ -8,6 +8,8 @@ pub struct Env {
     pub irreversible: bool,
     /// The function being translated; names the definitions lifted out of it.
     pub function: String,
+    /// The history stacks of the enclosing `logged` blocks, innermost last.
+    pub logged: Vec<Place>,
 }
 
 impl Env {

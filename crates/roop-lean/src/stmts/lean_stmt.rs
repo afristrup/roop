@@ -1,6 +1,7 @@
 use crate::{
     Ctx, Dir, Env, LeanError, Out, lean_ancilla, lean_block, lean_borrow, lean_call, lean_if,
-    lean_loop, lean_match, lean_overwrite, lean_swap, lean_update,
+    lean_logged, lean_loop, lean_match, lean_overwrite, lean_pop, lean_push, lean_swap, lean_try,
+    lean_update,
 };
 use roop_syntax::{Attr, Stmt, StmtKind};
 
@@ -66,10 +67,18 @@ pub fn lean_stmt(
             Dir::Forward => lean_block(cx, env, out, body, dir),
             Dir::Backward => unsupported("an irrev block run backward"),
         },
+        StmtKind::Push { stack, source } => lean_push(cx, env, out, stack, source, dir),
+        StmtKind::Pop { stack, target } => lean_pop(cx, env, out, stack, target, dir),
+        StmtKind::Logged { history, body } => lean_logged(cx, env, out, history, body, dir),
         StmtKind::Overwrite { target, op, value } => {
             lean_overwrite(cx, env, out, target, *op, value, dir)
         }
-        StmtKind::Try { .. } => unsupported("try ... catch_rollback"),
+        StmtKind::Try {
+            body,
+            handler,
+            outcome: Some(outcome),
+        } => lean_try(cx, env, out, stmt.span.start, body, handler, outcome, dir),
+        StmtKind::Try { .. } => unsupported("a try without an outcome"),
         StmtKind::Chan { .. } | StmtKind::Send { .. } | StmtKind::Recv { .. } => {
             unsupported("channels")
         }

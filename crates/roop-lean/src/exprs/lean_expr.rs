@@ -9,6 +9,7 @@ pub fn lean_expr(cx: &Ctx, env: &Env, expr: &Expr) -> Result<String, LeanError> 
         Expr::Int(i) => format!("({i} : Roop.I64)"),
         Expr::Float(f) => format!("({f:?} : Float)"),
         Expr::Bool(b) => b.to_string(),
+        Expr::Empty => return Err(LeanError::Unsupported("`empty` outside an ancilla".into())),
         Expr::Variant(e, v) => format!("{}.{}", esc_ty(e), esc(v)),
         Expr::Place(place) => read_place(cx, env, place)?,
         Expr::Unary(UnOp::Neg, inner) => format!("(-{})", lean_expr(cx, env, inner)?),

@@ -7,6 +7,7 @@ pub fn expr_type(cx: &Ctx, env: &Env, expr: &Expr) -> Result<Type, LeanError> {
         Expr::Int(_) => named("i64"),
         Expr::Float(_) => named("f64"),
         Expr::Bool(_) => named("bool"),
+        Expr::Empty => return Err(LeanError::Unsupported("`empty` outside an ancilla".into())),
         Expr::Variant(enum_name, _) => named(enum_name),
         Expr::Place(place) => place_type(cx, env, place)?,
         Expr::Unary(UnOp::Not, _) => named("bool"),
