@@ -139,6 +139,52 @@ theorem janus_inv {σ : Type} (E S : σ → Res Bool) (B P Bi Pi : σ → Res σ
       rw [show fuelBound - k - 1 + k + 1 = fuelBound by omega] at back
       simp [runN_stop run, check, back]
 
+theorem janusGo_no_ancilla {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ)
+    (hE : ∀ s, E s ≠ .error .ancilla) (hS : ∀ s, S s ≠ .error .ancilla)
+    (hB : ∀ s, B s ≠ .error .ancilla) (hP : ∀ s, P s ≠ .error .ancilla) :
+    ∀ (n : Nat) (s : σ), janusGo E S B P n s ≠ .error .ancilla := by
+  intro n
+  induction n with
+  | zero => intro s h; simp [janusGo] at h
+  | succ n ih =>
+    intro s h
+    simp only [janusGo, bind, Except.bind] at h
+    rcases hb : B s with e | t
+    · simp only [hb, Except.error.injEq] at h; exact hB s (hb ▸ h ▸ rfl)
+    · simp only [hb] at h
+      rcases hs : S t with e | c
+      · simp only [hs, Except.error.injEq] at h; exact hS t (hs ▸ h ▸ rfl)
+      · simp only [hs] at h
+        cases c
+        · simp only [Bool.false_eq_true, if_false] at h
+          rcases hp : P t with e | s'
+          · simp only [hp, Except.error.injEq] at h; exact hP t (hp ▸ h ▸ rfl)
+          · simp only [hp] at h
+            rcases he : E s' with e | c
+            · simp only [he, check, Except.error.injEq] at h; exact hE s' (he ▸ h ▸ rfl)
+            · simp only [he, check] at h
+              cases c
+              · simp only [Bool.not_false, if_true] at h
+                exact ih s' h
+              · simp at h
+        · simp at h
+
+/-- A loop whose entry, exit, body and step never fail on an unrestored ancilla
+never does either. -/
+theorem janus_no_ancilla {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ)
+    (hE : ∀ s, E s ≠ .error .ancilla) (hS : ∀ s, S s ≠ .error .ancilla)
+    (hB : ∀ s, B s ≠ .error .ancilla) (hP : ∀ s, P s ≠ .error .ancilla) (s : σ) :
+    janus E S B P s ≠ .error .ancilla := by
+  intro h
+  simp only [janus, bind, Except.bind] at h
+  rcases he : E s with e | c
+  · simp only [he, Except.error.injEq] at h; exact hE s (he ▸ h ▸ rfl)
+  · simp only [he, check] at h
+    cases c
+    · simp at h
+    · simp only [if_true] at h
+      exact janusGo_no_ancilla E S B P hE hS hB hP _ s h
+
 open Lean Elab Tactic Meta in
 /-- Applies a loop lemma to every hypothesis that mentions the same loop pieces
 as the lemma's premise, and keeps the results. -/
