@@ -1,19 +1,23 @@
+mod auto;
 mod capture_env;
 mod gen_parallel_cpu;
 mod gpu;
 mod int_op;
 mod iteration_space;
+mod launch_cpu;
 mod outline_body;
+mod parallel_attr;
 mod parallel_loop;
 mod parallel_prologue;
-mod parallel_target;
 
+pub use auto::*;
 pub use capture_env::*;
 pub use gen_parallel_cpu::*;
 pub use gpu::*;
 pub use int_op::*;
 pub use iteration_space::*;
+pub use launch_cpu::*;
 pub use outline_body::*;
+pub use parallel_attr::*;
 pub use parallel_loop::*;
 pub use parallel_prologue::*;
-pub use parallel_target::*;
