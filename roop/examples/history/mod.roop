@@ -22,16 +22,16 @@ fn quote(balance: &mut i64, amount: &i64, quoted: &mut i64) {
 // updates are undone by running them backward, the handler counts the refusal,
 // and `refused` records which way it went, which is what makes this reversible.
 fn transfer(
-    from: &mut i64,
-    to: &mut i64,
+    payer: &mut i64,
+    payee: &mut i64,
     amount: &i64,
     refusals: &mut i64,
     refused: &mut bool,
 ) {
     try {
-        from -= amount;
-        to += amount;
-        if from >= 0 { } fi from >= 0;
+        payer -= amount;
+        payee += amount;
+        if payer >= 0 { } fi payer >= 0;
     } catch_rollback {
         refusals += 1;
     } -> refused;
