@@ -1,0 +1,21 @@
+mod expr_mentions;
+mod fuse_block;
+mod fuse_parallel;
+mod fused;
+mod map_blocks;
+mod merge_target;
+mod par_loop;
+mod start_fusion;
+mod synth;
+mod try_absorb;
+
+pub use expr_mentions::*;
+pub use fuse_block::*;
+pub use fuse_parallel::*;
+pub use fused::*;
+pub use map_blocks::*;
+pub use merge_target::*;
+pub use par_loop::*;
+pub use start_fusion::*;
+pub use synth::*;
+pub use try_absorb::*;

@@ -5,7 +5,11 @@ use roop_syntax::{Block, MatchArm, Stmt, StmtKind};
 /// declares a binding that shadows either name.
 pub fn rename_block(block: &Block, from: &str, to: &str) -> Block {
     Block {
-        stmts: block.stmts.iter().map(|s| rename_stmt(s, from, to)).collect(),
+        stmts: block
+            .stmts
+            .iter()
+            .map(|s| rename_stmt(s, from, to))
+            .collect(),
     }
 }
 
@@ -20,7 +24,12 @@ fn rename_stmt(stmt: &Stmt, from: &str, to: &str) -> Stmt {
             value: e(value),
         },
         StmtKind::Swap(x, y) => StmtKind::Swap(p(x), p(y)),
-        StmtKind::If { cond, then_block, else_block, exit } => StmtKind::If {
+        StmtKind::If {
+            cond,
+            then_block,
+            else_block,
+            exit,
+        } => StmtKind::If {
             cond: e(cond),
             then_block: b(then_block),
             else_block: b(else_block),
@@ -30,17 +39,34 @@ fn rename_stmt(stmt: &Stmt, from: &str, to: &str) -> Stmt {
             scrutinee: e(scrutinee),
             arms: arms
                 .iter()
-                .map(|arm| MatchArm { pattern: arm.pattern.clone(), body: b(&arm.body), exit: e(&arm.exit) })
+                .map(|arm| MatchArm {
+                    pattern: arm.pattern.clone(),
+                    body: b(&arm.body),
+                    exit: e(&arm.exit),
+                })
                 .collect(),
         },
-        StmtKind::Try { body, handler } => StmtKind::Try { body: b(body), handler: b(handler) },
-        StmtKind::From { entry, body, step, until } => StmtKind::From {
+        StmtKind::Try { body, handler } => StmtKind::Try {
+            body: b(body),
+            handler: b(handler),
+        },
+        StmtKind::From {
+            entry,
+            body,
+            step,
+            until,
+        } => StmtKind::From {
             entry: e(entry),
             body: b(body),
             step: b(step),
             until: e(until),
         },
-        StmtKind::Ancilla { name, ty, init, body } => StmtKind::Ancilla {
+        StmtKind::Ancilla {
+            name,
+            ty,
+            init,
+            body,
+        } => StmtKind::Ancilla {
             name: name.clone(),
             ty: ty.clone(),
             init: e(init),
@@ -60,5 +86,9 @@ fn rename_stmt(stmt: &Stmt, from: &str, to: &str) -> Stmt {
             args: args.iter().map(e).collect(),
         },
     };
-    Stmt { attrs: stmt.attrs.clone(), kind, span: stmt.span }
+    Stmt {
+        attrs: stmt.attrs.clone(),
+        kind,
+        span: stmt.span,
+    }
 }

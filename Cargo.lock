@@ -310,6 +310,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "roop-opt"
+version = "0.1.0"
+dependencies = [
+ "roop-check",
+ "roop-syntax",
+]
+
+[[package]]
 name = "roop-rt"
 version = "0.1.0"
 dependencies = [
