@@ -1,0 +1,6 @@
+[package]
+name = "roop-config"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
