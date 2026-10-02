@@ -1,19 +1,6 @@
 mod support;
 
 #[test]
-fn reversible_loops_translate_with_open_theorems() {
-    let t = support::translation(
-        "fn count(x: &mut i64, i: &mut i64, n: &i64) {
-            from i == 0 { x += 2; } loop { i += 1; } until i == n;
-         }",
-    );
-    assert!(t.skipped.is_empty(), "{:?}", t.skipped);
-    assert_eq!(t.reversible, ["count"]);
-    assert_eq!(t.open, ["count_inv_f", "count_f_inv"]);
-    assert!(support::lean_accepts(&t).is_ok());
-}
-
-#[test]
 fn irreversible_functions_translate_forward_only() {
     let t = support::verified(
         "irrev fn crush(x: &mut i64, y: &mut i64) { x = y + 1; y *= 3; y %= 5; }

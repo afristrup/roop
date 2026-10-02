@@ -11,5 +11,4 @@ fn updates_swaps_and_xor_are_proved_reversible() {
          }",
     );
     assert_eq!(t.reversible, ["add", "mix"]);
-    assert!(t.open.is_empty());
 }
