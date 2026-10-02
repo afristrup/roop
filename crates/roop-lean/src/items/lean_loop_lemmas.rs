@@ -1,5 +1,6 @@
 use crate::{
-    LoopInfo, esc, esc_fn, esc_thm, lean_type, proof_script, tuple_type, unfold_simp, unref,
+    LoopInfo, LoopLemmas, esc, esc_fn, esc_thm, lean_type, proof_script, tuple_type, unfold_simp,
+    unref,
 };
 
 /// Lemmas about one loop whose pieces were lifted out of its function: each
@@ -10,8 +11,8 @@ use crate::{
 pub fn lean_loop_lemmas(
     info: &LoopInfo,
     deps: &[String],
-    earlier: &[String],
-) -> (String, Vec<String>) {
+    earlier: &LoopLemmas,
+) -> (String, LoopLemmas) {
     let id = &info.id;
     let args: Vec<String> = info.captures.iter().map(|(n, _)| esc(n)).collect();
     let applied = |part: &str| format!("({} {})", esc_fn(&format!("{id}_{part}")), args.join(" "));
