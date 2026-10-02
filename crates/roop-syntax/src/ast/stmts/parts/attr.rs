@@ -4,4 +4,7 @@ use crate::Target;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Attr {
     Parallel { target: Option<Target> },
+    /// On a block statement: adjacent `#[concurrent]` blocks run as tasks of
+    /// one group, communicating only through channels.
+    Concurrent,
 }

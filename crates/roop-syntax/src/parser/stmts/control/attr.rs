@@ -14,8 +14,12 @@ pub fn attr<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Attr, Err<'a>> + Clon
         "metal" => Ok(Target::Metal),
         _ => Err(Rich::custom(span, format!("unknown parallel target `{n}`"))),
     });
+    let concurrent = ident().try_map(|n, span| match n.as_str() {
+        "concurrent" => Ok(Attr::Concurrent),
+        _ => Err(Rich::custom(span, format!("unknown attribute `{n}`"))),
+    });
     just(Token::Hash).ignore_then(
-        name.ignore_then(
+        concurrent.delimited_by(just(Token::LBracket), just(Token::RBracket)).or(name.ignore_then(
             target
                 .delimited_by(just(Token::LParen), just(Token::RParen))
                 .or_not(),

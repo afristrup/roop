@@ -39,6 +39,12 @@ pub enum Token<'a> {
     Mut,
     #[token("borrow")]
     Borrow,
+    #[token("chan")]
+    Chan,
+    #[token("send")]
+    Send,
+    #[token("recv")]
+    Recv,
     #[token("try")]
     Try,
     #[token("catch_rollback")]
@@ -91,6 +97,8 @@ pub enum Token<'a> {
     Dot,
     #[token("->")]
     Arrow,
+    #[token("<-")]
+    LArrow,
     #[token("=>")]
     FatArrow,
     #[token("=")]
