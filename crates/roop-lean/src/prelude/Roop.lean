@@ -1,3 +1,4 @@
+import Lean
 import Std.Tactic.BVDecide
 
 set_option linter.unusedSimpArgs false
