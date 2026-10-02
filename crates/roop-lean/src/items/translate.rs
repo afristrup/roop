@@ -102,6 +102,9 @@ fn translate_fn(
         known
             .chain
             .extend(["Roop.Stack.push_pop", "Roop.Stack.pop_push"].map(String::from));
+        known.rewrite.extend(
+            ["Roop.Stack.push_ne_ancilla", "Roop.Stack.pop_ne_ancilla"].map(String::from),
+        );
     }
     let mut fresh = LoopLemmas::default();
     let mut parallel = false;
