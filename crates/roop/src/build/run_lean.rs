@@ -17,6 +17,12 @@ pub fn run_lean(args: &LeanArgs) -> Result<(), CliError> {
         "  reversible, theorems proved by Lean: {}",
         list(&t.reversible)
     );
+    if !t.one_way.is_empty() {
+        println!(
+            "  try: undone only on states the function produced: {}",
+            list(&t.one_way)
+        );
+    }
     if !t.parallel.is_empty() {
         println!(
             "  parallel loops proved order-independent: {}",
