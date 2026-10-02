@@ -13,7 +13,7 @@ pub fn build_metallib(air_ir: &str, dir: &Path) -> Result<Vec<u8>, CliError> {
     std::fs::write(&ll, air_ir).map_err(io("writing AIR"))?;
     let mut metal = Command::new("xcrun");
     metal
-        .args(["-sdk", "macosx", "metal", "-c", "-x", "ir"])
+        .args(["-sdk", "macosx", "metal", "-O2", "-c", "-x", "ir"])
         .arg(&ll)
         .arg("-o")
         .arg(&air);

@@ -144,7 +144,7 @@ pub fn metallib(air_ir: &str) -> Option<Vec<u8>> {
     let (ll, air, lib) = (dir.join("k.ll"), dir.join("k.air"), dir.join("k.metallib"));
     std::fs::write(&ll, air_ir).unwrap();
     let compile = Command::new("xcrun")
-        .args(["-sdk", "macosx", "metal", "-c", "-x", "ir"])
+        .args(["-sdk", "macosx", "metal", "-O2", "-c", "-x", "ir"])
         .arg(&ll)
         .arg("-o")
         .arg(&air)
