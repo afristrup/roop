@@ -1,6 +1,6 @@
 use crate::{
     CodegenError, Dir, FnGen, Value, apply_overwrite, bool_type, gen_assert, gen_binary, gen_expr,
-    gen_place, kind_of, mem_load, mem_store, pop_value, push_value, same_type, stack_parts,
+    gen_place, kind_of, drop_top, mem_load, mem_store, peek_top, push_value, same_type, stack_parts,
 };
 use roop_syntax::{BinOp, Expr, OverwriteOp, Place};
 
@@ -32,8 +32,8 @@ pub fn gen_logged_overwrite(
             mem_store(g, &slot, &new)
         }
         Dir::Backward => {
-            let old = pop_value(g, &parts)?;
-            let expected = apply_overwrite(g, op, &old, &v)?;
+            let top = peek_top(g, &parts)?;
+            let expected = apply_overwrite(g, op, &top.value, &v)?;
             let current = mem_load(g, &slot)?;
             let expected = Value {
                 reg: expected,
@@ -41,7 +41,8 @@ pub fn gen_logged_overwrite(
             };
             let same = gen_binary(g, current, BinOp::Eq, expected)?;
             gen_assert(g, &same)?;
-            mem_store(g, &slot, &old.reg)
+            drop_top(g, &parts, &top)?;
+            mem_store(g, &slot, &top.value.reg)
         }
     }
 }
