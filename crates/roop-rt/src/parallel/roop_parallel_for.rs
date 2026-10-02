@@ -29,6 +29,8 @@ pub unsafe extern "C" fn roop_parallel_for(
     let next = AtomicI64::new(0);
     let env = SendPtr(env);
     let work = || {
+        // Capture the whole `SendPtr`, not its raw-pointer field, so the closure is `Send`.
+        #[allow(clippy::redundant_locals)]
         let env = env;
         loop {
             let start = next.fetch_add(block, Ordering::Relaxed);

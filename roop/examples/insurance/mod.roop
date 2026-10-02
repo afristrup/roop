@@ -47,3 +47,12 @@ rev fn apply(status: &Status, p: &mut Policy, amount: &i64) {
         Status::Closed => { } assert status == Status::Closed;
     }
 }
+
+rev fn accrue_all(reserves: &mut [i64; 4], premiums: &[i64; 4], i: &mut i64) {
+    #[parallel]
+    from i == 0 {
+        reserves[i] += premiums[i];
+    } loop {
+        i += 1;
+    } until i == 3;
+}

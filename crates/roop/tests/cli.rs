@@ -21,11 +21,15 @@ fn roop(dir: &Path, args: &[&str]) -> Output {
 }
 
 fn runtime_lib() -> PathBuf {
-    let status = Command::new(env!("CARGO"))
-        .args(["build", "-p", "roop-rt"])
-        .status()
-        .unwrap();
-    assert!(status.success());
+    static BUILD: std::sync::Once = std::sync::Once::new();
+    BUILD.call_once(|| {
+        let cargo = Command::new(env!("CARGO"));
+        let status = {
+            let mut c = cargo;
+            c.args(["build", "-p", "roop-rt"]).status().unwrap()
+        };
+        assert!(status.success());
+    });
     let target = std::env::var("CARGO_TARGET_DIR")
         .unwrap_or_else(|_| format!("{}/../../target", env!("CARGO_MANIFEST_DIR")));
     PathBuf::from(target).join("debug/libroop_rt.a")
