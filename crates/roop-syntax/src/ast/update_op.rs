@@ -4,3 +4,13 @@ pub enum UpdateOp {
     Sub,
     Xor,
 }
+
+impl UpdateOp {
+    pub fn inverse(self) -> Self {
+        match self {
+            Self::Add => Self::Sub,
+            Self::Sub => Self::Add,
+            Self::Xor => Self::Xor,
+        }
+    }
+}

@@ -1,4 +1,4 @@
-use roop_syntax::{StmtKind, UpdateOp};
+use roop_syntax::StmtKind;
 
 pub fn inverts(a: &StmtKind, b: &StmtKind) -> bool {
     match (a, b) {
@@ -13,7 +13,7 @@ pub fn inverts(a: &StmtKind, b: &StmtKind) -> bool {
                 op: ob,
                 value: vb,
             },
-        ) => ta == tb && va == vb && opposite(*oa) == *ob,
+        ) => ta == tb && va == vb && oa.inverse() == *ob,
         (StmtKind::Swap(a1, a2), StmtKind::Swap(b1, b2)) => {
             (a1 == b1 && a2 == b2) || (a1 == b2 && a2 == b1)
         }
@@ -38,13 +38,5 @@ pub fn inverts(a: &StmtKind, b: &StmtKind) -> bool {
             },
         ) => ca == cb && aa == ab,
         _ => false,
-    }
-}
-
-fn opposite(op: UpdateOp) -> UpdateOp {
-    match op {
-        UpdateOp::Add => UpdateOp::Sub,
-        UpdateOp::Sub => UpdateOp::Add,
-        UpdateOp::Xor => UpdateOp::Xor,
     }
 }
