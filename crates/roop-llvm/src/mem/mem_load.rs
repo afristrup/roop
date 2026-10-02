@@ -5,5 +5,8 @@ pub fn mem_load(g: &mut FnGen, slot: &Slot) -> Result<Value, CodegenError> {
     let ptr = ptr_type(g.dialect, &ty, slot.space);
     let reg = format!("%{}", g.fresh("t"));
     g.emit(&format!("{reg} = load {ty}, {ptr} {}", slot.addr));
-    Ok(Value { reg, ty: slot.ty.clone() })
+    Ok(Value {
+        reg,
+        ty: slot.ty.clone(),
+    })
 }

@@ -1,4 +1,6 @@
-use crate::{CodegenError, Ctx, Dialect, Dir, FnGen, Slot, mem_store, function_attrs, gen_block, llvm_type};
+use crate::{
+    CodegenError, Ctx, Dialect, Dir, FnGen, Slot, function_attrs, gen_block, llvm_type, mem_store,
+};
 use roop_syntax::{Block, Param, Type};
 
 /// Emits one function. `self_struct` adds a leading `self` pointer, used for
