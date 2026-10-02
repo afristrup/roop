@@ -36,7 +36,7 @@ fn loops_over_arrays_with_branches_and_ancillas_are_proved() {
                     a[i] += t;
                     t -= k;
                 }
-                if a[i] > 100 { a[i] -= 100; } else { a[i] += 0; } fi a[i] > 100;
+                if k > 0 { a[i] += 1; } else { a[i] -= 1; } fi k > 0;
             } loop { i += 1; } until i == 7;
          }",
     );
