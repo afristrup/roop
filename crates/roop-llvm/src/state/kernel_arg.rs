@@ -9,6 +9,8 @@ pub enum KernelArg {
         size: u64,
         align: u64,
         writable: bool,
+        /// 1 is device memory; 2 is constant memory (read-only, cached).
+        space: u32,
     },
     ThreadId,
 }

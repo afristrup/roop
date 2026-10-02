@@ -32,6 +32,7 @@ pub fn gen_kernel(
             size,
             align,
             writable: *writable,
+            space: 1,
         });
         k.vars.push((
             var_name.clone(),
@@ -42,18 +43,20 @@ pub fn gen_kernel(
             },
         ));
     }
-    for (name, llvm_ty, writable) in [("params", "i64", false), ("err", "i32", true)] {
+    // The launch parameters never change, so they go in constant memory.
+    for (name, llvm_ty, writable, space) in [("params", "i64", false, 2), ("err", "i32", true, 1)] {
         let (size, align) = (
             if llvm_ty == "i64" { 8 } else { 4 },
             if llvm_ty == "i64" { 8 } else { 4 },
         );
-        params.push(ptr_type(dialect, llvm_ty, 1));
+        params.push(ptr_type(dialect, llvm_ty, space));
         args.push(KernelArg::Buffer {
             name: name.into(),
             llvm_ty: llvm_ty.into(),
             size,
             align,
             writable,
+            space,
         });
     }
     if dialect == Dialect::Air {
