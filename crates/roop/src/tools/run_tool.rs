@@ -10,6 +10,7 @@ pub fn run_tool(mut command: Command) -> Result<Vec<u8>, CliError> {
         Ok(output.stdout)
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(CliError::Tool(format!("{name} failed:\n{stderr}")))
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        Err(CliError::Tool(format!("{name} failed:\n{stdout}{stderr}")))
     }
 }

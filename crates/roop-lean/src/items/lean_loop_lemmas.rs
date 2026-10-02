@@ -58,7 +58,29 @@ pub fn lean_loop_lemmas(
         chain.push(theorem);
     }
 
-    let mut rewrite = Vec::new();
+    for (name, order) in [
+        ("loop_stop", ["entry", "stop", "body", "step"]),
+        ("loop_inv_stop", ["stop", "entry", "body_inv", "step_inv"]),
+    ] {
+        let theorem = shape.theorem(name);
+        let applied: Vec<String> = order.iter().map(|part| shape.applied(part)).collect();
+        text.push_str(&format!(
+            "theorem {theorem} {} {{{s} {r} : {}}} ({HYP} : Roop.janus {} {s} = Except.ok {r}) :\n    {} {r} = Except.ok true :=\n  Roop.janus_stop {} {s} {r} {HYP}\n",
+            shape.implicit,
+            shape.state,
+            janus(order),
+            applied[1],
+            applied.join(" "),
+        ));
+        chain.push(theorem);
+    }
+
+    let mut rewrite = vec![
+        shape.piece("entry"),
+        shape.piece("stop"),
+        "pure".to_string(),
+        "Except.pure".to_string(),
+    ];
     for part in ["entry", "stop", "body", "step", "body_inv", "step_inv"] {
         text.push_str(&no_ancilla_lemma(&shape, part, deps, earlier));
     }

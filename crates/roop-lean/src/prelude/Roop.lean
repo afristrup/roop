@@ -135,6 +135,14 @@ theorem mulOk_div {x e : BitVec 64} (h : divOk x e = true) : mulOk (BitVec.sdiv 
 theorem mul_sdiv {x e : BitVec 64} (h : divOk x e = true) : BitVec.sdiv x e * e = x :=
   (unscale_scale x e h).2
 
+/-- A strict signed comparison separates its operands, also as natural numbers,
+which is what array indices are. -/
+theorem slt_ne {a b : BitVec 64} (h : BitVec.slt a b = true) : a.toNat ≠ b.toNat := by
+  intro heq
+  have := BitVec.eq_of_toNat_eq heq
+  subst this
+  simp [BitVec.slt] at h
+
 def aget {α : Type} {n : Nat} (v : Vector α n) (i : I64) : Res α :=
   if h : i.toNat < n then .ok (v[i.toNat]'h) else .error .outOfBounds
 
@@ -257,6 +265,19 @@ theorem janus_inv {σ : Type} (E S : σ → Res Bool) (B P Bi Pi : σ → Res σ
         (by simp [janusK, bind, Except.bind, pure, Except.pure, he])
       rw [show fuelBound - k - 1 + k + 1 = fuelBound by omega] at back
       simp [runN_stop run, check, back]
+
+/-- A loop only ends once its exit test holds, so a counter loop leaves its
+counter at the upper bound. -/
+theorem janus_stop {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ)
+    (s r : σ) (h : janus E S B P s = .ok r) : S r = .ok true := by
+  simp only [janus, bind, Except.bind] at h
+  rcases he : E s with e | c
+  · simp [he] at h
+  · cases c
+    · simp [he, check] at h
+    · simp only [he, check, if_true] at h
+      obtain ⟨k, hk, run⟩ := runN_of_go E S B P _ s r h
+      exact runN_stop run
 
 theorem janusGo_no_ancilla {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ)
     (hE : ∀ s, E s ≠ .error .ancilla) (hS : ∀ s, S s ≠ .error .ancilla)
@@ -451,6 +472,98 @@ elab "roop_loop " l:ident : tactic => withMainContext do
         liftMetaTactic fun g => do
           let (_, g) ← (← g.assert `this ty app).intro1
           return [g]
+    catch _ => pure ()
+
+open Lean Elab Tactic Meta in
+/-- Rewrites the goal with a proof of `a = v` where `v` also occurs in `a`, and
+looks inside conjunctions. -/
+partial def unfoldCyclic (p : Expr) : TacticM Unit := do
+  let ty ← whnfR (← instantiateMVars (← inferType p))
+  if ty.isAppOfArity ``And 2 then
+    unfoldCyclic (mkApp3 (mkConst ``And.left) ty.appFn!.appArg! ty.appArg! p)
+    unfoldCyclic (mkApp3 (mkConst ``And.right) ty.appFn!.appArg! ty.appArg! p)
+  else if let some (_, lhs, rhs) := ty.eq? then
+    let element := rhs.isApp && rhs.getAppFn.isConstOf ``GetElem.getElem
+    if (rhs.isFVar && lhs.containsFVar rhs.fvarId!) || element then
+      try
+        let stx ← Term.exprToSyntax p
+        evalTactic (← `(tactic| rw [← $stx]))
+      catch _ => pure ()
+
+open Lean Elab Tactic Meta in
+/-- Uses an equation `a = v` where `v` also occurs in `a`, which cannot be
+substituted, to rewrite the goal: every `v` in the goal becomes `a`. -/
+elab "roop_unfold_cyclic" : tactic => withMainContext do
+  for decl in (← getLCtx) do
+    unless decl.isImplementationDetail do
+      if ← isProp decl.type then unfoldCyclic decl.toExpr
+
+open Lean Elab Tactic Meta in
+/-- Opens the first hypothesis that is a conjunction into its parts. -/
+elab "roop_ands" : tactic => withMainContext do
+  for decl in (← getLCtx) do
+    if decl.isImplementationDetail then continue
+    let ty ← whnfR (← instantiateMVars decl.type)
+    unless ty.isAppOfArity ``And 2 do continue
+    try
+      let goals ← (← getMainGoal).cases decl.fvarId
+      replaceMainGoal (goals.toList.map (·.mvarId))
+      return
+    catch _ => pure ()
+  throwError "no conjunction to open"
+
+open Lean Elab Tactic Meta in
+/-- Opens the first local variable that is a pair into its components, so that
+facts about its parts (`v.2 = 7`) turn into substitutions. -/
+elab "roop_pairs" : tactic => withMainContext do
+  for decl in (← getLCtx) do
+    if decl.isImplementationDetail then continue
+    let ty ← whnfR (← instantiateMVars decl.type)
+    unless ty.isAppOfArity ``Prod 2 do continue
+    try
+      let goals ← (← getMainGoal).cases decl.fvarId
+      replaceMainGoal (goals.toList.map (·.mvarId))
+      return
+    catch _ => pure ()
+  throwError "no pair to open"
+
+open Lean Elab Tactic Meta in
+partial def vectorFacts (p : Expr) : TacticM (Array Expr) := do
+  let ty ← whnfR (← instantiateMVars (← inferType p))
+  if ty.isAppOfArity ``And 2 then
+    return (← vectorFacts (mkApp3 (mkConst ``And.left) ty.appFn!.appArg! ty.appArg! p)) ++
+      (← vectorFacts (mkApp3 (mkConst ``And.right) ty.appFn!.appArg! ty.appArg! p))
+  else if let some (t, _, _) := ty.eq? then
+    if (← whnfR t).isAppOfArity ``Vector 2 then return #[p] else return #[]
+  else return #[]
+
+open Lean Elab Tactic Meta in
+/-- Proves an equation of vectors one index at a time, with every vector
+equation among the hypotheses read at that index. Works where the hypotheses
+are cyclic and cannot be substituted. -/
+elab "roop_pointwise" : tactic => withMainContext do
+  let some (t, _, _) := (← instantiateMVars (← getMainTarget)).eq? | throwError "not an equation"
+  unless (← whnfR t).isAppOfArity ``Vector 2 do throwError "not a vector equation"
+  let mut facts : Array Expr := #[]
+  for decl in (← getLCtx) do
+    unless decl.isImplementationDetail do
+      if ← isProp decl.type then facts := facts ++ (← vectorFacts decl.toExpr)
+  evalTactic (← `(tactic| (apply Vector.ext; intro $(mkIdent `j) $(mkIdent `hj))))
+  for p in facts do
+    let stx ← Term.exprToSyntax p
+    evalTactic (← `(tactic| have := congrArg (fun v => v[$(mkIdent `j)]'$(mkIdent `hj)) $stx))
+
+open Lean Elab Tactic Meta in
+/-- For every hypothesis `a < b` between machine integers, adds that `a` and
+`b` differ as natural numbers, in the form simplification produces. -/
+elab "roop_slt" : tactic => withMainContext do
+  for decl in (← getLCtx) do
+    if decl.isImplementationDetail then continue
+    let some (_, lhs, rhs) := (← instantiateMVars decl.type).eq? | continue
+    unless lhs.isAppOf ``BitVec.slt && rhs.isConstOf ``Bool.true do continue
+    try
+      let stx ← Term.exprToSyntax decl.toExpr
+      evalTactic (← `(tactic| (have hne := Roop.slt_ne $stx; have hne2 := hne.symm; simp at hne hne2)))
     catch _ => pure ()
 
 open Lean Elab Tactic Meta in

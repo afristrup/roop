@@ -42,6 +42,11 @@ impl LemmaShape {
         format!("({} {})", esc_fn(&format!("{}_{part}", self.id)), self.args)
     }
 
+    /// The bare name of a lifted definition.
+    pub fn piece(&self, part: &str) -> String {
+        esc_fn(&format!("{}_{part}", self.id))
+    }
+
     /// The name of a theorem about this construct.
     pub fn theorem(&self, name: &str) -> String {
         esc_thm(&format!("{}_{name}", self.id))

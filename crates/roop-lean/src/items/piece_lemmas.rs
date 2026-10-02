@@ -34,7 +34,7 @@ pub fn piece_lemmas(
             shape.args,
             shape.destructure(a),
             unfold_simp(&unfold, &format!("{HYP} \u{22a2}")),
-            proof_script(earlier),
+            proof_script(earlier, 0),
         ));
     }
     text

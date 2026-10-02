@@ -59,7 +59,7 @@ pub fn lean_commute(info: &Lifted, deps: &[String], lifted: &str) -> Option<Stri
     unfold.extend(deps.iter().cloned());
     let (v, w) = ("\u{ab}__v\u{bb}", "\u{ab}__w\u{bb}");
     Some(format!(
-        "theorem {} {} {} ({v} {w} : Roop.I64) (hvw : {v} \u{2260} {w}) :\n    Roop.agree\n    {}\n    {} := by\n  have hne : {v}.toNat \u{2260} {w}.toNat := fun h => hvw (BitVec.eq_of_toNat_eq h)\n{}{}\n",
+        "theorem {} {} {} ({v} {w} : Roop.I64) (hvw : {v} \u{2260} {w}) :\n    Roop.agree\n    {}\n    {} := by\n  have hne : {v}.toNat \u{2260} {w}.toNat := fun h => hvw (BitVec.eq_of_toNat_eq h)\n  have hne' : {w}.toNat \u{2260} {v}.toNat := fun h => hne h.symm\n{}{}\n",
         esc_thm(&format!("{id}_commute")),
         explicit.join(" "),
         typed.join(" "),

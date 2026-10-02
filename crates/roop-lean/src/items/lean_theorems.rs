@@ -25,6 +25,25 @@ pub fn lean_theorems(
     ancillas: bool,
     one_way: bool,
 ) -> Option<String> {
+    let text = theorems(def, deps, loop_lemmas, ancillas, one_way)?;
+    let calls = roop_check::calls_in(&def.body, false).len();
+    if calls <= 2 {
+        return Some(text);
+    }
+    let limit = format!(
+        "set_option maxHeartbeats {} in\ntheorem ",
+        200_000 * calls.min(16)
+    );
+    Some(text.replace("theorem ", &limit))
+}
+
+fn theorems(
+    def: &FnDef,
+    deps: &[String],
+    loop_lemmas: &LoopLemmas,
+    ancillas: bool,
+    one_way: bool,
+) -> Option<String> {
     let mutable: Vec<&Param> = def.params.iter().filter(|p| is_mut_ref(&p.ty)).collect();
     if mutable.is_empty() && !ancillas {
         return None;
@@ -36,7 +55,7 @@ pub fn lean_theorems(
         format!(
             "{}{}\n",
             unfold_simp(&unfold, target),
-            proof_script(loop_lemmas)
+            proof_script(loop_lemmas, roop_check::calls_in(&def.body, false).len())
         )
     };
     let typed = |p: &Param| format!("({} : {})", esc(&p.name), lean_type(&p.ty));
