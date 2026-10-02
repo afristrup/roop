@@ -32,9 +32,9 @@ fn loops_over_arrays_with_branches_and_ancillas_are_proved() {
         "fn spread(a: &mut [i64; 8], i: &mut i64, k: &i64) {
             from i == 0 {
                 ancilla t: i64 = 0 {
-                    t += a[i];
-                    a[i] += k;
-                    t -= a[i] - k;
+                    t += k;
+                    a[i] += t;
+                    t -= k;
                 }
                 if a[i] > 100 { a[i] -= 100; } else { a[i] += 0; } fi a[i] > 100;
             } loop { i += 1; } until i == 7;

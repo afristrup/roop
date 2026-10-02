@@ -13,7 +13,10 @@ pub fn run_lean(args: &LeanArgs) -> Result<(), CliError> {
 
     let list = |names: &[String]| names.join(", ");
     println!("wrote {}", args.output.display());
-    println!("  reversible, theorems proved by Lean: {}", list(&t.reversible));
+    println!(
+        "  reversible, theorems proved by Lean: {}",
+        list(&t.reversible)
+    );
     if !t.inexact.is_empty() {
         println!(
             "  floating point, no roundtrip claimed: {}",

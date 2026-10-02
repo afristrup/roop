@@ -21,25 +21,14 @@ pub fn lean_piece(
     dir: Dir,
 ) -> Result<(), LeanError> {
     let mut inner_env = Env {
-        vars: info
-            .captures
-            .iter()
-            .chain(&info.state)
-            .cloned()
-            .collect(),
+        vars: info.captures.iter().chain(&info.state).cloned().collect(),
         irreversible: env.irreversible,
         function: env.function.clone(),
     };
     let mut inner = Out::default();
     inner.indent = 1;
     unpack_state(&mut inner, &info.state);
-    let state_type = tuple_type(
-        &info
-            .state
-            .iter()
-            .map(|(_, t)| unref(t))
-            .collect::<Vec<_>>(),
-    );
+    let state_type = tuple_type(&info.state.iter().map(|(_, t)| unref(t)).collect::<Vec<_>>());
     let result = match piece {
         Piece::Condition(cond) => {
             inner.line(&format!("return {}", lean_expr(cx, &inner_env, cond)?));

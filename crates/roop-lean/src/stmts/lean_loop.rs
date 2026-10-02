@@ -104,7 +104,13 @@ pub fn lean_loop(
     ));
     for (k, (name, _)) in info.state.iter().enumerate() {
         let place = Place::Var(name.clone());
-        assign_place(cx, env, out, &place, &tuple_proj(&result, k, info.state.len()))?;
+        assign_place(
+            cx,
+            env,
+            out,
+            &place,
+            &tuple_proj(&result, k, info.state.len()),
+        )?;
     }
     out.loops.push(info);
     Ok(())

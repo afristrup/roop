@@ -29,7 +29,13 @@ pub fn lean_theorems(
     let (f, f_inv) = (esc_fn(&def.name), esc_fn(&format!("{}_inv", def.name)));
     let mut unfold = vec![f.clone(), f_inv.clone()];
     unfold.extend(deps.iter().cloned());
-    let proof = |target: &str| format!("{}{}\n", unfold_simp(&unfold, target), proof_script(loop_lemmas));
+    let proof = |target: &str| {
+        format!(
+            "{}{}\n",
+            unfold_simp(&unfold, target),
+            proof_script(loop_lemmas)
+        )
+    };
     let typed = |p: &Param| format!("({} : {})", esc(&p.name), lean_type(&p.ty));
     let all_params: Vec<String> = def.params.iter().map(typed).collect();
     let inputs: Vec<String> = def.params.iter().map(|p| esc(&p.name)).collect();

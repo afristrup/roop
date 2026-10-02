@@ -1,10 +1,16 @@
-use crate::{LoopInfo, esc, esc_fn, esc_thm, lean_type, proof_script, tuple_type, unfold_simp, unref};
+use crate::{
+    LoopInfo, esc, esc_fn, esc_thm, lean_type, proof_script, tuple_type, unfold_simp, unref,
+};
 
 /// Lemmas about one loop whose pieces were lifted out of its function: each
 /// body and step is undone by its inverse, and therefore the loop is, by the
 /// prelude's `Roop.janus_inv`. Returns the text and the names of the loop
 /// lemmas, which later proofs use whenever a loop's result is known.
-pub fn lean_loop_lemmas(info: &LoopInfo, deps: &[String], earlier: &[String]) -> (String, Vec<String>) {
+pub fn lean_loop_lemmas(
+    info: &LoopInfo,
+    deps: &[String],
+    earlier: &[String],
+) -> (String, Vec<String>) {
     let id = &info.id;
     let args: Vec<String> = info.captures.iter().map(|(n, _)| esc(n)).collect();
     let applied = |part: &str| format!("({} {})", esc_fn(&format!("{id}_{part}")), args.join(" "));
@@ -32,7 +38,10 @@ pub fn lean_loop_lemmas(info: &LoopInfo, deps: &[String], earlier: &[String]) ->
 
     let mut text = String::new();
     for part in ["body", "step"] {
-        let (fwd, inv) = (esc_fn(&format!("{id}_{part}")), esc_fn(&format!("{id}_{part}_inv")));
+        let (fwd, inv) = (
+            esc_fn(&format!("{id}_{part}")),
+            esc_fn(&format!("{id}_{part}_inv")),
+        );
         let mut unfold = vec![fwd.clone(), inv.clone()];
         unfold.extend(deps.iter().cloned());
         for (suffix, from, to) in [("inv_f", &fwd, &inv), ("f_inv", &inv, &fwd)] {
@@ -65,7 +74,13 @@ pub fn lean_loop_lemmas(info: &LoopInfo, deps: &[String], earlier: &[String]) ->
         applied("body_inv"),
         applied("step_inv")
     );
-    let lemma_of = |part: &str, suffix: &str| format!("({} {})", esc_thm(&format!("{id}_{part}_{suffix}")), args.join(" "));
+    let lemma_of = |part: &str, suffix: &str| {
+        format!(
+            "({} {})",
+            esc_thm(&format!("{id}_{part}_{suffix}")),
+            args.join(" ")
+        )
+    };
     text.push_str(&format!(
         "theorem {inv_f} {} {{{s} {r} : {state}}} (h : {forward} {s} = Except.ok {r}) :\n    {backward} {r} = Except.ok {s} :=\n  Roop.janus_inv {} {} {} {} {} {} {} {} {s} {r} h\n",
         implicit.join(" "),
