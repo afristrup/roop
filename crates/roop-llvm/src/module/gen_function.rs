@@ -50,12 +50,17 @@ pub fn gen_function(
         g.vars.push((param.name.clone(), slot));
     }
     gen_block(&mut g, body, dir)?;
-    Ok(format!(
-        "define void @{symbol}({}){} {{\nentry:\n{}{}  ret void\n}}\n{}",
+    let text = format!(
+        "define void @{symbol}({}){} {{\nentry:\n{}{}  ret void\n}}\n{}{}",
         signature.join(", "),
         function_attrs(ctx),
         g.allocas,
         g.body,
-        g.outlined.join("\n")
-    ))
+        g.outlined.join("\n"),
+        g.globals.join("\n")
+    );
+    Ok(GenOutput {
+        text,
+        kernels: g.kernels,
+    })
 }

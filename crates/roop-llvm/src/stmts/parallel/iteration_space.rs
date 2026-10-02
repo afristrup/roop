@@ -1,6 +1,7 @@
 use crate::{CodegenError, FnGen, Value, bool_type, gen_assert, gen_expr, int_op, same_type};
 use roop_syntax::{CountedLoop, Type};
 
+#[derive(Clone)]
 pub struct IterationSpace {
     pub lo: Value,
     pub hi: Value,

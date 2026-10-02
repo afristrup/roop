@@ -10,12 +10,13 @@ pub fn layout(ctx: &Ctx, ty: &Type) -> Result<(u64, u64), CodegenError> {
             "bool" => Ok((1, 1)),
             _ if ctx.enums.contains_key(name.as_str()) => Ok((4, 4)),
             _ => {
-                let def = ctx.structs.get(name.as_str()).ok_or_else(|| {
-                    CodegenError::UnknownName {
-                        kind: "type",
-                        name: name.clone(),
-                    }
-                })?;
+                let def =
+                    ctx.structs
+                        .get(name.as_str())
+                        .ok_or_else(|| CodegenError::UnknownName {
+                            kind: "type",
+                            name: name.clone(),
+                        })?;
                 let (mut offset, mut widest) = (0u64, 1u64);
                 for field in &def.fields {
                     let (size, align) = layout(ctx, &field.ty)?;
