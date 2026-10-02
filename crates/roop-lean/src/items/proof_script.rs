@@ -34,7 +34,8 @@ pub fn proof_script(loop_lemmas: &LoopLemmas) -> String {
         ROUNDS
     };
     format!(
-        "  all_goals (try (repeat' (first | (split at *; all_goals (try simp [{simp}] at *)) | split)))
+        "  all_goals (try (repeat' roop_cases))
+  all_goals (try (repeat' (first | (split at *; all_goals (try simp [{simp}] at *)) | split)))
 {}  all_goals (try simp [{simp}] at *)
   all_goals first | done | omega | bv_omega | bv_decide | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))",
         round.repeat(rounds)
