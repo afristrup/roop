@@ -7,6 +7,7 @@ mod stmts;
 
 pub use driver::check;
 pub use error::CheckError;
+pub use places::place_root;
 pub use rules::check_parallel_body;
 pub use rules::{TaskItem, task_groups};
 pub use stmts::{

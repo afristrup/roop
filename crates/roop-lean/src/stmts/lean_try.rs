@@ -2,7 +2,7 @@ use crate::{
     Construct, Ctx, Dir, Env, LeanError, Lifted, Out, Piece, assign_place, esc, esc_fn, is_bool,
     lean_piece, lean_zero, place_type, read_place, tuple_expr, tuple_proj,
 };
-use roop_check::body_effects;
+use roop_check::{body_effects, place_root};
 use roop_syntax::{Block, Place};
 
 /// `try { body } catch_rollback { handler } -> outcome;` as the prelude's

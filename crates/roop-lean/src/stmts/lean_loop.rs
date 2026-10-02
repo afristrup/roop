@@ -2,7 +2,7 @@ use crate::{
     Construct, Ctx, Dir, Env, LeanError, Lifted, Out, Piece, assign_place, esc, esc_fn, lean_piece,
     tuple_expr, tuple_proj,
 };
-use roop_check::body_effects;
+use roop_check::{body_effects, place_root};
 use roop_syntax::{Block, Expr, Place, counted_loop};
 
 /// A reversible loop as the prelude's `Roop.janus` over the tuple of variables
@@ -24,6 +24,7 @@ pub fn lean_loop(
 ) -> Result<(), LeanError> {
     let mut written = body_effects(body).writes;
     written.extend(body_effects(step).writes);
+    written.extend(env.logged.iter().map(|h| place_root(h).to_string()));
     let (state, captures): (Vec<_>, Vec<_>) = env
         .visible()
         .into_iter()
