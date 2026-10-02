@@ -2,6 +2,7 @@
 - Martin Fowler's fail fast.
 - Use idiomatic rust.
 - No emdashes, please.
+- Use comments sparingly.
 
 ## Commit Messages
 
