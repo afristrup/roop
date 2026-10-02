@@ -7,6 +7,7 @@ mod gen_stmt;
 mod parallel;
 mod scope;
 mod stack;
+mod unwind;
 
 pub use basic::*;
 pub use call::*;
@@ -17,3 +18,4 @@ pub use gen_stmt::*;
 pub use parallel::*;
 pub use scope::*;
 pub use stack::*;
+pub use unwind::*;
