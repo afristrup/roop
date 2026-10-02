@@ -2,8 +2,7 @@ use roop_check::{CheckError, check};
 use roop_syntax::parse;
 
 fn run(body: &str) -> Result<(), CheckError> {
-    let src =
-        format!("fn f(p: &mut P, a: &mut [i64; 4], i: &mut i64, y: &mut i64) {{ {body} }}");
+    let src = format!("fn f(p: &mut P, a: &mut [i64; 4], i: &mut i64, y: &mut i64) {{ {body} }}");
     check(&parse(&src).unwrap())
 }
 

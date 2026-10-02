@@ -82,8 +82,7 @@ fn keeps_loops_apart_when_a_statement_sits_between_them() {
 
 #[test]
 fn keeps_loops_apart_when_they_disagree_on_the_target() {
-    let src =
-        "fn f(a: &mut [i64; 8], b: &mut [i64; 8], c: &[i64; 8], i: &mut i64, j: &mut i64) {
+    let src = "fn f(a: &mut [i64; 8], b: &mut [i64; 8], c: &[i64; 8], i: &mut i64, j: &mut i64) {
         #[parallel(cpu)] from i == 0 { a[i] += c[i]; } loop { i += 1; } until i == 7;
         #[parallel(metal)] from j == 0 { b[j] += c[j]; } loop { j += 1; } until j == 7;
     }";
@@ -101,8 +100,7 @@ fn leaves_sequential_loops_alone() {
 
 #[test]
 fn fuses_inside_nested_blocks() {
-    let src =
-        "fn f(a: &mut [i64; 8], b: &mut [i64; 8], c: &[i64; 8], i: &mut i64, j: &mut i64) {
+    let src = "fn f(a: &mut [i64; 8], b: &mut [i64; 8], c: &[i64; 8], i: &mut i64, j: &mut i64) {
         borrow z = c[0] {
             #[parallel] from i == 0 { a[i] += 1; } loop { i += 1; } until i == 7;
             #[parallel] from j == 0 { b[j] += 1; } loop { j += 1; } until j == 7;
