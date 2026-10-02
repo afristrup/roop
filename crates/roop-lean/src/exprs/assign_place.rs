@@ -13,7 +13,11 @@ pub fn assign_place(
     match place {
         Place::Var(name) => out.line(&format!("{} := {value}", esc(name))),
         Place::Field(base, field) => {
-            let whole = format!("{{ {} with {} := {value} }}", read_place(cx, env, base)?, esc(field));
+            let whole = format!(
+                "{{ {} with {} := {value} }}",
+                read_place(cx, env, base)?,
+                esc(field)
+            );
             assign_place(cx, env, out, base, &whole)?;
         }
         Place::Index(base, index) => {

@@ -10,6 +10,10 @@ pub struct Env {
 
 impl Env {
     pub fn lookup(&self, name: &str) -> Option<&Type> {
-        self.vars.iter().rev().find(|(n, _)| n == name).map(|(_, t)| t)
+        self.vars
+            .iter()
+            .rev()
+            .find(|(n, _)| n == name)
+            .map(|(_, t)| t)
     }
 }

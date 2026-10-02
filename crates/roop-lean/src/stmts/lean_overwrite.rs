@@ -1,4 +1,6 @@
-use crate::{Ctx, Dir, Env, LeanError, Out, assign_place, is_float, lean_expr, place_type, read_place};
+use crate::{
+    Ctx, Dir, Env, LeanError, Out, assign_place, is_float, lean_expr, place_type, read_place,
+};
 use roop_syntax::{Expr, OverwriteOp, Place};
 
 /// Destroys the old value, so it only exists going forward.

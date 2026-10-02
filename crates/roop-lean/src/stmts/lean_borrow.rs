@@ -13,7 +13,11 @@ pub fn lean_borrow(
     dir: Dir,
 ) -> Result<(), LeanError> {
     let ty = place_type(cx, env, source)?;
-    out.line(&format!("let mut {} := {}", esc(name), read_place(cx, env, source)?));
+    out.line(&format!(
+        "let mut {} := {}",
+        esc(name),
+        read_place(cx, env, source)?
+    ));
     env.vars.push((name.into(), ty));
     let result = lean_block(cx, env, out, body, dir);
     env.vars.pop();

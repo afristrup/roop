@@ -18,7 +18,10 @@ pub fn lean_match(
             Dir::Forward => pattern_test(&held, &arm.pattern)?,
             Dir::Backward => lean_expr(cx, env, &arm.exit)?,
         };
-        out.line(&format!("{}if {select} then", if i == 0 { "" } else { "else " }));
+        out.line(&format!(
+            "{}if {select} then",
+            if i == 0 { "" } else { "else " }
+        ));
         out.indent += 1;
         lean_block(cx, env, out, &arm.body, dir)?;
         let assertion = match dir {

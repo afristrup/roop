@@ -41,7 +41,9 @@ pub fn lean_loop(
         out.fresh("__step"),
     ];
     for (name, condition) in [(&entry_fn, start), (&stop_fn, stop)] {
-        out.line(&format!("let {name} : {state_type} \u{2192} Roop.Res Bool := fun s => do"));
+        out.line(&format!(
+            "let {name} : {state_type} \u{2192} Roop.Res Bool := fun s => do"
+        ));
         out.indent += 1;
         unpack(out, &state);
         out.line(&format!("return {}", lean_expr(cx, env, condition)?));

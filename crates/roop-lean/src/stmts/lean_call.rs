@@ -1,6 +1,4 @@
-use crate::{
-    Ctx, Dir, Env, LeanError, Out, assign_place, esc, lean_expr, read_place, tuple_proj,
-};
+use crate::{Ctx, Dir, Env, LeanError, Out, assign_place, esc, lean_expr, read_place, tuple_proj};
 use roop_syntax::{Expr, Type};
 
 /// Calls return the callee's mutable parameters; they are written back into the
@@ -23,9 +21,15 @@ pub fn lean_call(
     }
     let inverse = is_uncall != (dir == Dir::Backward);
     if inverse && def.irreversible {
-        return Err(LeanError::Unsupported("the inverse of an irreversible function".into()));
+        return Err(LeanError::Unsupported(
+            "the inverse of an irreversible function".into(),
+        ));
     }
-    let name = if inverse { format!("{callee}_inv") } else { callee.to_string() };
+    let name = if inverse {
+        format!("{callee}_inv")
+    } else {
+        callee.to_string()
+    };
     let mut passed = Vec::new();
     let mut writeback = Vec::new();
     for (param, arg) in def.params.iter().zip(args) {
@@ -35,7 +39,9 @@ pub fn lean_call(
                 writeback.push(place);
             }
             (Type::Ref { mutable: true, .. }, _) => {
-                return Err(LeanError::Unsupported("a mutable argument that is not a place".into()));
+                return Err(LeanError::Unsupported(
+                    "a mutable argument that is not a place".into(),
+                ));
             }
             _ => passed.push(lean_expr(cx, env, arg)?),
         }

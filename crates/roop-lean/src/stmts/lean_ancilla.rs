@@ -14,7 +14,11 @@ pub fn lean_ancilla(
     body: &Block,
     dir: Dir,
 ) -> Result<(), LeanError> {
-    out.line(&format!("let mut {} := {}", esc(name), lean_expr(cx, env, init)?));
+    out.line(&format!(
+        "let mut {} := {}",
+        esc(name),
+        lean_expr(cx, env, init)?
+    ));
     env.vars.push((name.into(), ty.clone()));
     let result = lean_block(cx, env, out, body, dir);
     env.vars.pop();

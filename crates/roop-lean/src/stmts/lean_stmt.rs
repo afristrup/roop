@@ -16,19 +16,32 @@ pub fn lean_stmt(
     }
     let unsupported = |what: &str| Err(LeanError::Unsupported(what.into()));
     match &stmt.kind {
-        StmtKind::Update { target, op, value } => lean_update(cx, env, out, target, *op, value, dir),
+        StmtKind::Update { target, op, value } => {
+            lean_update(cx, env, out, target, *op, value, dir)
+        }
         StmtKind::Swap(a, b) => lean_swap(cx, env, out, a, b),
-        StmtKind::If { cond, then_block, else_block, exit } => {
-            lean_if(cx, env, out, cond, then_block, else_block, exit, dir)
-        }
+        StmtKind::If {
+            cond,
+            then_block,
+            else_block,
+            exit,
+        } => lean_if(cx, env, out, cond, then_block, else_block, exit, dir),
         StmtKind::Match { scrutinee, arms } => lean_match(cx, env, out, scrutinee, arms, dir),
-        StmtKind::From { entry, body, step, until } => {
-            lean_loop(cx, env, out, entry, body, step, until, dir)
+        StmtKind::From {
+            entry,
+            body,
+            step,
+            until,
+        } => lean_loop(cx, env, out, entry, body, step, until, dir),
+        StmtKind::Ancilla {
+            name,
+            ty,
+            init,
+            body,
+        } => lean_ancilla(cx, env, out, name, ty, init, body, dir),
+        StmtKind::Borrow { name, source, body } => {
+            lean_borrow(cx, env, out, name, source, body, dir)
         }
-        StmtKind::Ancilla { name, ty, init, body } => {
-            lean_ancilla(cx, env, out, name, ty, init, body, dir)
-        }
-        StmtKind::Borrow { name, source, body } => lean_borrow(cx, env, out, name, source, body, dir),
         StmtKind::Call { callee, args } => lean_call(cx, env, out, callee, args, false, dir),
         StmtKind::Uncall { callee, args } => lean_call(cx, env, out, callee, args, true, dir),
         StmtKind::Block(body) => lean_block(cx, env, out, body, dir),

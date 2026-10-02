@@ -14,7 +14,11 @@ pub fn lean_update(
     value: &Expr,
     dir: Dir,
 ) -> Result<(), LeanError> {
-    let op = if dir == Dir::Backward { op.inverse() } else { op };
+    let op = if dir == Dir::Backward {
+        op.inverse()
+    } else {
+        op
+    };
     let ty = place_type(cx, env, target)?;
     let (old, e) = (read_place(cx, env, target)?, lean_expr(cx, env, value)?);
     let new = match op {
