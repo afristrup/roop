@@ -91,7 +91,7 @@ fn a_literal_trip_count_below_break_even_stays_on_the_cpu() {
 
 #[test]
 fn unknown_trip_count_branches_at_run_time() {
-    let src = "rev fn f(a: &mut [i64; 8], i: &mut i64, n: &i64) {
+    let src = "fn f(a: &mut [i64; 8], i: &mut i64, n: &i64) {
         #[parallel] from i == 0 { a[i] += 1; } loop { i += 1; } until i == n;
     }";
     let out = support::compiled(src, &options(&[Target::Metal], gpu_when_large()));
@@ -103,7 +103,7 @@ fn unknown_trip_count_branches_at_run_time() {
 
 #[test]
 fn double_precision_loops_never_go_to_the_apple_gpu() {
-    let src = "rev fn f(a: &mut [f64; 8], i: &mut i64) {
+    let src = "fn f(a: &mut [f64; 8], i: &mut i64) {
         #[parallel] from i == 0 { a[i] += 1.0; } loop { i += 1; } until i == 7;
     }";
     let out = support::compiled(src, &options(&[Target::Metal], gpu_always()));
@@ -114,8 +114,8 @@ fn double_precision_loops_never_go_to_the_apple_gpu() {
 
 #[test]
 fn loops_with_calls_stay_on_the_cpu() {
-    let src = "rev fn g(x: &mut i64) { x += 1; }
-        rev fn f(a: &mut [i64; 8], i: &mut i64) {
+    let src = "fn g(x: &mut i64) { x += 1; }
+        fn f(a: &mut [i64; 8], i: &mut i64) {
             #[parallel] from i == 0 { call g(a[i]); } loop { i += 1; } until i == 7;
         }";
     let out = support::compiled(src, &options(&[Target::Metal, Target::Nvptx], gpu_always()));
@@ -124,7 +124,7 @@ fn loops_with_calls_stay_on_the_cpu() {
 
 #[test]
 fn naming_a_disabled_target_is_an_error() {
-    let src = "rev fn f(a: &mut [i64; 8], i: &mut i64) {
+    let src = "fn f(a: &mut [i64; 8], i: &mut i64) {
         #[parallel(metal)] from i == 0 { a[i] += 1; } loop { i += 1; } until i == 7;
     }";
     let program = roop_syntax::parse(src).unwrap();

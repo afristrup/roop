@@ -41,7 +41,7 @@ fn lower_to_ptx(ir: &str) -> Option<String> {
 
 #[test]
 fn nvptx_loop_lowers_to_a_ptx_entry_point() {
-    let src = "rev fn axpy(a: &mut [f64; 64], b: &[f64; 64], i: &mut i64, k: &f64) {
+    let src = "fn axpy(a: &mut [f64; 64], b: &[f64; 64], i: &mut i64, k: &f64) {
         #[parallel(nvptx)] from i == 0 { a[i] += b[i] * k; } loop { i += 1; } until i == 63;
     }";
     let out = support::compiled(src, &Options::default());
@@ -57,7 +57,7 @@ fn nvptx_loop_lowers_to_a_ptx_entry_point() {
 
 #[test]
 fn apple_gpu_rejects_double_precision_but_cuda_accepts_it() {
-    let body = "rev fn f(a: &mut [f64; 4], i: &mut i64) {
+    let body = "fn f(a: &mut [f64; 4], i: &mut i64) {
         #[parallel(TARGET)] from i == 0 { a[i] += 1.0; } loop { i += 1; } until i == 3;
     }";
     let metal = parse(&body.replace("TARGET", "metal")).unwrap();
@@ -72,13 +72,13 @@ fn apple_gpu_rejects_double_precision_but_cuda_accepts_it() {
 
 #[test]
 fn gpu_kernels_reject_calls_and_use_the_error_flag_for_assertions() {
-    let call = "rev fn g(x: &mut i64) { x += 1; }
-        rev fn f(a: &mut [i64; 4], i: &mut i64) {
+    let call = "fn g(x: &mut i64) { x += 1; }
+        fn f(a: &mut [i64; 4], i: &mut i64) {
             #[parallel(metal)] from i == 0 { call g(a[i]); } loop { i += 1; } until i == 3;
         }";
     let program = parse(call).unwrap();
     assert!(compile_all(&program, &Options::default()).is_err());
-    let assertion = "rev fn f(a: &mut [i64; 4], i: &mut i64) {
+    let assertion = "fn f(a: &mut [i64; 4], i: &mut i64) {
         #[parallel(metal)] from i == 0 { if a[i] > 0 { a[i] += 1; } fi a[i] > 0; } loop { i += 1; } until i == 3;
     }";
     let out = support::compiled(assertion, &Options::default());

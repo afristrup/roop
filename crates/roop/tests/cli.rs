@@ -50,7 +50,7 @@ fn chain_loop(links: usize) -> String {
         .chain(std::iter::once("t1 -= b[i] * k;".to_string()))
         .collect();
     format!(
-        "rev fn heavy(a: &mut [i64; 1000000], b: &[i64; 1000000], i: &mut i64, k: &i64) {{
+        "fn heavy(a: &mut [i64; 1000000], b: &[i64; 1000000], i: &mut i64, k: &i64) {{
             #[parallel] from i == 0 {{ {opens}{} a[i] += t{links}; {} {} }} loop {{ i += 1; }} until i == 999999;
         }}",
         forward.join(" "),
@@ -61,7 +61,7 @@ fn chain_loop(links: usize) -> String {
 
 /// One multiply-add per element: bound by memory, not arithmetic.
 fn streaming_loop() -> &'static str {
-    "rev fn axpy(a: &mut [i64; 4000000], b: &[i64; 4000000], i: &mut i64, k: &i64) {
+    "fn axpy(a: &mut [i64; 4000000], b: &[i64; 4000000], i: &mut i64, k: &i64) {
         #[parallel] from i == 0 { a[i] += b[i] * k; } loop { i += 1; } until i == 3999999;
     }"
 }
@@ -112,7 +112,7 @@ fn memory_bound_loop_stays_on_the_cpu_even_with_auto_on() {
 
 #[test]
 fn dropping_a_target_from_roop_toml_opts_out_of_it() {
-    let src = "rev fn f(a: &mut [i64; 8], i: &mut i64) {
+    let src = "fn f(a: &mut [i64; 8], i: &mut i64) {
         #[parallel(metal)] from i == 0 { a[i] += 1; } loop { i += 1; } until i == 7;
     }";
     let dir = project("opt-out", "[parallel]\ntargets = [\"cpu\"]\n", src);
@@ -134,7 +134,7 @@ fn dropping_a_target_from_roop_toml_opts_out_of_it() {
 
 #[test]
 fn reports_checker_and_config_errors() {
-    let racy = "rev fn f(a: &mut [i64; 8], s: &mut i64, i: &mut i64) {
+    let racy = "fn f(a: &mut [i64; 8], s: &mut i64, i: &mut i64) {
         #[parallel] from i == 0 { s += a[i]; } loop { i += 1; } until i == 7;
     }";
     let dir = project("racy", "", racy);
@@ -158,7 +158,7 @@ fn reports_checker_and_config_errors() {
 #[test]
 fn builds_and_runs_a_linked_program_with_fused_loops() {
     let src =
-        "rev fn two(a: &mut [i64; 1000], b: &mut [i64; 1000], i: &mut i64, j: &mut i64, k: &i64) {
+        "fn two(a: &mut [i64; 1000], b: &mut [i64; 1000], i: &mut i64, j: &mut i64, k: &i64) {
         #[parallel] from i == 0 { a[i] += b[i] * k; } loop { i += 1; } until i == 999;
         #[parallel] from j == 0 { b[j] += a[j]; } loop { j += 1; } until j == 999;
     }";

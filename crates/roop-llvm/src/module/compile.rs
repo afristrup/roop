@@ -13,7 +13,7 @@ pub fn compile_with(program: &Program, options: &Options) -> Result<String, Code
     Ok(compile_all(program, options)?.host)
 }
 
-/// Each `rev fn f` becomes `@f` and its inverse `@f_inv`; struct constructors
+/// Each `fn f` becomes `@f` and its inverse `@f_inv`; struct constructors
 /// become `@S_build` and `@S_unbuild`. GPU loops add device modules.
 pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, CodegenError> {
     let ctx = Ctx::new(program, options);

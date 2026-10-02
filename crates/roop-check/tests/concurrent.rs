@@ -3,7 +3,7 @@ use roop_syntax::parse;
 
 fn run(body: &str) -> Result<(), CheckError> {
     let src = format!(
-        "rev fn f(x: &mut i64, y: &mut i64, z: &mut i64, w: &mut i64, k: &i64) {{ {body} }}"
+        "fn f(x: &mut i64, y: &mut i64, z: &mut i64, w: &mut i64, k: &i64) {{ {body} }}"
     );
     check(&parse(&src).unwrap())
 }

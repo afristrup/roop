@@ -16,7 +16,7 @@ fn run(src: &str, main_c: &str) -> i32 {
 
 #[test]
 fn a_producer_and_a_consumer_exchange_messages_and_reverse_exactly() {
-    let src = "rev fn pc(x: &mut i64, y: &mut i64, a: &mut i64, b: &mut i64) {
+    let src = "fn pc(x: &mut i64, y: &mut i64, a: &mut i64, b: &mut i64) {
         chan c: i64 {
             #[concurrent] { send c <- x; send c <- y; }
             #[concurrent] { recv c -> a; recv c -> b; }
@@ -40,7 +40,7 @@ int main(void) {
 #[test]
 fn a_client_and_server_converse_over_two_channels() {
     // The client sends a request; the server adds ten and answers.
-    let src = "rev fn serve(x: &mut i64, y: &mut i64, z: &mut i64) {
+    let src = "fn serve(x: &mut i64, y: &mut i64, z: &mut i64) {
         chan req: i64 { chan rep: i64 {
             #[concurrent] { send req <- x; recv rep -> y; }
             #[concurrent] { recv req -> z; z += 10; send rep <- z; }
@@ -73,7 +73,7 @@ fn many_messages_keep_their_order() {
         .collect::<Vec<_>>()
         .join(" ");
     let src = format!(
-        "rev fn pipeline(a: &mut [i64; {n}], b: &mut [i64; {n}]) {{
+        "fn pipeline(a: &mut [i64; {n}], b: &mut [i64; {n}]) {{
             chan c: i64 {{ #[concurrent] {{ {sends} }} #[concurrent] {{ {recvs} }} }}
         }}"
     );
@@ -98,7 +98,7 @@ int main(void) {{
 
 #[test]
 fn independent_tasks_run_concurrently_and_join() {
-    let src = "rev fn two(x: &mut i64, y: &mut i64, k: &i64) {
+    let src = "fn two(x: &mut i64, y: &mut i64, k: &i64) {
         #[concurrent] { x += k; x += k; }
         #[concurrent] { y += k; }
     }";
@@ -117,7 +117,7 @@ int main(void) {
     assert_eq!(run(src, main), 0);
 }
 
-const GUARDED: &str = "rev fn guarded(x: &mut i64, y: &mut i64, z: &mut i64, w: &mut i64) {
+const GUARDED: &str = "fn guarded(x: &mut i64, y: &mut i64, z: &mut i64, w: &mut i64) {
     try {
         chan c: i64 {
             #[concurrent] { x += 5; send c <- y; }
@@ -158,7 +158,7 @@ int main(void) {
 
 #[test]
 fn a_task_that_fails_before_sending_does_not_leave_its_peer_waiting_forever() {
-    let src = "rev fn stuck(x: &mut i64, y: &mut i64, z: &mut i64, w: &mut i64) {
+    let src = "fn stuck(x: &mut i64, y: &mut i64, z: &mut i64, w: &mut i64) {
         try {
             chan c: i64 {
                 #[concurrent] { if x > 100 { w += 1; } fi w > 0; send c <- y; }
@@ -180,7 +180,7 @@ int main(void) {
 
 #[test]
 fn a_sequential_try_restores_what_it_wrote() {
-    let src = "rev fn t(x: &mut i64, y: &mut i64, z: &mut i64) {
+    let src = "fn t(x: &mut i64, y: &mut i64, z: &mut i64) {
         try {
             y += 5;
             if x > 0 { y += 1; } fi y > 100;
@@ -200,7 +200,7 @@ int main(void) {
 
 #[test]
 fn a_failure_inside_a_parallel_loop_rolls_back_arrays_written_by_worker_threads() {
-    let src = "rev fn t(a: &mut [i64; 64], s: &mut i64, i: &mut i64) {
+    let src = "fn t(a: &mut [i64; 64], s: &mut i64, i: &mut i64) {
         try {
             #[parallel(cpu)] from i == 0 {
                 a[i] += 10;
@@ -224,7 +224,7 @@ int main(void) {
 
 #[test]
 fn nested_tries_roll_back_to_the_innermost_checkpoint() {
-    let src = "rev fn t(x: &mut i64, y: &mut i64, z: &mut i64) {
+    let src = "fn t(x: &mut i64, y: &mut i64, z: &mut i64) {
         try {
             x += 1;
             try {
@@ -249,10 +249,10 @@ int main(void) {
 
 #[test]
 fn a_function_containing_try_has_no_inverse() {
-    let src = "rev fn t(x: &mut i64, y: &mut i64) {
+    let src = "fn t(x: &mut i64, y: &mut i64) {
         try { if x > 0 { y += 1; } fi y > 0; } catch_rollback { y += 2; }
     }
-    rev fn u(x: &mut i64, y: &mut i64) { uncall t(x, y); }";
+    fn u(x: &mut i64, y: &mut i64) { uncall t(x, y); }";
     let program = roop_syntax::parse(src).unwrap();
     roop_check::check(&program).unwrap();
     let err = roop_llvm::compile_all(&program, &Options::default())
@@ -263,7 +263,7 @@ fn a_function_containing_try_has_no_inverse() {
 
 #[test]
 fn undeclared_inverse_symbol_is_not_emitted_for_try_functions() {
-    let src = "rev fn t(x: &mut i64, y: &mut i64) {
+    let src = "fn t(x: &mut i64, y: &mut i64) {
         try { if x > 0 { y += 1; } fi y > 0; } catch_rollback { y += 2; }
     }";
     let ir = support::ir(src);

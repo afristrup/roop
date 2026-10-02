@@ -1,4 +1,4 @@
-rev struct Policy {
+struct Policy {
     premium: i64,
     reserve: i64,
     claims: i64,
@@ -12,12 +12,12 @@ rev struct Policy {
     }
 }
 
-rev fn collect(p: &mut Policy, payment: &i64) {
+fn collect(p: &mut Policy, payment: &i64) {
     p.premium += payment;
     p.reserve += payment;
 }
 
-rev fn settle(p: &mut Policy, amount: &i64) {
+fn settle(p: &mut Policy, amount: &i64) {
     ancilla covered: i64 = 0 {
         covered += amount;
         p.claims += covered;
@@ -26,7 +26,7 @@ rev fn settle(p: &mut Policy, amount: &i64) {
     }
 }
 
-rev fn accrue(p: &mut Policy, months: &i64, i: &mut i64) {
+fn accrue(p: &mut Policy, months: &i64, i: &mut i64) {
     from i == 0 {
         p.reserve += p.premium;
     } loop {
@@ -34,13 +34,13 @@ rev fn accrue(p: &mut Policy, months: &i64, i: &mut i64) {
     } until i == months;
 }
 
-rev enum Status {
+enum Status {
     Active,
     Lapsed,
     Closed,
 }
 
-rev fn apply(status: &Status, p: &mut Policy, amount: &i64) {
+fn apply(status: &Status, p: &mut Policy, amount: &i64) {
     match status {
         Status::Active => { p.reserve += amount; } assert status == Status::Active;
         Status::Lapsed => { p.claims += amount; } assert status == Status::Lapsed;
@@ -48,7 +48,7 @@ rev fn apply(status: &Status, p: &mut Policy, amount: &i64) {
     }
 }
 
-rev fn accrue_all(reserves: &mut [i64; 4], premiums: &[i64; 4], i: &mut i64) {
+fn accrue_all(reserves: &mut [i64; 4], premiums: &[i64; 4], i: &mut i64) {
     #[parallel]
     from i == 0 {
         reserves[i] += premiums[i];

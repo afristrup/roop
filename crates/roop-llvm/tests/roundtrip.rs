@@ -24,8 +24,8 @@ fn expect_ok(src: &str, setup: &str, checks: &[&str]) {
 
 #[test]
 fn update_swap_and_xor_reverse_exactly() {
-    let src = "rev struct P { a: i64, b: i64 }
-               rev fn step(p: &mut P, n: &i64) { p.a += n; p.b ^= n; p.a <=> p.b; }";
+    let src = "struct P { a: i64, b: i64 }
+               fn step(p: &mut P, n: &i64) { p.a += n; p.b ^= n; p.a <=> p.b; }";
     let setup = "
   %p = alloca %P
   %pa = getelementptr inbounds %P, ptr %p, i32 0, i32 0
@@ -54,7 +54,7 @@ fn update_swap_and_xor_reverse_exactly() {
 
 #[test]
 fn from_loop_runs_and_reverses() {
-    let src = "rev fn count(x: &mut i64, i: &mut i64, n: &i64) {
+    let src = "fn count(x: &mut i64, i: &mut i64, n: &i64) {
         from i == 0 { x += 2; } loop { i += 1; } until i == n;
     }";
     let setup = "
@@ -84,8 +84,8 @@ fn from_loop_runs_and_reverses() {
 
 #[test]
 fn match_on_enum_selects_arm_both_ways() {
-    let src = "rev enum S { A, B }
-               rev fn f(s: &S, y: &mut i64) {
+    let src = "enum S { A, B }
+               fn f(s: &S, y: &mut i64) {
                    match s {
                        S::A => { y += 1; } assert y == 11;
                        S::B => { y += 2; } assert y == 12;
@@ -109,7 +109,7 @@ fn match_on_enum_selects_arm_both_ways() {
 
 #[test]
 fn if_fi_and_ancilla_reverse() {
-    let src = "rev fn f(x: &mut i64, y: &mut i64) {
+    let src = "fn f(x: &mut i64, y: &mut i64) {
         ancilla t: i64 = 0 { t += x; y += t; t -= x; }
         if y > 10 { x += 1; } else { x -= 1; } fi x > 0;
     }";
@@ -138,7 +138,7 @@ fn if_fi_and_ancilla_reverse() {
 
 #[test]
 fn failed_exit_assertion_traps() {
-    let src = "rev fn f(x: &mut i64) { if x > 0 { x += 1; } fi x < 0; }";
+    let src = "fn f(x: &mut i64) { if x > 0 { x += 1; } fi x < 0; }";
     let setup = "
   %x = alloca i64
   store i64 5, ptr %x
@@ -156,7 +156,7 @@ fn failed_exit_assertion_traps() {
 
 #[test]
 fn borrowed_array_element_is_updated_in_place() {
-    let src = "rev fn f(a: &mut [i64; 3], k: &i64) { borrow c = a[1] { c += k; } }";
+    let src = "fn f(a: &mut [i64; 3], k: &i64) { borrow c = a[1] { c += k; } }";
     let setup = "
   %a = alloca [3 x i64]
   %a1p = getelementptr inbounds [3 x i64], ptr %a, i64 0, i64 1

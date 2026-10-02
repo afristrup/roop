@@ -1,4 +1,4 @@
-use crate::{Block, Expr, MatchArm, Place, Type, UpdateOp};
+use crate::{Block, Expr, MatchArm, OverwriteOp, Place, Type, UpdateOp};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StmtKind {

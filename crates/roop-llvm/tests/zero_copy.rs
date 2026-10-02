@@ -6,7 +6,7 @@ const N: usize = 4096; // 32 KiB per array: two whole 16 KiB pages
 
 fn run(aligned: bool, threshold: Option<&str>) -> i32 {
     let src = format!(
-        "rev fn axpy(a: &mut [i64; {N}], b: &[i64; {N}], i: &mut i64, k: &i64) {{
+        "fn axpy(a: &mut [i64; {N}], b: &[i64; {N}], i: &mut i64, k: &i64) {{
             #[parallel(metal)] from i == 0 {{ a[i] += b[i] * k; }} loop {{ i += 1; }} until i == {};
         }}",
         N - 1

@@ -5,10 +5,10 @@ fn run(src: &str) -> Result<(), CheckError> {
     check(&parse(src).unwrap())
 }
 
-const SIGNAL: &str = "rev enum Signal { High, Low, Off }";
+const SIGNAL: &str = "enum Signal { High, Low, Off }";
 
 fn with_match(arms: &str) -> String {
-    format!("{SIGNAL} rev fn f(s: &Signal, y: &mut i64) {{ match s {{ {arms} }} }}")
+    format!("{SIGNAL} fn f(s: &Signal, y: &mut i64) {{ match s {{ {arms} }} }}")
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn wildcard_covers_remaining_variants() {
 
 #[test]
 fn both_bool_arms_are_exhaustive() {
-    let src = "rev fn f(b: &bool, y: &mut i64) {
+    let src = "fn f(b: &bool, y: &mut i64) {
         match b { true => { y += 1; } assert y == 1; false => { y -= 1; } assert y == 0; }
     }";
     assert_eq!(run(src), Ok(()));
@@ -53,14 +53,14 @@ fn rejects_unknown_variant_in_pattern() {
 
 #[test]
 fn rejects_unknown_enum_in_assertion() {
-    let src = "rev fn f(y: &mut i64) { if y > 0 { y += 1; } fi y == Mode::On; }";
+    let src = "fn f(y: &mut i64) { if y > 0 { y += 1; } fi y == Mode::On; }";
     assert!(matches!(run(src), Err(CheckError::UnknownVariant { .. })));
 }
 
 #[test]
 fn rejects_duplicate_variants() {
     assert!(matches!(
-        run("rev enum E { A, B, A }"),
+        run("enum E { A, B, A }"),
         Err(CheckError::DuplicateVariant { variant, .. }) if variant == "A"
     ));
 }
@@ -68,7 +68,7 @@ fn rejects_duplicate_variants() {
 #[test]
 fn checks_variants_inside_nested_blocks() {
     let src = format!(
-        "{SIGNAL} rev fn f(y: &mut i64) {{ try {{ if y > 0 {{ y += 1; }} fi y == Signal::Nope; }} catch_rollback {{ }} }}"
+        "{SIGNAL} fn f(y: &mut i64) {{ try {{ if y > 0 {{ y += 1; }} fi y == Signal::Nope; }} catch_rollback {{ }} }}"
     );
     assert!(matches!(run(&src), Err(CheckError::UnknownVariant { .. })));
 }

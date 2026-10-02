@@ -9,7 +9,7 @@ variable) and that nothing reads another iteration's write, so the loop is safe
 to run, and to reverse, in any order.
 
 ```rust
-rev fn axpy(a: &mut [i64; 1000], b: &[i64; 1000], i: &mut i64, k: &i64) {
+fn axpy(a: &mut [i64; 1000], b: &[i64; 1000], i: &mut i64, k: &i64) {
     #[parallel]
     from i == 0 { a[i] += b[i] * k; } loop { i += 1; } until i == 999;
 }

@@ -2,7 +2,7 @@ use roop_check::{CheckError, check};
 use roop_syntax::parse;
 
 fn run(body: &str) -> Result<(), CheckError> {
-    let src = format!("rev fn f(x: &mut i64, y: &mut i64, a: &mut [i64; 4]) {{ {body} }}");
+    let src = format!("fn f(x: &mut i64, y: &mut i64, a: &mut [i64; 4]) {{ {body} }}");
     check(&parse(&src).unwrap())
 }
 
@@ -33,18 +33,18 @@ fn checks_nested_blocks() {
 
 #[test]
 fn distinct_fields_do_not_interfere() {
-    let src = "rev fn f(p: &mut P) { p.a += p.b; }";
+    let src = "fn f(p: &mut P) { p.a += p.b; }";
     assert_eq!(check(&parse(src).unwrap()), Ok(()));
 }
 
 #[test]
 fn same_field_interferes() {
-    let src = "rev fn f(p: &mut P) { p.a += p.a; }";
+    let src = "fn f(p: &mut P) { p.a += p.a; }";
     assert!(check(&parse(src).unwrap()).is_err());
 }
 
 #[test]
 fn whole_struct_overlaps_its_field() {
-    let src = "rev fn f(p: &mut P) { p.a += p; }";
+    let src = "fn f(p: &mut P) { p.a += p; }";
     assert!(check(&parse(src).unwrap()).is_err());
 }

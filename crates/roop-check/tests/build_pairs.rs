@@ -2,7 +2,7 @@ use roop_check::{CheckError, check};
 use roop_syntax::parse;
 
 fn run(members: &str) -> Result<(), CheckError> {
-    let src = format!("rev struct P {{ a: i64, b: i64, {members} }}");
+    let src = format!("struct P {{ a: i64, b: i64, {members} }}");
     check(&parse(&src).unwrap())
 }
 

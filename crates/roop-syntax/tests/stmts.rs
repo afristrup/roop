@@ -1,7 +1,7 @@
 use roop_syntax::{Item, StmtKind, parse};
 
 fn first_stmt(body: &str) -> StmtKind {
-    let program = parse(&format!("rev fn f(x: &mut i64, y: &mut i64) {{ {body} }}")).unwrap();
+    let program = parse(&format!("fn f(x: &mut i64, y: &mut i64) {{ {body} }}")).unwrap();
     let Item::Fn(f) = &program.items[0] else {
         panic!("expected fn")
     };
@@ -73,7 +73,7 @@ fn parses_borrow() {
 #[test]
 fn parses_parallel_attribute_with_and_without_target() {
     use roop_syntax::{Attr, Target};
-    let src = "rev fn f(a: &mut [i64; 4], i: &mut i64) {
+    let src = "fn f(a: &mut [i64; 4], i: &mut i64) {
         #[parallel] from i == 0 { a[i] += 1; } loop { i += 1; } until i == 3;
         #[parallel(metal)] from i == 0 { a[i] += 1; } loop { i += 1; } until i == 3;
     }";
@@ -93,7 +93,7 @@ fn parses_parallel_attribute_with_and_without_target() {
 #[test]
 fn parses_channels_sends_receives_and_concurrent_blocks() {
     use roop_syntax::Attr;
-    let src = "rev fn f(x: &mut i64, y: &mut i64) {
+    let src = "fn f(x: &mut i64, y: &mut i64) {
         chan c: i64 {
             #[concurrent] { send c <- x; }
             #[concurrent] { recv c -> y; }
@@ -119,6 +119,6 @@ fn a_bare_block_is_a_statement() {
 
 #[test]
 fn parses_attributes_in_either_order() {
-    let src = "rev fn f(x: &mut i64) { #[concurrent] #[parallel] { x += 1; } }";
+    let src = "fn f(x: &mut i64) { #[concurrent] #[parallel] { x += 1; } }";
     assert!(parse(src).is_ok());
 }

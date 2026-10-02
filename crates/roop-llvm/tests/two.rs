@@ -4,7 +4,7 @@ pub const N: usize = 1000;
 
 pub fn program(target: &str) -> String {
     format!(
-        "rev fn two(a: &mut [i64; {N}], b: &mut [i64; {N}], i: &mut i64, j: &mut i64, k: &i64) {{
+        "fn two(a: &mut [i64; {N}], b: &mut [i64; {N}], i: &mut i64, j: &mut i64, k: &i64) {{
             #[parallel({target})] from i == 0 {{ a[i] += b[i] * k; }} loop {{ i += 1; }} until i == {last};
             #[parallel({target})] from j == 0 {{ b[j] += a[j]; }} loop {{ j += 1; }} until j == {last};
         }}",

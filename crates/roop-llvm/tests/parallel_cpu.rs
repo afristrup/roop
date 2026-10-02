@@ -5,7 +5,7 @@ use harness::{N, harness};
 
 fn roundtrip(options: &roop_llvm::Options) -> String {
     let src = format!(
-        "rev fn axpy(a: &mut [i64; {N}], b: &[i64; {N}], i: &mut i64, k: &i64) {{
+        "fn axpy(a: &mut [i64; {N}], b: &[i64; {N}], i: &mut i64, k: &i64) {{
             #[parallel] from i == 0 {{ a[i] += b[i] * k; }} loop {{ i += 1; }} until i == {};
         }}",
         N - 1
@@ -40,7 +40,7 @@ fn apple_m4_target_is_applied_to_every_function() {
 
 #[test]
 fn parallel_loop_with_a_failing_assertion_traps() {
-    let src = "rev fn f(a: &mut [i64; 4], i: &mut i64) {
+    let src = "fn f(a: &mut [i64; 4], i: &mut i64) {
         #[parallel] from i == 1 { a[i] += 1; } loop { i += 1; } until i == 3;
     }";
     let ir = format!(

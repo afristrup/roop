@@ -16,12 +16,20 @@ pub fn item<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>> + Clon
         )
         .then_ignore(just(Token::Semi))
         .map(Item::Use);
-    let fn_def = just(Token::Rev)
-        .ignore_then(just(Token::Fn))
-        .ignore_then(ident())
+    let fn_def = just(Token::Irrev)
+        .or_not()
+        .then_ignore(just(Token::Fn))
+        .then(ident())
         .then(comma_list(param()).delimited_by(just(Token::LParen), just(Token::RParen)))
         .then(block(stmt()))
-        .map(|((name, params), body)| Item::Fn(FnDef { name, params, body }));
+        .map(|(((irrev, name), params), body)| {
+            Item::Fn(FnDef {
+                name,
+                params,
+                body,
+                irreversible: irrev.is_some(),
+            })
+        });
 
     module
         .or(use_)

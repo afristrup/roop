@@ -14,7 +14,7 @@ fn metal_available() -> bool {
 
 fn program(target: &str) -> String {
     format!(
-        "rev fn axpy(a: &mut [i64; {N}], b: &[i64; {N}], i: &mut i64, k: &i64) {{
+        "fn axpy(a: &mut [i64; {N}], b: &[i64; {N}], i: &mut i64, k: &i64) {{
             #[parallel{target}] from i == 0 {{ a[i] += b[i] * k; }} loop {{ i += 1; }} until i == {};
         }}",
         N - 1
