@@ -152,7 +152,9 @@ elab "roop_loop " l:ident : tactic => withMainContext do
     try
       let app ← mkAppM l.getId #[decl.toExpr]
       let ty ← instantiateMVars (← inferType app)
-      unless (← getLCtx).any (fun d => !d.isImplementationDetail && d.type == ty) do
+      unless (← getLCtx).any (fun d => !d.isImplementationDetail && d.type == ty) ||
+          (← withReducible ((← getLCtx).anyM fun d => do
+            return !d.isImplementationDetail && (← isDefEq d.type ty))) do
         liftMetaTactic fun g => do
           let (_, g) ← (← g.assert `this ty app).intro1
           return [g]
