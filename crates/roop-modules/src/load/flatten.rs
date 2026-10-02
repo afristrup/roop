@@ -2,6 +2,7 @@ use crate::{
     ModuleError, Tree, build_scope, global_name, item_name, lookup, order, prune, rename_names,
 };
 use roop_syntax::{Item, Program};
+use std::collections::HashSet;
 
 /// One program from a module tree: names made global, `mod` and `use` gone,
 /// library modules pruned to what is reached.
@@ -9,17 +10,13 @@ pub fn flatten(tree: &Tree) -> Result<Program, ModuleError> {
     let built: Vec<_> = (0..tree.modules.len())
         .map(|id| build_scope(tree, id))
         .collect::<Result<_, _>>()?;
-    let deps: Vec<Vec<usize>> = built.iter().map(|(_, d)| d.clone()).collect();
+    let deps: Vec<Vec<usize>> = built.iter().map(|s| s.deps.clone()).collect();
+    let imported: HashSet<&String> = built.iter().flat_map(|s| &s.imports).collect();
     let mut library = Vec::new();
     let mut entry = Vec::new();
     for id in order(tree, &deps) {
         let module = &tree.modules[id];
-        let scope = &built[id].0;
-        let target = if id == tree.entry {
-            &mut entry
-        } else {
-            &mut library
-        };
+        let scope = &built[id].names;
         for item in &module.items {
             let Some((name, _)) = item_name(item) else {
                 continue;
@@ -30,8 +27,16 @@ pub fn flatten(tree: &Tree) -> Result<Program, ModuleError> {
                     *n = global;
                 }
             });
-            set_name(&mut item, global_name(&module.path, name));
-            target.push(item);
+            let global = global_name(&module.path, name);
+            set_name(&mut item, global.clone());
+            // A session names no code that would keep it, so an import does.
+            let kept = id == tree.entry
+                || (matches!(item, Item::Session(_)) && imported.contains(&global));
+            if kept {
+                entry.push(item);
+            } else {
+                library.push(item);
+            }
         }
     }
     let keep = entry.len();

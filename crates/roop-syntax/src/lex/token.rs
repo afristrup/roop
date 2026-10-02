@@ -9,8 +9,6 @@ pub enum Token<'a> {
     Mod,
     #[token("use")]
     Use,
-    #[token("session")]
-    Session,
     #[token("pub")]
     Pub,
     #[token("as")]

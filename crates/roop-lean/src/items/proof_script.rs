@@ -47,7 +47,7 @@ pub fn proof_script(loop_lemmas: &LoopLemmas, calls: usize) -> String {
   all_goals (try subst_vars)
 {}  all_goals (try simp [{with_ext}] at *)
   all_goals (try (repeat' (apply And.intro)))
-  all_goals (try (first | done | ((try (repeat roop_ands)); (try subst_vars); roop_unfold_cyclic; simp [{simp}]; done) | ((try (repeat roop_ands)); (try subst_vars); roop_pointwise; simp [Vector.getElem_set] at *; (repeat' split) <;> (try subst_vars) <;> (try simp_all) <;> (try omega); done)))
+  all_goals (try (first | done | ((try (repeat roop_ands)); (try subst_vars); (try roop_fields); (try simp at *); ext : 1 <;> simp [*]; done) | ((try (repeat roop_ands)); (try subst_vars); roop_unfold_cyclic; simp [{simp}]; done) | ((try (repeat roop_ands)); (try subst_vars); roop_pointwise; simp [Vector.getElem_set] at *; (repeat' split) <;> (try subst_vars) <;> (try simp_all) <;> (try omega); done)))
   all_goals first | done | assumption | omega | bv_omega | bv_decide | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))",
         round.repeat(rounds)
     )

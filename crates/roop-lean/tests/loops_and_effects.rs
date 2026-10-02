@@ -41,6 +41,7 @@ fn the_repository_examples_translate_and_check() {
         "std/mod.roop",
         "examples/insurance/mod.roop",
         "examples/history/mod.roop",
+        "examples/server/mod.roop",
     ] {
         let src = std::fs::read_to_string(format!("{root}/{file}")).unwrap();
         let t = support::translation(&src);

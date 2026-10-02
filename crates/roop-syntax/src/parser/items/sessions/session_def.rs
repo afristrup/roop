@@ -10,7 +10,7 @@ pub fn session_def<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, SessionDef, Er
         .map(|(name, behaviour)| Role { name, behaviour });
     just(Token::Pub)
         .or_not()
-        .then_ignore(just(Token::Session))
+        .then_ignore(select! { Token::Ident("session") => () })
         .then(ident())
         .then(
             role.repeated()

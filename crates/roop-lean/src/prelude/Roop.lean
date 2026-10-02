@@ -538,6 +538,44 @@ partial def vectorFacts (p : Expr) : TacticM (Array Expr) := do
   else return #[]
 
 open Lean Elab Tactic Meta in
+/-- The equations between structures inside a proof, looking inside conjunctions. -/
+partial def structureFacts (p : Expr) : TacticM (Array Expr) := do
+  let ty ← whnfR (← instantiateMVars (← inferType p))
+  if ty.isAppOfArity ``And 2 then
+    return (← structureFacts (mkApp3 (mkConst ``And.left) ty.appFn!.appArg! ty.appArg! p)) ++
+      (← structureFacts (mkApp3 (mkConst ``And.right) ty.appFn!.appArg! ty.appArg! p))
+  else if let some (t, _, _) := ty.eq? then
+    match (← whnfR t).getAppFn.constName? with
+    | some name => if isStructure (← getEnv) name then return #[p] else return #[]
+    | none => return #[]
+  else return #[]
+
+open Lean Elab Tactic Meta in
+/-- Reads every equation between structures field by field, so that a
+cyclic one such as `{ a := s.a, b := c.b } = s` tells us `c.b = s.b`. -/
+elab "roop_fields" : tactic => withMainContext do
+  let mut facts : Array Expr := #[]
+  for decl in (← getLCtx) do
+    unless decl.isImplementationDetail do
+      if ← isProp decl.type then facts := facts ++ (← structureFacts decl.toExpr)
+  for p in facts do
+    let some (t, _, _) := (← whnfR (← inferType p)).eq? | continue
+    let some name := (← whnfR t).getAppFn.constName? | continue
+    for field in getStructureFields (← getEnv) name do
+      let stx ← Term.exprToSyntax p
+      try
+        evalTactic (← `(tactic| have := congrArg (fun v => v.$(mkIdent field)) $stx))
+      catch _ => pure ()
+  -- A cyclic equation is now said field by field, and would loop `simp_all`.
+  for decl in (← getLCtx) do
+    unless decl.isImplementationDetail do
+      let some (_, lhs, rhs) := (← instantiateMVars decl.type).eq? | continue
+      if rhs.isFVar && lhs.containsFVar rhs.fvarId! then
+        try (← getMainGoal).withContext do
+          replaceMainGoal [← (← getMainGoal).clear decl.fvarId]
+        catch _ => pure ()
+
+open Lean Elab Tactic Meta in
 /-- Proves an equation of vectors one index at a time, with every vector
 equation among the hypotheses read at that index. Works where the hypotheses
 are cyclic and cannot be substituted. -/
