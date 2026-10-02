@@ -4,7 +4,7 @@ use roop_llvm::Options;
 
 const N: usize = 4096; // 32 KiB per array: two whole 16 KiB pages
 
-fn run(aligned: bool) -> i32 {
+fn run(aligned: bool, threshold: Option<&str>) -> i32 {
     let src = format!(
         "rev fn axpy(a: &mut [i64; {N}], b: &[i64; {N}], i: &mut i64, k: &i64) {{
             #[parallel(metal)] from i == 0 {{ a[i] += b[i] * k; }} loop {{ i += 1; }} until i == {};
@@ -19,6 +19,9 @@ fn run(aligned: bool) -> i32 {
     } else {
         format!("(int64_t*)((char*)malloc({N} * 8 + 64) + 8)")
     };
+    let setenv = threshold
+        .map(|t| format!("setenv(\"ROOP_ZERO_COPY_MIN_BYTES\", \"{t}\", 1);"))
+        .unwrap_or_default();
     let main = format!(
         r#"
 #include <stdint.h>
@@ -28,6 +31,7 @@ int64_t roop_gpu_zero_copy_count(void);
 void axpy(int64_t*, int64_t*, int64_t*, int64_t*);
 void axpy_inv(int64_t*, int64_t*, int64_t*, int64_t*);
 int main(void) {{
+    {setenv}
     int64_t *a = {alloc}, *b = {alloc};
     int64_t i = 0, k = 3;
     for (int64_t m = 0; m < N; m++) {{ a[m] = m; b[m] = 2 * m; }}
@@ -60,7 +64,15 @@ fn page_aligned_arrays_are_shared_with_the_gpu_without_copying() {
         return;
     }
     // Two launches (forward and inverse), two arrays each.
-    assert_eq!(run(true), 4);
+    assert_eq!(run(true, Some("0")), 4);
+}
+
+#[test]
+fn small_arrays_use_pooled_buffers_even_when_page_aligned() {
+    if !metal_available() {
+        return;
+    }
+    assert_eq!(run(true, None), 0);
 }
 
 #[test]
@@ -68,5 +80,5 @@ fn unaligned_arrays_still_work_through_pooled_staging_buffers() {
     if !metal_available() {
         return;
     }
-    assert_eq!(run(false), 0);
+    assert_eq!(run(false, Some("0")), 0);
 }

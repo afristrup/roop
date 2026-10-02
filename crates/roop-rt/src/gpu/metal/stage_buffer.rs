@@ -1,7 +1,7 @@
 #![cfg(target_os = "macos")]
 
 use crate::gpu::count_zero_copy;
-use crate::gpu::metal::{DeviceState, Staged, page_size, take_pooled};
+use crate::gpu::metal::{DeviceState, Staged, page_size, take_pooled, zero_copy_min_bytes};
 use objc2_metal::{MTLBuffer, MTLDevice, MTLResourceOptions};
 use std::ptr::NonNull;
 
@@ -14,7 +14,7 @@ use std::ptr::NonNull;
 pub unsafe fn stage_buffer(state: &DeviceState, host: *mut u8, size: usize) -> Option<Staged> {
     let page = page_size();
     let options = MTLResourceOptions::StorageModeShared;
-    if host as usize % page == 0 && size % page == 0 && size > 0 {
+    if host as usize % page == 0 && size % page == 0 && size > 0 && size >= zero_copy_min_bytes() {
         let pointer = NonNull::new(host.cast())?;
         let buffer = unsafe {
             state

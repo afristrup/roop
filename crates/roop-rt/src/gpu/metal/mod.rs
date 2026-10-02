@@ -6,6 +6,7 @@ mod page_size;
 mod pipeline_for;
 mod stage_buffer;
 mod staged;
+mod zero_copy_min_bytes;
 
 pub use buffer_pool::*;
 pub use device_state::*;
@@ -15,3 +16,4 @@ pub use page_size::*;
 pub use pipeline_for::*;
 pub use stage_buffer::*;
 pub use staged::*;
+pub use zero_copy_min_bytes::*;
