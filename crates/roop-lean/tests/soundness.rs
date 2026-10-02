@@ -44,3 +44,28 @@ fn lean_rejects_a_match_whose_exit_assertions_overlap() {
     );
     assert!(support::lean_accepts(&t).is_err());
 }
+
+#[test]
+fn ancilla_leak_theorems_hold_for_restored_ancillas() {
+    let t = support::verified(
+        "fn f(x: &mut i64, y: &mut i64) {
+            ancilla t: i64 = 0 { t += x; y += t; t -= x; }
+         }",
+    );
+    assert!(t.lean.contains("f_ancilla_restored"));
+    assert!(t.lean.contains("f_inv_ancilla_restored"));
+}
+
+#[test]
+fn lean_rejects_an_ancilla_that_is_not_restored() {
+    // Irreversible code may skip restoration, but if the same shape appears in
+    // a reversible function the leak theorem cannot be proved. Build the
+    // faulty file by corrupting the restoring update.
+    let mut t = support::translation(
+        "fn f(x: &mut i64, y: &mut i64) {
+            ancilla t: i64 = 0 { t += x; y += t; t -= x; }
+         }",
+    );
+    t.lean = t.lean.replacen("(\u{ab}t\u{bb} - \u{ab}x\u{bb})", "(\u{ab}t\u{bb} + \u{ab}x\u{bb})", 1);
+    assert!(support::lean_accepts(&t).is_err());
+}
