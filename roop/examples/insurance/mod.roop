@@ -1,0 +1,27 @@
+rev struct Policy {
+    premium: i64,
+    reserve: i64,
+    claims: i64,
+}
+
+rev fn collect(p: &mut Policy, payment: &i64) {
+    p.premium += payment;
+    p.reserve += payment;
+}
+
+rev fn settle(p: &mut Policy, amount: &i64) {
+    ancilla covered: i64 = 0 {
+        covered += amount;
+        p.claims += covered;
+        p.reserve -= covered;
+        covered -= amount;
+    }
+}
+
+rev fn accrue(p: &mut Policy, months: &i64, i: &mut i64) {
+    from i == 0 {
+        p.reserve += p.premium;
+    } loop {
+        i += 1;
+    } until i == months;
+}

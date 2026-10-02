@@ -1,0 +1,11 @@
+rev fn swap(a: &mut i64, b: &mut i64) {
+    a <=> b;
+}
+
+rev fn add(a: &mut i64, b: &i64) {
+    a += b;
+}
+
+rev fn xor(a: &mut i64, b: &i64) {
+    a ^= b;
+}
