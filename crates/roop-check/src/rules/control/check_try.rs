@@ -15,9 +15,6 @@ pub fn check_try(
     span: Span,
     scope: Scope,
 ) -> Result<(), CheckError> {
-    if !can_roll_back(body) {
-        return Err(CheckError::TryCannotFail { span });
-    }
     if let Some(outcome) = outcome {
         for block in [body, handler] {
             if let Some((what, at)) =
@@ -34,6 +31,9 @@ pub fn check_try(
                 });
             }
         }
+    }
+    if !can_roll_back(body) {
+        return Err(CheckError::TryCannotFail { span });
     }
     check_block(body, scope)?;
     check_block(handler, scope)
