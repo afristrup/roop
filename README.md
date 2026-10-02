@@ -15,8 +15,11 @@ rev fn axpy(a: &mut [i64; 1000], b: &[i64; 1000], i: &mut i64, k: &i64) {
 }
 ```
 
-A bare `#[parallel]` lets the compiler pick CPU threads or a GPU from a cost
-model measured on Apple M4. `#[parallel(cpu)]`, `#[parallel(metal)]` and
+A bare `#[parallel]` lets the compiler pick CPU threads or a GPU. It estimates
+each device as the slower of arithmetic and memory traffic plus a fixed launch
+cost, with constants measured on an Apple M4. On that machine the CPU wins for
+streaming loops and for light arithmetic; the GPU wins once a loop does enough
+64-bit integer work per element (about 50 dependent multiply-adds and up). `#[parallel(cpu)]`, `#[parallel(metal)]` and
 `#[parallel(nvptx)]` pin a target. Adjacent loops with the same iteration space
 fuse into one loop (one GPU kernel) when the merged body is still safe.
 
