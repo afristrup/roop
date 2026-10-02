@@ -17,6 +17,12 @@ pub fn translation(src: &str) -> Translation {
     translate(&program)
 }
 
+/// Translates without running the roop checker, to see what Lean says about a
+/// program the checker would have refused.
+pub fn unchecked(src: &str) -> Translation {
+    translate(&parse(src).unwrap())
+}
+
 /// Runs Lean on the generated file. `Ok(())` when Lean accepts it or is not
 /// installed; otherwise Lean's output and the file.
 pub fn lean_accepts(t: &Translation) -> Result<(), String> {
