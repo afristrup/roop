@@ -207,18 +207,28 @@ elab "roop_loop " l:ident : tactic => withMainContext do
     catch _ => pure ()
 
 open Lean Elab Tactic Meta in
-/-- Case split on the first conditional with a closed condition, in the goal or
-in a hypothesis, and resolve that condition everywhere. -/
+/-- Case split on the first conditional with a closed condition that no
+hypothesis decides yet, in the goal or in a hypothesis, and resolve that
+condition everywhere. -/
 elab "roop_cases" : tactic => withMainContext do
   let mut types := #[← instantiateMVars (← getMainTarget)]
+  let mut known : Array Expr := #[]
   let mut hyps : Array Syntax.Term := #[]
   for decl in (← getLCtx) do
     unless decl.isImplementationDetail do
-      types := types.push (← instantiateMVars decl.type)
+      let type ← instantiateMVars decl.type
+      types := types.push type
+      known := known.push type
       if ← isProp decl.type then
         hyps := hyps.push (← Term.exprToSyntax decl.toExpr)
+  let decided (c : Expr) : Bool := known.any fun t =>
+    t == c || t == mkNot c ||
+      match c.eq?, t.eq? with
+      | some (_, x, _), some (_, y, _) => x == y
+      | _, _ => false
   let found := types.findSome? fun type => type.find? fun e =>
-    (e.isAppOfArity ``dite 5 || e.isAppOfArity ``ite 5) && !(e.getArg! 1).hasLooseBVars
+    (e.isAppOfArity ``dite 5 || e.isAppOfArity ``ite 5) && !(e.getArg! 1).hasLooseBVars &&
+      !decided (e.getArg! 1)
   let some e := found | throwError "no conditional left"
   let cond ← Term.exprToSyntax (e.getArg! 1)
   let hc := mkIdent `hc
