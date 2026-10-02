@@ -35,13 +35,7 @@ pub fn gen_parallel_auto(
         Target::Cpu => false,
     });
     let choice = match gpu {
-        Some(gpu) => choose_target(
-            &options.cost,
-            features.work,
-            bytes,
-            static_trip(&counted),
-            gpu,
-        ),
+        Some(gpu) => choose_target(&options.cost, &features, bytes, static_trip(&counted), gpu),
         None => Choice::Cpu,
     };
     let dialect = |t| {
