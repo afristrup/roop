@@ -11,8 +11,6 @@ pub struct Translation {
     /// Reversible functions that use floating point. Rounding makes `x + k - k`
     /// differ from `x`, so no roundtrip theorem is stated for them.
     pub inexact: Vec<String>,
-    /// Theorems left as `sorry` because proving them needs an induction (loops).
-    pub open: Vec<String>,
     /// Functions that could not be translated, with the reason.
     pub skipped: Vec<(String, String)>,
 }

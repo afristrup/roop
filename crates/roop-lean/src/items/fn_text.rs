@@ -1,6 +1,10 @@
+use crate::LoopInfo;
+
 /// A translated function definition and what its theorems need to know.
 pub struct FnText {
     pub text: String,
-    pub loops: usize,
+    /// The loop pieces the function's text refers to.
+    pub lifted: String,
+    pub loops: Vec<LoopInfo>,
     pub ancillas: usize,
 }

@@ -18,6 +18,7 @@ pub fn lean_fn(cx: &Ctx, def: &FnDef, dir: Dir) -> Result<FnText, LeanError> {
             .map(|p| (p.name.clone(), p.ty.clone()))
             .collect(),
         irreversible: def.irreversible,
+        function: def.name.clone(),
     };
     let mutable: Vec<_> = def.params.iter().filter(|p| is_mut_ref(&p.ty)).collect();
     let result_types: Vec<_> = mutable.iter().map(|p| p.ty.clone()).collect();
@@ -44,6 +45,7 @@ pub fn lean_fn(cx: &Ctx, def: &FnDef, dir: Dir) -> Result<FnText, LeanError> {
     );
     Ok(FnText {
         text,
+        lifted: out.lifted,
         loops: out.loops,
         ancillas: out.ancillas,
     })
