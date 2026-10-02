@@ -38,7 +38,10 @@ pub fn translate(program: &Program) -> Translation {
                     lean.push_str(&piece.text);
                     cx.translated.insert(def.name.clone());
                     deps.push(esc(&def.name));
-                    if piece.reversible {
+                    if piece.reversible && piece.inexact {
+                        deps.push(esc(&format!("{}_inv", def.name)));
+                        result.inexact.push(def.name.clone());
+                    } else if piece.reversible {
                         deps.push(esc(&format!("{}_inv", def.name)));
                         result.reversible.push(def.name.clone());
                     } else {
@@ -73,16 +76,23 @@ pub fn translate(program: &Program) -> Translation {
 struct Piece {
     text: String,
     reversible: bool,
+    inexact: bool,
     open: Vec<String>,
 }
 
 fn translate_fn(cx: &Ctx, def: &FnDef, deps: &[String]) -> Result<Piece, LeanError> {
     let (mut text, loops) = lean_fn(cx, def, Dir::Forward)?;
     let reversible = !is_irreversible_fn(def);
+    let inexact = text.contains("Float");
     let mut open = Vec::new();
     if reversible {
         text.push_str(&lean_fn(cx, def, Dir::Backward)?.0);
-        if let Some(theorems) = lean_theorems(def, deps, loops > 0) {
+        let theorems = if inexact {
+            None
+        } else {
+            lean_theorems(def, deps, loops > 0)
+        };
+        if let Some(theorems) = theorems {
             text.push_str(&theorems);
             if loops > 0 {
                 open.push(format!("{}_inv_f", def.name));

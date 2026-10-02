@@ -71,8 +71,14 @@ fn array_updates_with_computed_indices_are_proved_reversible() {
 }
 
 #[test]
-fn booleans_and_floats_translate() {
-    let t = support::translation("fn f(b: &mut bool, x: &mut f64, k: &f64) { b ^= true; x += k; }");
+fn floating_point_functions_translate_but_claim_no_roundtrip() {
+    let t = support::translation(
+        "fn f(x: &mut f64, k: &f64) { x += k; }
+         fn g(b: &mut bool, k: &bool) { b ^= k; }",
+    );
     assert!(t.skipped.is_empty(), "{:?}", t.skipped);
+    assert_eq!(t.inexact, ["f"]);
+    assert_eq!(t.reversible, ["g"]);
     assert!(support::lean_accepts(&t).is_ok());
+    assert!(!t.lean.contains("f_inv_f"));
 }
