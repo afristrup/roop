@@ -16,7 +16,8 @@ pub fn declares(block: &Block, name: &str) -> bool {
         } => declares(then_block, name) || declares(else_block, name),
         StmtKind::From { body, step, .. } => declares(body, name) || declares(step, name),
         StmtKind::Match { arms, .. } => arms.iter().any(|a| declares(&a.body, name)),
-        StmtKind::Try { body, handler } => declares(body, name) || declares(handler, name),
+        StmtKind::Try { body, handler, .. } => declares(body, name) || declares(handler, name),
+        StmtKind::Logged { body, .. } => declares(body, name),
         _ => false,
     })
 }

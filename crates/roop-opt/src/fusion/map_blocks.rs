@@ -25,9 +25,18 @@ pub fn map_blocks(stmt: &Stmt, f: &impl Fn(&Block) -> Block) -> Stmt {
                 })
                 .collect(),
         },
-        StmtKind::Try { body, handler } => StmtKind::Try {
+        StmtKind::Try {
+            body,
+            handler,
+            outcome,
+        } => StmtKind::Try {
             body: f(body),
             handler: f(handler),
+            outcome: outcome.clone(),
+        },
+        StmtKind::Logged { history, body } => StmtKind::Logged {
+            history: history.clone(),
+            body: f(body),
         },
         StmtKind::From {
             entry,

@@ -46,9 +46,26 @@ fn rename_stmt(stmt: &Stmt, from: &str, to: &str) -> Stmt {
                 })
                 .collect(),
         },
-        StmtKind::Try { body, handler } => StmtKind::Try {
+        StmtKind::Try {
+            body,
+            handler,
+            outcome,
+        } => StmtKind::Try {
             body: b(body),
             handler: b(handler),
+            outcome: outcome.as_ref().map(p),
+        },
+        StmtKind::Logged { history, body } => StmtKind::Logged {
+            history: p(history),
+            body: b(body),
+        },
+        StmtKind::Push { stack, source } => StmtKind::Push {
+            stack: p(stack),
+            source: p(source),
+        },
+        StmtKind::Pop { stack, target } => StmtKind::Pop {
+            stack: p(stack),
+            target: p(target),
         },
         StmtKind::From {
             entry,

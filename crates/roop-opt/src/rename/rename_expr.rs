@@ -10,6 +10,6 @@ pub fn rename_expr(expr: &Expr, from: &str, to: &str) -> Expr {
             *op,
             Box::new(rename_expr(r, from, to)),
         ),
-        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Variant(..) => expr.clone(),
+        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Empty | Expr::Variant(..) => expr.clone(),
     }
 }

@@ -5,7 +5,7 @@ pub fn expr_mentions(expr: &Expr, name: &str) -> bool {
         Expr::Place(place) => place_mentions(place, name),
         Expr::Unary(_, inner) => expr_mentions(inner, name),
         Expr::Binary(l, _, r) => expr_mentions(l, name) || expr_mentions(r, name),
-        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Variant(..) => false,
+        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Empty | Expr::Variant(..) => false,
     }
 }
 
