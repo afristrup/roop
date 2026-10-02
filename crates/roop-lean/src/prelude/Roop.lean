@@ -373,4 +373,17 @@ elab "roop_cases" : tactic => withMainContext do
   tac ← `(tactic| ($tac <;> try simp only [$hc:ident, ↓reduceDIte, ↓reduceIte]))
   evalTactic tac
 
+open Lean Elab Tactic Meta in
+/-- Splits an equation between a variable and a term that contains it, such as
+`(v.1, w) = v`. Used as a rewrite rule it would never stop; as its components
+it is harmless. -/
+elab "roop_uncycle" : tactic => withMainContext do
+  for decl in (← getLCtx) do
+    unless decl.isImplementationDetail do
+      let some (_, a, b) := (← instantiateMVars decl.type).eq? | continue
+      let cyclic := (b.isFVar && a.containsFVar b.fvarId!) || (a.isFVar && b.containsFVar a.fvarId!)
+      if cyclic then
+        let h ← Term.exprToSyntax decl.toExpr
+        evalTactic (← `(tactic| simp only [Prod.ext_iff] at $h:term))
+
 end Roop

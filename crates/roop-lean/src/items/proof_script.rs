@@ -25,7 +25,8 @@ pub fn proof_script(loop_lemmas: &LoopLemmas) -> String {
     let round = format!(
         "  all_goals (try simp [{simp}] at *)
   all_goals (try subst_vars)
-{loops}  all_goals (try simp_all [{with_ext}])
+  all_goals (try roop_uncycle)
+{loops}  all_goals (try simp_all [{simp}])
   all_goals (try subst_vars)
 "
     );
