@@ -66,6 +66,10 @@ fn lean_rejects_an_ancilla_that_is_not_restored() {
             ancilla t: i64 = 0 { t += x; y += t; t -= x; }
          }",
     );
-    t.lean = t.lean.replacen("(\u{ab}t\u{bb} - \u{ab}x\u{bb})", "(\u{ab}t\u{bb} + \u{ab}x\u{bb})", 1);
+    t.lean = t.lean.replacen(
+        "(\u{ab}t\u{bb} - \u{ab}x\u{bb})",
+        "(\u{ab}t\u{bb} + \u{ab}x\u{bb})",
+        1,
+    );
     assert!(support::lean_accepts(&t).is_err());
 }
