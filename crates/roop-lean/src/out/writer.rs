@@ -1,10 +1,14 @@
+use crate::LoopInfo;
+
 /// Indented text being written, plus a counter for fresh names.
 #[derive(Default)]
 pub struct Out {
     pub text: String,
     pub indent: usize,
-    /// Loops translated so far; their reversibility needs an induction.
-    pub loops: usize,
+    /// Top-level definitions the text refers to: the pieces of loops.
+    pub lifted: String,
+    /// Loops translated so far, inner loops before the loops around them.
+    pub loops: Vec<LoopInfo>,
     /// Ancillas whose restoration is checked, forward or backward.
     pub ancillas: usize,
     next: usize,
