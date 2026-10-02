@@ -1,9 +1,9 @@
-use crate::{Dialect, FnGen, ptr_type};
+use crate::{Dialect, FnGen, params_space, ptr_type};
 
 /// Loads `lo`, `step` and `count` from the params buffer and returns the
 /// 64-bit global thread index.
 pub fn kernel_prologue(k: &mut FnGen) -> (String, String, String, String) {
-    let i64p = ptr_type(k.dialect, "i64", 2);
+    let i64p = ptr_type(k.dialect, "i64", params_space(k.dialect));
     let mut loaded = Vec::new();
     for index in 0..3 {
         let p = format!("%{}", k.fresh("t"));

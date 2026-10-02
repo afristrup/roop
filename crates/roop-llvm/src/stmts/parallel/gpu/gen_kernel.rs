@@ -43,8 +43,13 @@ pub fn gen_kernel(
             },
         ));
     }
-    // The launch parameters never change, so they go in constant memory.
-    for (name, llvm_ty, writable, space) in [("params", "i64", false, 2), ("err", "i32", true, 1)] {
+    // The launch parameters never change, so on Apple GPUs they go in the
+    // cached constant address space (2). PTX keeps them in global memory.
+    let params_space = params_space(dialect);
+    for (name, llvm_ty, writable, space) in [
+        ("params", "i64", false, params_space),
+        ("err", "i32", true, 1),
+    ] {
         let (size, align) = (
             if llvm_ty == "i64" { 8 } else { 4 },
             if llvm_ty == "i64" { 8 } else { 4 },

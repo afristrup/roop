@@ -38,11 +38,11 @@ fn survives_thousands_of_back_to_back_loops() {
     }
 }
 
-extern "C" fn nested(env: *mut c_void, value: i64) {
+extern "C" fn nested(env: *mut c_void, _value: i64) {
     let sum = unsafe { &*(env as *const AtomicI64) };
     let inner = AtomicI64::new(0);
     unsafe { roop_parallel_for(0, 10, 1, add_value, &inner as *const _ as *mut c_void) };
-    sum.fetch_add(inner.load(Ordering::Relaxed) + value * 0, Ordering::Relaxed);
+    sum.fetch_add(inner.load(Ordering::Relaxed), Ordering::Relaxed);
 }
 
 #[test]

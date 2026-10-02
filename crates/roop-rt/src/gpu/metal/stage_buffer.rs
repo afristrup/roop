@@ -14,7 +14,10 @@ use std::ptr::NonNull;
 pub unsafe fn stage_buffer(state: &DeviceState, host: *mut u8, size: usize) -> Option<Staged> {
     let page = page_size();
     let options = MTLResourceOptions::StorageModeShared;
-    if host as usize % page == 0 && size % page == 0 && size > 0 && size >= zero_copy_min_bytes() {
+    if (host as usize).is_multiple_of(page)
+        && size.is_multiple_of(page)
+        && size >= zero_copy_min_bytes().max(1)
+    {
         let pointer = NonNull::new(host.cast())?;
         let buffer = unsafe {
             state
