@@ -214,6 +214,7 @@ elab "roop_cases" : tactic => withMainContext do
     (e.isAppOfArity ``dite 5 || e.isAppOfArity ``ite 5) && !(e.getArg! 1).hasLooseBVars
   let some e := found | throwError "no conditional left"
   let cond ← Term.exprToSyntax (e.getArg! 1)
-  evalTactic (← `(tactic| by_cases h : $cond))
+  let hc := mkIdent `hc
+  evalTactic (← `(tactic| by_cases $hc : $cond <;> simp only [$hc:ident, ↓reduceDIte, ↓reduceIte]))
 
 end Roop
