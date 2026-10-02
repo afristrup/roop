@@ -121,7 +121,11 @@ fn translate_fn(
                 known.extend(names.clone());
                 fresh.extend(names);
             }
-            if let Some(theorems) = lean_theorems(def, deps, &known, ancillas) {
+            let one_way = forward
+                .pieces
+                .iter()
+                .any(|p| p.construct == Construct::Try || p.one_way);
+            if let Some(theorems) = lean_theorems(def, deps, &known, ancillas, one_way) {
                 text.push_str(&theorems);
             }
         }

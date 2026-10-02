@@ -15,12 +15,15 @@ const INIT: &str = "\u{ab}__init\u{bb}";
 /// `f_inv` then `f` returns the outputs. Together they say no information is
 /// lost. With ancillas: neither direction ever fails because an ancilla was
 /// not restored; without that, a function that always failed would satisfy the
-/// roundtrip theorems vacuously. Loops are handled by their own lemmas.
+/// roundtrip theorems vacuously. Loops are handled by their own lemmas. A
+/// function with a `try` is undone only on states it produced, so it gets the
+/// first roundtrip theorem and not the second.
 pub fn lean_theorems(
     def: &FnDef,
     deps: &[String],
     loop_lemmas: &LoopLemmas,
     ancillas: bool,
+    one_way: bool,
 ) -> Option<String> {
     let mutable: Vec<&Param> = def.params.iter().filter(|p| is_mut_ref(&p.ty)).collect();
     if mutable.is_empty() && !ancillas {
@@ -91,6 +94,9 @@ pub fn lean_theorems(
         with_components(OUT).join(" "),
         tuple_expr(&initial),
     ));
+    if one_way {
+        return Some(text);
+    }
     text.push_str(&format!(
         "theorem {} {} ({OUT} : {tuple}) ({INIT} : {tuple}) (h : {f_inv} {} = Except.ok {INIT}) :\n    {f} {} = Except.ok {OUT} := by\n{roundtrip}\n",
         thm("f_inv"),
