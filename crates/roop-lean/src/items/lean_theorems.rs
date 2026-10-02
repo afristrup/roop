@@ -9,7 +9,7 @@ use roop_syntax::{FnDef, Param};
 const OUT: &str = "\u{ab}__out\u{bb}";
 const INIT: &str = "\u{ab}__init\u{bb}";
 
-const SCRIPT: &str = "  all_goals (try (repeat' (first | split at * | split)))
+const SCRIPT: &str = "  all_goals (try (repeat' (first | (split at *; all_goals (try simp at *)) | split)))
   all_goals (try simp at *)
   all_goals (try subst_vars)
   all_goals (try simp_all [beq_iff_eq, Vector.getElem_set_self, Vector.set_set, Vector.set_getElem_self, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel])
