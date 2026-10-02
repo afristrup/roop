@@ -19,67 +19,97 @@ fn program(target: &str) -> String {
 fn build(target: &str, fuse: bool) -> Compiled {
     let program = parse(&program(target)).unwrap();
     roop_check::check(&program).unwrap();
-    let program = if fuse { fuse_parallel(&program) } else { program };
+    let program = if fuse {
+        fuse_parallel(&program)
+    } else {
+        program
+    };
     roop_check::check(&program).unwrap();
     compile_all(&program, &Options::default()).unwrap()
 }
 
-/// IR that sums `%arr` into `%{name}sum`, then compares to `want`.
-fn sum_check(name: &str, arr: &str, prev: &str, want: i64) -> String {
-    format!(
-        "  br label %{name}
-{name}:
-  %{name}m = phi i64 [0, %{prev}], [%{name}m1, %{name}]
-  %{name}s = phi i64 [0, %{prev}], [%{name}s1, %{name}]
-  %{name}p = getelementptr inbounds [{N} x i64], ptr %{arr}, i64 0, i64 %{name}m
-  %{name}v = load i64, ptr %{name}p
-  %{name}s1 = add i64 %{name}s, %{name}v
-  %{name}m1 = add i64 %{name}m, 1
-  %{name}c = icmp slt i64 %{name}m1, {N}
-  br i1 %{name}c, label %{name}, label %{name}x
-{name}x:
-  %{name}bad = icmp ne i64 %{name}s1, {want}
-"
-    )
+/// a[m] = m, b[m] = 2m, k = 3. After `two`: a = 7m, b = 9m, i = j = N-1.
+/// Running `two_inv` must restore everything, induction variables included.
+const HARNESS: &str = r#"
+#include <stdint.h>
+#define N 1000
+void two(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void two_inv(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+static int64_t a[N], b[N];
+int main(void) {
+    int64_t i = 0, j = 0, k = 3;
+    for (int64_t m = 0; m < N; m++) { a[m] = m; b[m] = 2 * m; }
+    two(a, b, &i, &j, &k);
+    for (int64_t m = 0; m < N; m++) {
+        if (a[m] != 7 * m || b[m] != 9 * m) return 1;
+    }
+    if (i != N - 1 || j != N - 1) return 2;
+    two_inv(a, b, &i, &j, &k);
+    for (int64_t m = 0; m < N; m++) {
+        if (a[m] != m || b[m] != 2 * m) return 3;
+    }
+    return (i != 0 || j != 0) ? 4 : 0;
+}
+"#;
+
+fn run_cpu(fuse: bool) {
+    let out = build("cpu", fuse);
+    let files = [
+        ("m0.ll".to_string(), out.host.as_str()),
+        ("main.c".to_string(), HARNESS),
+    ];
+    if let Some(code) = support::run_native_files(&files) {
+        assert_eq!(code, Some(0), "fuse = {fuse}");
+    }
 }
 
-/// a[m] = m, b[m] = 2m, k = 3. After `two`: a = 7m, b = 9m, i = j = N-1.
-fn harness() -> String {
-    let tri = (N * (N - 1) / 2) as i64;
-    let mut ir = format!(
-        "define i32 @main() {{
-entry:
-  %a = alloca [{N} x i64]
-  %b = alloca [{N} x i64]
-  %i = alloca i64
-  %j = alloca i64
-  %k = alloca i64
-  store i64 0, ptr %i
-  store i64 0, ptr %j
-  store i64 3, ptr %k
-  br label %init
-init:
-  %n = phi i64 [0, %entry], [%n1, %init]
-  %ap = getelementptr inbounds [{N} x i64], ptr %a, i64 0, i64 %n
-  store i64 %n, ptr %ap
-  %bp = getelementptr inbounds [{N} x i64], ptr %b, i64 0, i64 %n
-  %n2 = mul i64 %n, 2
-  store i64 %n2, ptr %bp
-  %n1 = add i64 %n, 1
-  %c = icmp slt i64 %n1, {N}
-  br i1 %c, label %run, label %init
-run:
-  call void @two(ptr %a, ptr %b, ptr %i, ptr %j, ptr %k)
-"
+fn metal_available() -> bool {
+    cfg!(target_os = "macos")
+        && std::process::Command::new("xcrun")
+            .args(["-sdk", "macosx", "--find", "metal"])
+            .output()
+            .is_ok_and(|o| o.status.success())
+}
+
+fn run_metal(fuse: bool) {
+    if !metal_available() {
+        return;
+    }
+    let out = build("metal", fuse);
+    let blob = support::metallib_blob_module(&support::metallib(&out.air.unwrap()).unwrap());
+    let files = [
+        ("m0.ll".to_string(), out.host.as_str()),
+        ("m1.ll".to_string(), blob.as_str()),
+        ("main.c".to_string(), HARNESS),
+    ];
+    assert_eq!(
+        support::run_native_files(&files).unwrap(),
+        Some(0),
+        "fuse = {fuse}"
     );
-    // the loop above branches to %run on exit; fix the polarity here
-    ir = ir.replace("br i1 %c, label %run, label %init", "br i1 %c, label %init, label %run");
-    ir.push_str(&sum_check("fa", "a", "run", 7 * tri));
-    ir.push_str(&sum_check("fb", "b", "faok", 9 * tri).replace("br label %fb", "br label %fb"));
-    ir
 }
 
 #[test]
-fn placeholder_to_keep_harness_in_sync() {
-    assert!(harness().contains("@two"));
+fn cpu_results_match_with_and_without_fusion() {
+    run_cpu(false);
+    run_cpu(true);
+}
+
+#[test]
+fn gpu_results_match_with_and_without_fusion() {
+    run_metal(false);
+    run_metal(true);
+}
+
+#[test]
+fn fusion_halves_the_kernel_count() {
+    let kernels = |fuse| {
+        build("metal", fuse)
+            .air
+            .unwrap()
+            .matches("define void @")
+            .count()
+    };
+    assert_eq!(kernels(false), 4); // two loops, forward and inverse
+    assert_eq!(kernels(true), 2);
 }

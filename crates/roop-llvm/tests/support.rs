@@ -84,15 +84,26 @@ fn runtime_lib() -> std::path::PathBuf {
 /// Compiles the IR modules with clang, links the roop runtime (and the Metal
 /// frameworks on macOS) and returns the exit code. None when clang is missing.
 pub fn run_native_modules(modules: &[&str]) -> Option<Option<i32>> {
+    let named: Vec<(String, &str)> = modules
+        .iter()
+        .enumerate()
+        .map(|(i, m)| (format!("m{i}.ll"), *m))
+        .collect();
+    run_native_files(&named)
+}
+
+/// Like `run_native_modules` but each source carries its file name, so C
+/// harnesses can sit next to generated IR.
+pub fn run_native_files(files: &[(String, &str)]) -> Option<Option<i32>> {
     let clang = tool("clang")?;
-    let seed: usize = modules.iter().map(|m| m.len()).sum();
+    let seed: usize = files.iter().map(|(_, m)| m.len()).sum();
     let dir = std::env::temp_dir().join(format!("roop-{}-{:x}", std::process::id(), seed));
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("prog");
     let mut command = Command::new(clang);
-    for (i, ir) in modules.iter().enumerate() {
-        let src = dir.join(format!("m{i}.ll"));
-        std::fs::write(&src, ir).unwrap();
+    for (name, text) in files {
+        let src = dir.join(name);
+        std::fs::write(&src, text).unwrap();
         command.arg(src);
     }
     command
