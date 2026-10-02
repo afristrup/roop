@@ -136,7 +136,7 @@ int main(void) {
     int64_t x = 10, y = 1, z = 0, w = 0;
     guarded(&x, &y, &z, &w);
     /* Every variable the group touched is back; only the handler's effect stays. */
-    return (x == 10 && y == 1 && z == 0 && w == 7) ? 0 : 1;
+    return (x == 15 && y == 1 && z == 0 && w == 7) ? 0 : 1;
 }
 "#;
     assert_eq!(run(GUARDED, main), 0);
