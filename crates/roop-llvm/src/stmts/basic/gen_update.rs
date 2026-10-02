@@ -1,4 +1,7 @@
-use crate::{CodegenError, Dir, FnGen, Kind, gen_expr, gen_place, kind_of, llvm_type, same_type};
+use crate::{
+    CodegenError, Dir, FnGen, Kind, gen_expr, gen_place, kind_of, llvm_type, mem_load, mem_store,
+    same_type,
+};
 use roop_syntax::{Expr, Place, UpdateOp};
 
 pub fn gen_update(
