@@ -1,13 +1,8 @@
-use crate::parallel::SendPtr;
+use crate::parallel::{Body, Job, SendPtr, global_pool};
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicI64, Ordering};
-use std::thread;
 
-type Body = extern "C" fn(*mut c_void, i64);
-
-/// Runs `body(env, lo + k * step)` for `k` in `0..count`. Blocks are handed
-/// out dynamically so fast and slow cores (performance and efficiency cores
-/// alike) all stay busy.
+/// Runs `body(env, lo + k * step)` for `k` in `0..count` on the thread pool.
+/// Falls back to the calling thread for tiny loops and when the pool is busy.
 ///
 /// # Safety
 /// `body` must be safe to call concurrently with `env` for distinct values.
@@ -19,33 +14,22 @@ pub unsafe extern "C" fn roop_parallel_for(
     body: Body,
     env: *mut c_void,
 ) {
-    let threads = thread::available_parallelism().map_or(1, |n| n.get() as i64);
-    let workers = threads.min(count);
-    if workers <= 1 {
-        (0..count).for_each(|k| body(env, lo + k * step));
-        return;
+    let pool = global_pool();
+    let threads = pool.threads() as i64;
+    if count > 1 && threads > 1 {
+        let block = (count / (threads * 4)).max(1);
+        let job = Job {
+            lo,
+            step,
+            count,
+            block,
+            body,
+            env: SendPtr(env),
+            next: SendPtr(env),
+        };
+        if pool.run(job) {
+            return;
+        }
     }
-    let block = (count / (workers * 4)).max(1);
-    let next = AtomicI64::new(0);
-    let env = SendPtr(env);
-    let work = || {
-        // Capture the whole `SendPtr`, not its raw-pointer field, so the closure is `Send`.
-        #[allow(clippy::redundant_locals)]
-        let env = env;
-        loop {
-            let start = next.fetch_add(block, Ordering::Relaxed);
-            if start >= count {
-                break;
-            }
-            for k in start..(start + block).min(count) {
-                body(env.0, lo + k * step);
-            }
-        }
-    };
-    thread::scope(|scope| {
-        for _ in 1..workers {
-            scope.spawn(work);
-        }
-        work();
-    });
+    (0..count).for_each(|k| body(env, lo + k * step));
 }
