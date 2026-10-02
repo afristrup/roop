@@ -74,7 +74,10 @@ fn lean_rejects_a_handler_whose_inverse_is_wrong() {
          }",
     );
     assert!(support::lean_accepts(&t).is_ok());
-    let at = t.lean.find("_handler_inv\u{bb}").expect("the inverse handler");
+    let at = t
+        .lean
+        .find("_handler_inv\u{bb}")
+        .expect("the inverse handler");
     let (head, tail) = t.lean.split_at(at);
     let tail = tail.replacen("(1 : Roop.I64)", "(2 : Roop.I64)", 1);
     t.lean = format!("{head}{tail}");

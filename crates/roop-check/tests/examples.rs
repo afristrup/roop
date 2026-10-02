@@ -15,6 +15,11 @@ fn std_module_is_valid() {
 }
 
 #[test]
+fn history_example_is_valid() {
+    check_file("examples/history/mod.roop");
+}
+
+#[test]
 fn insurance_example_is_valid() {
     check_file("examples/insurance/mod.roop");
 }

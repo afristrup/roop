@@ -1,6 +1,7 @@
 [modules]
 std = "std"
 insurance = "examples/insurance"
+history = "examples/history"
 
 [parallel]
 # Bare #[parallel] picks CPU threads or a GPU, whichever is estimated faster.

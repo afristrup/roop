@@ -37,7 +37,11 @@ fn constructs_that_are_not_modelled_are_skipped_not_fatal() {
 #[test]
 fn the_repository_examples_translate_and_check() {
     let root = format!("{}/../../roop", env!("CARGO_MANIFEST_DIR"));
-    for file in ["std/mod.roop", "examples/insurance/mod.roop"] {
+    for file in [
+        "std/mod.roop",
+        "examples/insurance/mod.roop",
+        "examples/history/mod.roop",
+    ] {
         let src = std::fs::read_to_string(format!("{root}/{file}")).unwrap();
         let t = support::translation(&src);
         assert!(support::lean_accepts(&t).is_ok(), "{file}");
