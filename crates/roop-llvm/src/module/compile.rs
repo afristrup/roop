@@ -1,12 +1,17 @@
-use crate::{CodegenError, Ctx, Dir, gen_function, type_decls};
+use crate::{CodegenError, Ctx, Dir, Options, gen_function, module_header, type_decls};
 use roop_syntax::{Item, Program};
 
 /// Compiles a checked program to textual LLVM IR. Each `rev fn f` becomes
 /// `@f` and its inverse `@f_inv`; struct constructors become
 /// `@S_build` and `@S_unbuild`.
 pub fn compile(program: &Program) -> Result<String, CodegenError> {
-    let ctx = Ctx::new(program);
-    let mut out = type_decls(&ctx, program)?;
+    compile_with(program, &Options::default())
+}
+
+pub fn compile_with(program: &Program, options: &Options) -> Result<String, CodegenError> {
+    let ctx = Ctx::new(program, options);
+    let mut out = module_header(options);
+    out.push_str(&type_decls(&ctx, program)?);
     out.push_str("\ndeclare void @llvm.trap() noreturn nounwind\ndeclare void @roop_parallel_for(i64, i64, i64, ptr, ptr)\n\n");
     for item in &program.items {
         match item {

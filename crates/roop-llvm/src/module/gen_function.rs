@@ -1,4 +1,4 @@
-use crate::{CodegenError, Ctx, Dir, FnGen, Slot, gen_block, llvm_type};
+use crate::{CodegenError, Ctx, Dir, FnGen, Slot, function_attrs, gen_block, llvm_type};
 use roop_syntax::{Block, Param, Type};
 
 /// Emits one function. `self_struct` adds a leading `self` pointer, used for
@@ -45,8 +45,9 @@ pub fn gen_function(
     }
     gen_block(&mut g, body, dir)?;
     Ok(format!(
-        "define void @{symbol}({}) {{\nentry:\n{}{}  ret void\n}}\n{}",
+        "define void @{symbol}({}){} {{\nentry:\n{}{}  ret void\n}}\n{}",
         signature.join(", "),
+        function_attrs(ctx),
         g.allocas,
         g.body,
         g.outlined.join("\n")

@@ -1,4 +1,4 @@
-use crate::{CodegenError, Dir, FnGen, Slot, gen_block};
+use crate::{CodegenError, Dir, FnGen, Slot, function_attrs, gen_block};
 use roop_syntax::{Block, Type};
 
 /// Moves a loop body into its own function taking `(env, iteration)`. The
@@ -33,8 +33,10 @@ pub fn outline_body(
     ));
     gen_block(&mut child, body, dir)?;
     g.outlined.push(format!(
-        "define internal void @{symbol}(ptr %env, i64 %iter) {{\nentry:\n{}{}  ret void\n}}\n",
-        child.allocas, child.body
+        "define internal void @{symbol}(ptr %env, i64 %iter){} {{\nentry:\n{}{}  ret void\n}}\n",
+        function_attrs(g.ctx),
+        child.allocas,
+        child.body
     ));
     g.outlined.append(&mut child.outlined);
     Ok(symbol)
