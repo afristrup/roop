@@ -1,4 +1,4 @@
-use crate::{Ctx, Slot};
+use crate::{Ctx, Dialect, Slot};
 
 /// Per-function emission state. Allocas are hoisted to the entry block.
 pub struct FnGen<'a> {
@@ -7,18 +7,23 @@ pub struct FnGen<'a> {
     pub body: String,
     pub vars: Vec<(String, Slot)>,
     pub symbol: String,
+    pub dialect: Dialect,
+    /// Device kernels cannot trap; a failed assertion stores 1 here instead.
+    pub error_flag: Option<String>,
     pub outlined: Vec<String>,
     next: usize,
 }
 
 impl<'a> FnGen<'a> {
-    pub fn new(ctx: &'a Ctx<'a>, symbol: String) -> Self {
+    pub fn new(ctx: &'a Ctx<'a>, symbol: String, dialect: Dialect) -> Self {
         FnGen {
             ctx,
             allocas: String::new(),
             body: String::new(),
             vars: Vec::new(),
             symbol,
+            dialect,
+            error_flag: None,
             outlined: Vec::new(),
             next: 0,
         }

@@ -26,9 +26,8 @@ pub fn gen_update(
         _ => return Err(CodegenError::InvalidOperand("update not defined for type")),
     };
     let ty = llvm_type(g.ctx, &slot.ty)?;
-    let (old, new) = (format!("%{}", g.fresh("t")), format!("%{}", g.fresh("t")));
-    g.emit(&format!("{old} = load {ty}, ptr {}", slot.addr));
-    g.emit(&format!("{new} = {instr} {ty} {old}, {}", v.reg));
-    g.emit(&format!("store {ty} {new}, ptr {}", slot.addr));
-    Ok(())
+    let old = mem_load(g, &slot)?;
+    let new = format!("%{}", g.fresh("t"));
+    g.emit(&format!("{new} = {instr} {ty} {}, {}", old.reg, v.reg));
+    mem_store(g, &slot, &new)
 }

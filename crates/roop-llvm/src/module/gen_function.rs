@@ -1,4 +1,4 @@
-use crate::{CodegenError, Ctx, Dir, FnGen, Slot, function_attrs, gen_block, llvm_type};
+use crate::{CodegenError, Ctx, Dialect, Dir, FnGen, Slot, mem_store, function_attrs, gen_block, llvm_type};
 use roop_syntax::{Block, Param, Type};
 
 /// Emits one function. `self_struct` adds a leading `self` pointer, used for
@@ -11,7 +11,7 @@ pub fn gen_function(
     body: &Block,
     dir: Dir,
 ) -> Result<String, CodegenError> {
-    let mut g = FnGen::new(ctx, symbol.into());
+    let mut g = FnGen::new(ctx, symbol.into(), Dialect::Host);
     let mut signature = Vec::new();
     if let Some(name) = self_struct {
         signature.push("ptr %arg_self".to_string());
@@ -20,6 +20,7 @@ pub fn gen_function(
             Slot {
                 addr: "%arg_self".into(),
                 ty: Type::Named(name.into()),
+                space: 0,
             },
         ));
     }
@@ -31,14 +32,17 @@ pub fn gen_function(
             Type::Ref { inner, .. } => Slot {
                 addr: arg,
                 ty: (**inner).clone(),
+                space: 0,
             },
             ty => {
                 let addr = g.alloca(&llty);
-                g.emit(&format!("store {llty} {arg}, ptr {addr}"));
-                Slot {
+                let slot = Slot {
                     addr,
                     ty: ty.clone(),
-                }
+                    space: 0,
+                };
+                mem_store(&mut g, &slot, &arg)?;
+                slot
             }
         };
         g.vars.push((param.name.clone(), slot));

@@ -11,7 +11,7 @@ pub fn outline_body(
 ) -> Result<String, CodegenError> {
     let id = g.fresh("");
     let symbol = format!("{}.par{id}", g.symbol);
-    let mut child = FnGen::new(g.ctx, symbol.clone());
+    let mut child = FnGen::new(g.ctx, symbol.clone(), g.dialect);
     let n = g.vars.len();
     for (i, (name, slot)) in g.vars.clone().into_iter().enumerate() {
         let at = format!("%{}", child.fresh("t"));
@@ -20,7 +20,14 @@ pub fn outline_body(
         ));
         let addr = format!("%{}", child.fresh("t"));
         child.emit(&format!("{addr} = load ptr, ptr {at}"));
-        child.vars.push((name, Slot { addr, ty: slot.ty }));
+        child.vars.push((
+            name,
+            Slot {
+                addr,
+                ty: slot.ty,
+                space: slot.space,
+            },
+        ));
     }
     let iv = child.alloca("i64");
     child.emit(&format!("store i64 %iter, ptr {iv}"));
@@ -29,6 +36,7 @@ pub fn outline_body(
         Slot {
             addr: iv,
             ty: Type::Named("i64".into()),
+            space: 0,
         },
     ));
     gen_block(&mut child, body, dir)?;

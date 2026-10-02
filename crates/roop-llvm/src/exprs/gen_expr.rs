@@ -1,4 +1,4 @@
-use crate::{CodegenError, FnGen, Value, bool_type, gen_binary, gen_place, gen_unary, llvm_type};
+use crate::{CodegenError, FnGen, Value, bool_type, gen_binary, gen_place, gen_unary, mem_load};
 use roop_syntax::{Expr, Type};
 
 pub fn gen_expr(g: &mut FnGen, expr: &Expr) -> Result<Value, CodegenError> {
@@ -32,10 +32,7 @@ pub fn gen_expr(g: &mut FnGen, expr: &Expr) -> Result<Value, CodegenError> {
         }
         Expr::Place(place) => {
             let slot = gen_place(g, place)?;
-            let ty = llvm_type(g.ctx, &slot.ty)?;
-            let reg = format!("%{}", g.fresh("t"));
-            g.emit(&format!("{reg} = load {ty}, ptr {}", slot.addr));
-            Ok(Value { reg, ty: slot.ty })
+            mem_load(g, &slot)
         }
         Expr::Unary(op, inner) => {
             let v = gen_expr(g, inner)?;
