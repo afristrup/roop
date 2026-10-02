@@ -50,7 +50,8 @@ theorem graph_dagger {A : Type} (f g : A → A) (hfg : ∀ x, g (f x) = x) (hgf 
   constructor
   · intro h
     have : f a = b := h
-    rw [← this, hfg]; rfl
+    show g b = a
+    rw [← this, hfg]
   · intro h
     have : g b = a := h
     show f a = b
@@ -153,14 +154,18 @@ theorem kleisli_dagger_inverts_the_log {A B : Type} (f : Rel A (B × G)) (b : B)
     kleisli_dagger f b (a, k) ↔ ∃ g : G, f a (b, g) ∧ k = g⁻¹ := by
   unfold kleisli_dagger Rel.comp map_rel mult_rel unit_rel Rel.dagger
   constructor
-  · rintro ⟨⟨b', h'⟩, ⟨⟨⟨b'', g⟩, h⟩, ⟨hb'', hh⟩, ⟨hb, hone⟩⟩, hf, hk⟩
-    simp only at hb'' hh hb hone hf hk
-    subst hb hb''
+  · rintro ⟨⟨⟨b1, g⟩, h⟩, ⟨⟨zb, zg⟩, ⟨hz1, hz2⟩, ⟨hy1, hy2⟩⟩, hf, hk⟩
+    simp only at hz1 hz2 hy1 hy2 hf hk
+    subst hz2 hz1
+    subst hy1
     refine ⟨g, hf, ?_⟩
-    sorry
+    have hgh : g * h = 1 := hy2.symm
+    calc k = h := hk.symm
+      _ = g⁻¹ * (g * h) := by rw [← Grp.mul_assoc, Grp.inv_mul, Grp.one_mul]
+      _ = g⁻¹ := by rw [hgh, Grp.mul_one]
   · rintro ⟨g, hf, rfl⟩
-    refine ⟨(b, g⁻¹), ⟨((b, g), g⁻¹), ⟨rfl, ?_⟩, ⟨rfl, rfl⟩⟩, ?_, rfl⟩
-    · simp [Grp.mul_inv]
-    · exact hf
+    refine ⟨((b, g), g⁻¹), ⟨(b, 1), ⟨rfl, rfl⟩, ⟨rfl, ?_⟩⟩, hf, rfl⟩
+    show 1 = g * g⁻¹
+    rw [Grp.mul_inv]
 
 end Frobenius
