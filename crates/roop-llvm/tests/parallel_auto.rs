@@ -5,6 +5,11 @@ use roop_llvm::{CostModel, Options, ParallelOptions};
 use roop_syntax::Target;
 use two::{HARNESS, program};
 
+/// The two-loop program with a bare `#[parallel]` on both loops.
+fn bare() -> String {
+    program("cpu").replace("#[parallel(cpu)]", "#[parallel]")
+}
+
 fn metal_available() -> bool {
     cfg!(target_os = "macos")
         && std::process::Command::new("xcrun")
@@ -44,7 +49,7 @@ fn gpu_hostile() -> CostModel {
 
 #[test]
 fn bare_parallel_stays_on_the_cpu_without_gpu_candidates() {
-    let out = support::compiled(&program(""), &options(&[], gpu_friendly()));
+    let out = support::compiled(&bare(), &options(&[], gpu_friendly()));
     assert!(out.host.contains("@roop_parallel_for("));
     assert!(!out.host.contains("call i32 @roop_gpu_dispatch"));
     assert!(out.air.is_none());
@@ -52,8 +57,7 @@ fn bare_parallel_stays_on_the_cpu_without_gpu_candidates() {
 
 #[test]
 fn estimated_cost_decides_between_cpu_and_gpu() {
-    // The program uses a bare #[parallel] with a literal trip count of 1000.
-    let src = program("").replace("#[parallel()]", "#[parallel]");
+    let src = bare();
     let gpu = support::compiled(&src, &options(&[Target::Metal], gpu_friendly()));
     assert!(gpu.air.is_some());
     assert!(gpu.host.contains("call i32 @roop_gpu_dispatch(i32 0"));
@@ -121,7 +125,7 @@ fn an_automatically_chosen_gpu_produces_the_same_results() {
     if !metal_available() {
         return;
     }
-    let src = program("").replace("#[parallel()]", "#[parallel]");
+    let src = bare();
     let out = support::compiled(&src, &options(&[Target::Metal], gpu_friendly()));
     let blob = support::metallib_blob_module(&support::metallib(&out.air.unwrap()).unwrap());
     let files = [
