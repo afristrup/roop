@@ -1,7 +1,7 @@
 use crate::{Block, Stmt, StmtKind, Token, UpdateOp};
 use crate::{
-    Err, TokenInput, attr, block, borrow_stmt, chan_stmt, expr, ident, match_stmt, place, try_stmt,
-    ty,
+    Err, TokenInput, attr, block, borrow_stmt, chan_stmt, expr, ident, match_stmt, place,
+    recv_stmt, send_stmt, try_stmt, ty,
 };
 use chumsky::prelude::*;
 
@@ -11,6 +11,8 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
         let match_ = match_stmt(blk.clone());
         let borrow = borrow_stmt(blk.clone());
         let try_ = try_stmt(blk.clone());
+        let chan = chan_stmt(blk.clone());
+        let plain_block = blk.clone().map(StmtKind::Block);
         let semi = just(Token::Semi);
 
         let update_op = select! {
@@ -106,7 +108,11 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
             .or(from)
             .or(ancilla)
             .or(call)
-            .or(uncall);
+            .or(uncall)
+            .or(chan)
+            .or(send_stmt())
+            .or(recv_stmt())
+            .or(plain_block);
 
         attr()
             .repeated()
