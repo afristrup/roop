@@ -1,7 +1,14 @@
 use crate::{esc, is_mut_ref, lean_type, tuple_expr, tuple_proj, tuple_type};
 use roop_syntax::{FnDef, Param};
 
-const CLOSE: &str = "first | done | (simp [BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel]; done) | bv_omega | bv_decide";
+/// The proof script. Unfold both functions, split every branch, simplify the
+/// results into equations, substitute them, and finish with simplification,
+/// linear bit-vector arithmetic, or a SAT call on the bit-blasted goal.
+const SCRIPT: &str = "  all_goals (try (repeat' (first | split at h | split)))
+  all_goals (try simp at *)
+  all_goals (try subst_vars)
+  all_goals (try simp_all [BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel])
+  all_goals first | done | bv_omega | bv_decide";
 
 /// The two reversibility theorems of a function with mutable parameters:
 /// running `f` and then `f_inv` returns the inputs, and `f_inv` then `f`
@@ -43,7 +50,7 @@ pub fn lean_theorems(def: &FnDef, deps: &[String], loops: bool) -> Option<String
         "  sorry -- open: a loop needs an induction over its iterations\n".to_string()
     } else {
         format!(
-            "  simp [{}, Roop.check, Roop.aget, Roop.aset, bind, Except.bind, pure, Except.pure] at h \u{22a2}\n  <;> (try subst_vars) <;> {CLOSE}\n",
+            "  simp [{}, Roop.check, Roop.aget, Roop.aset, bind, Except.bind, pure, Except.pure] at h \u{22a2}\n{SCRIPT}\n",
             unfold.join(", ")
         )
     };

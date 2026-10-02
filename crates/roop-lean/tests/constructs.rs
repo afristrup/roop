@@ -4,7 +4,7 @@ mod support;
 fn branches_with_exit_assertions_are_proved_reversible() {
     let t = support::verified(
         "fn f(x: &mut i64, y: &mut i64) {
-            if x > 0 { y += x; } else { y -= x; } fi y > 0;
+            if x > 0 { y += x; } else { y -= x; } fi x > 0;
          }",
     );
     assert_eq!(t.reversible, ["f"]);
