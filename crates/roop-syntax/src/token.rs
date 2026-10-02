@@ -11,6 +11,8 @@ pub enum Token<'a> {
     Use,
     #[token("rev")]
     Rev,
+    #[token("enum")]
+    Enum,
     #[token("struct")]
     Struct,
     #[token("fn")]

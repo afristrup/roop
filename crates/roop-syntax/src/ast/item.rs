@@ -1,9 +1,10 @@
-use super::{FnDef, StructDef};
+use super::{EnumDef, FnDef, StructDef};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
     Mod(String),
     Use(Vec<String>),
+    Enum(EnumDef),
     Struct(StructDef),
     Fn(FnDef),
 }

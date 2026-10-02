@@ -1,4 +1,4 @@
-use super::{Err, TokenInput, block, comma_list, ident, param, stmt, struct_def};
+use super::{Err, TokenInput, block, comma_list, enum_def, ident, param, stmt, struct_def};
 use crate::{FnDef, Item, Token};
 use chumsky::prelude::*;
 

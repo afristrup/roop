@@ -5,6 +5,7 @@ pub enum Expr {
     Int(i64),
     Float(f64),
     Bool(bool),
+    Variant(String, String),
     Place(Place),
     Unary(UnOp, Box<Expr>),
     Binary(Box<Expr>, BinOp, Box<Expr>),

@@ -1,4 +1,4 @@
-use super::{Err, TokenInput, binary_level, place};
+use super::{Err, TokenInput, binary_level, place, variant};
 use crate::{BinOp, Expr, Token, UnOp};
 use chumsky::prelude::*;
 
@@ -22,6 +22,7 @@ pub fn expr<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Expr, Err<'a>> + Clon
         let atom = int
             .or(float)
             .or(boolean)
+            .or(variant().map(|(e, v)| Expr::Variant(e, v)))
             .or(place(expr).map(Expr::Place))
             .or(group);
 

@@ -1,4 +1,4 @@
-use super::{Err, TokenInput};
+use super::{Err, TokenInput, variant};
 use crate::{Pattern, Token};
 use chumsky::prelude::*;
 
@@ -11,5 +11,6 @@ pub fn pattern<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Pattern, Err<'a>> 
     let boolean =
         select! { Token::True => Pattern::Bool(true), Token::False => Pattern::Bool(false) };
     let wildcard = just(Token::Underscore).to(Pattern::Wildcard);
-    int.or(boolean).or(wildcard)
+    let variant = variant().map(|(e, v)| Pattern::Variant(e, v));
+    int.or(boolean).or(variant).or(wildcard)
 }
