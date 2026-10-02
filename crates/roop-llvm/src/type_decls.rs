@@ -10,7 +10,11 @@ pub fn type_decls(ctx: &Ctx, program: &Program) -> Result<String, CodegenError> 
             .iter()
             .map(|f| llvm_type(ctx, &f.ty))
             .collect::<Result<Vec<_>, _>>()?;
-        out.push_str(&format!("%{} = type {{ {} }}\n", def.name, fields.join(", ")));
+        out.push_str(&format!(
+            "%{} = type {{ {} }}\n",
+            def.name,
+            fields.join(", ")
+        ));
     }
     Ok(out)
 }

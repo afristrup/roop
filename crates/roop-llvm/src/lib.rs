@@ -61,4 +61,4 @@ use type_decls::type_decls;
 use value::Value;
 
 pub use compile::compile;
-pub 
+pub use error::CodegenError;

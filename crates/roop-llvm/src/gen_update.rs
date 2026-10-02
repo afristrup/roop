@@ -11,7 +11,11 @@ pub fn gen_update(
     let slot = gen_place(g, target)?;
     let v = gen_expr(g, value)?;
     same_type(&slot.ty, &v.ty)?;
-    let op = if dir == Dir::Backward { op.inverse() } else { op };
+    let op = if dir == Dir::Backward {
+        op.inverse()
+    } else {
+        op
+    };
     let kind = kind_of(g.ctx, &slot.ty)?;
     let instr = match (kind, op) {
         (Kind::Int, UpdateOp::Add) => "add",

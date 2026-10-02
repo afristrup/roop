@@ -5,6 +5,10 @@ use roop_syntax::Block;
 pub fn gen_block(g: &mut FnGen, block: &Block, dir: Dir) -> Result<(), CodegenError> {
     match dir {
         Dir::Forward => block.stmts.iter().try_for_each(|s| gen_stmt(g, s, dir)),
-        Dir::Backward => block.stmts.iter().rev().try_for_each(|s| gen_stmt(g, s, dir)),
+        Dir::Backward => block
+            .stmts
+            .iter()
+            .rev()
+            .try_for_each(|s| gen_stmt(g, s, dir)),
     }
 }

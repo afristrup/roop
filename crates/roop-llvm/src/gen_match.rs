@@ -1,4 +1,6 @@
-use super::{CodegenError, Dir, FnGen, gen_assert, gen_block, gen_expr, pattern_test, same_type, bool_type};
+use super::{
+    CodegenError, Dir, FnGen, bool_type, gen_assert, gen_block, gen_expr, pattern_test, same_type,
+};
 use roop_syntax::{Expr, MatchArm};
 
 /// Forward, patterns select the arm and the exit assertion is checked.
@@ -20,7 +22,10 @@ pub fn gen_match(
             Dir::Backward => gen_expr(g, &arm.exit)?,
         };
         same_type(&bool_type(), &select.ty)?;
-        g.emit(&format!("br i1 {}, label %{arm_l}, label %{next_l}", select.reg));
+        g.emit(&format!(
+            "br i1 {}, label %{arm_l}, label %{next_l}",
+            select.reg
+        ));
         g.label(&arm_l);
         gen_block(g, &arm.body, dir)?;
         let assertion = match dir {

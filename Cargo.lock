@@ -214,6 +214,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "roop-llvm"
+version = "0.1.0"
+dependencies = [
+ "roop-check",
+ "roop-syntax",
+]
+
+[[package]]
 name = "roop-syntax"
 version = "0.1.0"
 dependencies = [

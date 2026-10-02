@@ -18,7 +18,10 @@ pub fn gen_if(
     let c = gen_expr(g, entry)?;
     same_type(&bool_type(), &c.ty)?;
     let (then_l, else_l, join) = (g.fresh("L"), g.fresh("L"), g.fresh("L"));
-    g.emit(&format!("br i1 {}, label %{then_l}, label %{else_l}", c.reg));
+    g.emit(&format!(
+        "br i1 {}, label %{then_l}, label %{else_l}",
+        c.reg
+    ));
     g.label(&then_l);
     gen_block(g, then_block, dir)?;
     g.emit(&format!("br label %{join}"));

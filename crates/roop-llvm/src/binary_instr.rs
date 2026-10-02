@@ -30,7 +30,11 @@ pub fn binary_instr(kind: Kind, op: BinOp) -> Result<(&'static str, bool), Codeg
         (Float, Ge) => ("fcmp oge", true),
         (Bool, And) => ("and", false),
         (Bool, Or) => ("or", false),
-        _ => return Err(CodegenError::InvalidOperand("operator not defined for type")),
+        _ => {
+            return Err(CodegenError::InvalidOperand(
+                "operator not defined for type",
+            ));
+        }
     };
     Ok(found)
 }

@@ -38,7 +38,8 @@ impl<'a> FnGen<'a> {
 
     pub fn alloca(&mut self, llvm_ty: &str) -> String {
         let addr = format!("%{}", self.fresh("a"));
-        self.allocas.push_str(&format!("  {addr} = alloca {llvm_ty}\n"));
+        self.allocas
+            .push_str(&format!("  {addr} = alloca {llvm_ty}\n"));
         addr
     }
 }

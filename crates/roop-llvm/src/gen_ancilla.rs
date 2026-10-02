@@ -14,7 +14,13 @@ pub fn gen_ancilla(
     let llvm_ty = llvm_type(g.ctx, ty)?;
     let addr = g.alloca(&llvm_ty);
     g.emit(&format!("store {llvm_ty} {}, ptr {addr}", v.reg));
-    g.vars.push((name.into(), Slot { addr, ty: ty.clone() }));
+    g.vars.push((
+        name.into(),
+        Slot {
+            addr,
+            ty: ty.clone(),
+        },
+    ));
     let result = gen_block(g, body, dir);
     g.vars.pop();
     result

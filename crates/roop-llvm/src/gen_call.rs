@@ -30,7 +30,13 @@ pub fn gen_call(
                 same_type(inner, &slot.ty)?;
                 format!("ptr {}", slot.addr)
             }
-            (Type::Ref { mutable: false, inner }, value) => {
+            (
+                Type::Ref {
+                    mutable: false,
+                    inner,
+                },
+                value,
+            ) => {
                 let v = gen_expr(g, value)?;
                 same_type(inner, &v.ty)?;
                 let ty = llvm_type(g.ctx, &v.ty)?;
@@ -39,7 +45,9 @@ pub fn gen_call(
                 format!("ptr {addr}")
             }
             (Type::Ref { .. }, _) => {
-                return Err(CodegenError::InvalidOperand("mutable reference argument must be a place"));
+                return Err(CodegenError::InvalidOperand(
+                    "mutable reference argument must be a place",
+                ));
             }
             (ty, value) => {
                 let v = gen_expr(g, value)?;
@@ -49,7 +57,11 @@ pub fn gen_call(
         });
     }
     let inverse = is_uncall != (dir == Dir::Backward);
-    let symbol = if inverse { format!("{callee}_inv") } else { callee.into() };
+    let symbol = if inverse {
+        format!("{callee}_inv")
+    } else {
+        callee.into()
+    };
     g.emit(&format!("call void @{symbol}({})", passed.join(", ")));
     Ok(())
 }

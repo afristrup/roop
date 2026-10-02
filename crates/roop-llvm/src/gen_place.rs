@@ -1,4 +1,4 @@
-use super::{CodegenError, FnGen, Slot, gen_assert, gen_expr, llvm_type, same_type, Value};
+use super::{CodegenError, FnGen, Slot, Value, gen_assert, gen_expr, llvm_type, same_type};
 use roop_syntax::{Place, Type};
 
 pub fn gen_place(g: &mut FnGen, place: &Place) -> Result<Slot, CodegenError> {
@@ -18,12 +18,14 @@ pub fn gen_place(g: &mut FnGen, place: &Place) -> Result<Slot, CodegenError> {
             let Type::Named(owner) = &base.ty else {
                 return Err(CodegenError::InvalidOperand("field access on a non-struct"));
             };
-            let def = g.ctx.structs.get(owner.as_str()).ok_or_else(|| {
-                CodegenError::UnknownName {
-                    kind: "struct",
-                    name: owner.clone(),
-                }
-            })?;
+            let def =
+                g.ctx
+                    .structs
+                    .get(owner.as_str())
+                    .ok_or_else(|| CodegenError::UnknownName {
+                        kind: "struct",
+                        name: owner.clone(),
+                    })?;
             let index = def
                 .fields
                 .iter()

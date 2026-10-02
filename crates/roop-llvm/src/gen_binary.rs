@@ -1,12 +1,7 @@
 use super::{CodegenError, FnGen, Value, binary_instr, bool_type, kind_of, llvm_type, same_type};
 use roop_syntax::BinOp;
 
-pub fn gen_binary(
-    g: &mut FnGen,
-    lhs: Value,
-    op: BinOp,
-    rhs: Value,
-) -> Result<Value, CodegenError> {
+pub fn gen_binary(g: &mut FnGen, lhs: Value, op: BinOp, rhs: Value) -> Result<Value, CodegenError> {
     same_type(&lhs.ty, &rhs.ty)?;
     let kind = kind_of(g.ctx, &lhs.ty)?;
     let (instr, is_compare) = binary_instr(kind, op)?;

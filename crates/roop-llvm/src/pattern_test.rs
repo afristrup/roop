@@ -25,5 +25,8 @@ pub fn pattern_test(g: &mut FnGen, s: &Value, pattern: &Pattern) -> Result<Value
     let ty = llvm_type(g.ctx, &s.ty)?;
     let reg = format!("%{}", g.fresh("t"));
     g.emit(&format!("{reg} = icmp eq {ty} {}, {rhs}", s.reg));
-    Ok(Value { reg, ty: bool_type() })
+    Ok(Value {
+        reg,
+        ty: bool_type(),
+    })
 }

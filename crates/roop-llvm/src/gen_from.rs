@@ -1,4 +1,6 @@
-use super::{CodegenError, Dir, FnGen, bool_type, gen_assert, gen_block, gen_expr, same_type, Value};
+use super::{
+    CodegenError, Dir, FnGen, Value, bool_type, gen_assert, gen_block, gen_expr, same_type,
+};
 use roop_syntax::{Block, Expr};
 
 /// Janus loop. Backward is the loop with entry and until swapped and the two
@@ -29,7 +31,13 @@ pub fn gen_from(
     let again = gen_expr(g, start)?;
     let not_again = format!("%{}", g.fresh("t"));
     g.emit(&format!("{not_again} = xor i1 {}, true", again.reg));
-    gen_assert(g, &Value { reg: not_again, ty: bool_type() })?;
+    gen_assert(
+        g,
+        &Value {
+            reg: not_again,
+            ty: bool_type(),
+        },
+    )?;
     g.emit(&format!("br label %{head}"));
     g.label(&exit);
     Ok(())
