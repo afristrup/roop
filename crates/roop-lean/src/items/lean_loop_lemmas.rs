@@ -28,16 +28,30 @@ pub fn lean_loop_lemmas(
         janus(["stop", "entry", "body_inv", "step_inv"]),
     );
     let mut chain = Vec::new();
-    let mut directions = vec![("loop_inv_f", &fwd, &bwd, "inv_f", s, r)];
+    let mut directions = vec![(
+        "loop_inv_f",
+        ["entry", "stop", "body", "step", "body_inv", "step_inv"],
+        "inv_f",
+        (s, r),
+        (&fwd, &bwd),
+    )];
     if both {
-        directions.push(("loop_f_inv", &bwd, &fwd, "f_inv", r, s));
+        directions.push((
+            "loop_f_inv",
+            ["stop", "entry", "body_inv", "step_inv", "body", "step"],
+            "f_inv",
+            (r, s),
+            (&bwd, &fwd),
+        ));
     }
-    for (name, from, to, suffix, x, y) in directions {
+    for (name, six, suffix, (x, y), (from, to)) in directions {
         let theorem = shape.theorem(name);
+        let applied: Vec<String> = six.iter().map(|part| shape.applied(part)).collect();
         text.push_str(&format!(
-            "theorem {theorem} {} {{{s} {r} : {}}} (h : Roop.janus {from} {x} = Except.ok {y}) :\n    Roop.janus {to} {y} = Except.ok {x} :=\n  Roop.janus_inv {from} {to} {} {} {x} {y} h\n",
+            "theorem {theorem} {} {{{s} {r} : {}}} (h : Roop.janus {from} {x} = Except.ok {y}) :\n    Roop.janus {to} {y} = Except.ok {x} :=\n  Roop.janus_inv {} {} {} {x} {y} h\n",
             shape.implicit,
             shape.state,
+            applied.join(" "),
             shape.theorem_applied(&format!("body_{suffix}")),
             shape.theorem_applied(&format!("step_{suffix}")),
         ));

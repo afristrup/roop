@@ -1,5 +1,5 @@
 use crate::{
-    Ctx, Dir, LeanError, LoopLemmas, PRELUDE, Translation, esc_fn, lean_commute, lean_enum,
+    Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, Translation, esc_fn, lean_commute, lean_enum,
     lean_fn, lean_loop_lemmas, lean_struct, lean_theorems,
 };
 use roop_check::is_irreversible_fn;
@@ -109,7 +109,10 @@ fn translate_fn(
         let ancillas = forward.ancillas > 0 || backward.ancillas > 0;
         if !inexact {
             for info in &forward.pieces {
-                let (lemma_text, names) = lean_loop_lemmas(info, deps, &known);
+                let (lemma_text, names) = match info.construct {
+                    Construct::Loop => lean_loop_lemmas(info, deps, &known),
+                    Construct::Try => lean_try_lemmas(info, deps, &known),
+                };
                 text.push_str(&lemma_text);
                 if let Some(commute) = lean_commute(info, deps, &forward.lifted) {
                     text.push_str(&commute);
