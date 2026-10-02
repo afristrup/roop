@@ -1,5 +1,6 @@
 use crate::{
-    Ctx, Dir, LeanError, PRELUDE, Translation, esc, lean_enum, lean_fn, lean_struct, lean_theorems,
+    Ctx, Dir, LeanError, PRELUDE, Translation, esc_fn, lean_enum, lean_fn, lean_struct,
+    lean_theorems,
 };
 use roop_check::is_irreversible_fn;
 use roop_syntax::{FnDef, Item, Program};
@@ -37,12 +38,12 @@ pub fn translate(program: &Program) -> Translation {
                     progressed = true;
                     lean.push_str(&piece.text);
                     cx.translated.insert(def.name.clone());
-                    deps.push(esc(&def.name));
+                    deps.push(esc_fn(&def.name));
                     if piece.reversible && piece.inexact {
-                        deps.push(esc(&format!("{}_inv", def.name)));
+                        deps.push(esc_fn(&format!("{}_inv", def.name)));
                         result.inexact.push(def.name.clone());
                     } else if piece.reversible {
-                        deps.push(esc(&format!("{}_inv", def.name)));
+                        deps.push(esc_fn(&format!("{}_inv", def.name)));
                         result.reversible.push(def.name.clone());
                     } else {
                         result.forward_only.push(def.name.clone());

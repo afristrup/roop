@@ -1,5 +1,6 @@
 use crate::{
-    Ctx, Dir, Env, LeanError, Out, esc, is_mut_ref, lean_block, lean_type, tuple_expr, tuple_type,
+    Ctx, Dir, Env, LeanError, Out, esc, esc_fn, is_mut_ref, lean_block, lean_type, tuple_expr,
+    tuple_type,
 };
 use roop_syntax::FnDef;
 
@@ -37,7 +38,7 @@ pub fn lean_fn(cx: &Ctx, def: &FnDef, dir: Dir) -> Result<(String, usize), LeanE
     out.line(&format!("return {}", tuple_expr(&returned)));
     let text = format!(
         "def {} {} : Roop.Res {} := do\n{}\n",
-        esc(&name),
+        esc_fn(&name),
         params.join(" "),
         tuple_type(&result_types),
         out.text

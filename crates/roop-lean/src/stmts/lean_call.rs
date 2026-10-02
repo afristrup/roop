@@ -1,4 +1,6 @@
-use crate::{Ctx, Dir, Env, LeanError, Out, assign_place, esc, lean_expr, read_place, tuple_proj};
+use crate::{
+    Ctx, Dir, Env, LeanError, Out, assign_place, esc_fn, lean_expr, read_place, tuple_proj,
+};
 use roop_syntax::{Expr, Type};
 
 /// Calls return the callee's mutable parameters; they are written back into the
@@ -46,7 +48,7 @@ pub fn lean_call(
             _ => passed.push(lean_expr(cx, env, arg)?),
         }
     }
-    let call = format!("{} {}", esc(&name), passed.join(" "));
+    let call = format!("{} {}", esc_fn(&name), passed.join(" "));
     match writeback.len() {
         0 => out.line(call.trim_end()),
         n => {

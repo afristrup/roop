@@ -1,4 +1,4 @@
-use crate::{esc, is_mut_ref, lean_type, tuple_expr, tuple_proj, tuple_type};
+use crate::{esc, esc_fn, is_mut_ref, lean_type, tuple_expr, tuple_proj, tuple_type};
 use roop_syntax::{FnDef, Param};
 
 /// The proof script. Unfold both functions, split every branch, simplify the
@@ -47,7 +47,7 @@ pub fn lean_theorems(def: &FnDef, deps: &[String], loops: bool) -> Option<String
     };
     let inputs: Vec<String> = def.params.iter().map(name_of).collect();
     let initial: Vec<String> = mutable.iter().map(|p| name_of(p)).collect();
-    let (f, f_inv) = (esc(&def.name), esc(&format!("{}_inv", def.name)));
+    let (f, f_inv) = (esc_fn(&def.name), esc_fn(&format!("{}_inv", def.name)));
 
     let mut unfold = vec![f.clone(), f_inv.clone()];
     unfold.extend(deps.iter().cloned());
@@ -69,7 +69,7 @@ pub fn lean_theorems(def: &FnDef, deps: &[String], loops: bool) -> Option<String
         .collect();
     let mut text = format!(
         "theorem {} {} ({OUT} : {tuple}) (h : {f} {} = Except.ok {OUT}) :\n    {f_inv} {} = Except.ok {} := by\n{proof}\n",
-        esc(&format!("{}_inv_f", def.name)),
+        format!("Thm.{}", esc(&format!("{}_inv_f", def.name))),
         all_params.join(" "),
         inputs.join(" "),
         with_components(OUT).join(" "),
@@ -77,7 +77,7 @@ pub fn lean_theorems(def: &FnDef, deps: &[String], loops: bool) -> Option<String
     );
     text.push_str(&format!(
         "theorem {} {} ({OUT} : {tuple}) ({INIT} : {tuple}) (h : {f_inv} {} = Except.ok {INIT}) :\n    {f} {} = Except.ok {OUT} := by\n{proof}\n",
-        esc(&format!("{}_f_inv", def.name)),
+        format!("Thm.{}", esc(&format!("{}_f_inv", def.name))),
         read_only.join(" "),
         with_components(OUT).join(" "),
         with_components(INIT).join(" "),
