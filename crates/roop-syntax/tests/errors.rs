@@ -13,7 +13,7 @@ fn rejects_from_without_until() {
 #[test]
 fn rejects_unknown_character() {
     let err = parse("fn f() { @ }").unwrap_err();
-    assert_eq!(err.span.start, 10);
+    assert_eq!(err.span.start, 9);
 }
 
 #[test]
