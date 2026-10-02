@@ -13,13 +13,7 @@ pub fn run_lean(args: &LeanArgs) -> Result<(), CliError> {
 
     let list = |names: &[String]| names.join(", ");
     println!("wrote {}", args.output.display());
-    println!(
-        "  reversible, theorems proved by Lean: {}",
-        count(&t.reversible, &t.open)
-    );
-    if !t.open.is_empty() {
-        println!("  open (loops need an induction): {}", list(&t.open));
-    }
+    println!("  reversible, theorems proved by Lean: {}", list(&t.reversible));
     if !t.inexact.is_empty() {
         println!(
             "  floating point, no roundtrip claimed: {}",
@@ -43,12 +37,4 @@ pub fn run_lean(args: &LeanArgs) -> Result<(), CliError> {
         println!("  Lean accepted the file");
     }
     Ok(())
-}
-
-fn count(reversible: &[String], open: &[String]) -> String {
-    let proved: Vec<&String> = reversible
-        .iter()
-        .filter(|name| !open.iter().any(|o| *o == format!("{name}_inv_f")))
-        .collect();
-    format!("{} of {} functions", proved.len(), reversible.len())
 }

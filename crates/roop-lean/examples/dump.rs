@@ -8,7 +8,7 @@ fn main() {
     let t = translate(&program);
     print!("{}", t.lean);
     eprintln!(
-        "reversible: {:?}\nforward_only: {:?}\nopen: {:?}\nskipped: {:?}",
-        t.reversible, t.forward_only, t.open, t.skipped
+        "reversible: {:?}\nforward_only: {:?}\nskipped: {:?}",
+        t.reversible, t.forward_only, t.skipped
     );
 }
