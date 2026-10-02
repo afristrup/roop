@@ -1,5 +1,5 @@
 use crate::Options;
-use roop_check::contains_try;
+use roop_check::is_irreversible_fn;
 use roop_syntax::{EnumDef, FnDef, Item, Program, StructDef};
 use std::collections::HashMap;
 
@@ -8,7 +8,7 @@ pub struct Ctx<'a> {
     pub enums: HashMap<&'a str, &'a EnumDef>,
     pub fns: HashMap<&'a str, &'a FnDef>,
     pub options: &'a Options,
-    /// Functions containing `try`, which have no inverse.
+    /// Functions with irreversible code, which have no inverse.
     pub irreversible: std::collections::HashSet<&'a str>,
 }
 
@@ -32,7 +32,7 @@ impl<'a> Ctx<'a> {
         ctx.irreversible = ctx
             .fns
             .values()
-            .filter(|f| contains_try(&f.body))
+            .filter(|f| is_irreversible_fn(f))
             .map(|f| f.name.as_str())
             .collect();
         ctx

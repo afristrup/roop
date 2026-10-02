@@ -78,6 +78,12 @@ fn rename_stmt(stmt: &Stmt, from: &str, to: &str) -> Stmt {
             body: b(body),
         },
         StmtKind::Block(body) => StmtKind::Block(b(body)),
+        StmtKind::Irrev(body) => StmtKind::Irrev(b(body)),
+        StmtKind::Overwrite { target, op, value } => StmtKind::Overwrite {
+            target: p(target),
+            op: *op,
+            value: e(value),
+        },
         StmtKind::Chan { name, ty, body } => StmtKind::Chan {
             name: name.clone(),
             ty: ty.clone(),
