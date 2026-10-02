@@ -1,5 +1,6 @@
 mod body_effects;
 mod body_features;
+mod calls_in;
 mod channels_used;
 mod contains_irrev;
 mod find_non_unwindable;
@@ -9,6 +10,7 @@ mod non_atomic_fns;
 
 pub use body_effects::*;
 pub use body_features::*;
+pub use calls_in::*;
 pub use channels_used::*;
 pub use contains_irrev::*;
 pub use find_non_unwindable::*;

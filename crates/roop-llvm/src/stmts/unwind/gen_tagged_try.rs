@@ -1,5 +1,5 @@
 use crate::{
-    AbortMode, CodegenError, Dir, FnGen, Kind, check_zero, gen_place, gen_unwinding, kind_of,
+    CodegenError, Dir, FnGen, Kind, check_zero, gen_place, gen_unwinding, kind_of,
     llvm_type,
 };
 use roop_syntax::{Block, Place};
@@ -32,7 +32,7 @@ pub fn gen_tagged_try(
     match dir {
         Dir::Forward => {
             check_zero(g, &slot)?;
-            let (body_failed, ran) = (g.fresh("L"), g.fresh("L"));
+            let body_failed = g.fresh("L");
             let outer = g.abort.clone();
             gen_unwinding(g, body, Dir::Forward, &body_failed)?;
             g.emit(&format!("br label %{after}"));
@@ -40,8 +40,6 @@ pub fn gen_tagged_try(
             g.abort = outer;
             gen_unwinding(g, handler, Dir::Forward, fail)?;
             g.emit(&format!("store {ty} {set}, ptr {}", slot.addr));
-            g.emit(&format!("br label %{ran}"));
-            g.label(&ran);
         }
         Dir::Backward => {
             let flag = format!("%{}", g.fresh("t"));
@@ -53,9 +51,7 @@ pub fn gen_tagged_try(
                 "br i1 {raised}, label %{undo_handler}, label %{undo_body}"
             ));
             g.label(&undo_handler);
-            let outer = std::mem::replace(&mut g.abort, AbortMode::Trap);
             gen_unwinding(g, handler, Dir::Backward, fail)?;
-            g.abort = outer;
             g.emit(&format!("store {ty} {zero}, ptr {}", slot.addr));
             g.emit(&format!("br label %{after}"));
             g.label(&undo_body);
