@@ -46,3 +46,10 @@ fn rejects_unknown_attribute_and_target() {
     assert!(parse("rev fn f(x: &mut i64) { #[inline] x += 1; }").is_err());
     assert!(parse("rev fn f(x: &mut i64) { #[parallel(tpu)] x += 1; }").is_err());
 }
+
+#[test]
+fn rejects_malformed_channel_statements() {
+    assert!(parse("rev fn f(x: &mut i64) { send c x; }").is_err());
+    assert!(parse("rev fn f(x: &mut i64) { recv c <- x; }").is_err());
+    assert!(parse("rev fn f(x: &mut i64) { chan c { } }").is_err());
+}

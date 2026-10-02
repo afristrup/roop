@@ -89,3 +89,36 @@ fn parses_parallel_attribute_with_and_without_target() {
         }]
     );
 }
+
+#[test]
+fn parses_channels_sends_receives_and_concurrent_blocks() {
+    use roop_syntax::Attr;
+    let src = "rev fn f(x: &mut i64, y: &mut i64) {
+        chan c: i64 {
+            #[concurrent] { send c <- x; }
+            #[concurrent] { recv c -> y; }
+        }
+    }";
+    let program = parse(src).unwrap();
+    let Item::Fn(f) = &program.items[0] else {
+        panic!("expected fn")
+    };
+    let StmtKind::Chan { name, body, .. } = &f.body.stmts[0].kind else {
+        panic!("expected chan")
+    };
+    assert_eq!(name, "c");
+    assert_eq!(body.stmts.len(), 2);
+    assert_eq!(body.stmts[0].attrs, [Attr::Concurrent]);
+    assert!(matches!(body.stmts[0].kind, StmtKind::Block(_)));
+}
+
+#[test]
+fn a_bare_block_is_a_statement() {
+    assert!(matches!(first_stmt("{ x += 1; }"), StmtKind::Block(_)));
+}
+
+#[test]
+fn parses_attributes_in_either_order() {
+    let src = "rev fn f(x: &mut i64) { #[concurrent] #[parallel] { x += 1; } }";
+    assert!(parse(src).is_ok());
+}
