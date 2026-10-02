@@ -189,7 +189,7 @@ instance {n : Nat} : Grp (BitVec n) where
   one_mul := fun a => BitVec.zero_add a
   mul_one := fun a => BitVec.add_zero a
   inv_mul := fun a => BitVec.add_left_neg a
-  mul_inv := fun a => by show a + -a = 0; bv_omega
+  mul_inv := fun a => by show a + -a = 0; rw [BitVec.add_neg_eq_sub, BitVec.sub_self]
 
 /-- The Frobenius law holds for the outcome of a `try`. -/
 theorem outcome_is_frobenius (a b c d : Bool) :
