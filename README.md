@@ -10,7 +10,8 @@ its inverse `f_inv`.
 
 `irrev` is the escape hatch, like `unsafe` in Rust. An `irrev fn`, or an
 `irrev { ... }` block, lifts those rules and allows destroying values (`x = e`,
-`*=`, `/=`, `%=`) and `try ... catch_rollback`. Such a function has no inverse,
+`*=`, `/=`, `%=`) and a `try` that forgets its outcome. Prefer the next
+section, which keeps both reversible. A function with `irrev` code has no inverse,
 reversible code cannot call it outside an `irrev` block, and nothing can
 `uncall` it. The safety rules (borrows, parallel loops, concurrent tasks) still
 apply inside `irrev`.
@@ -23,6 +24,72 @@ fn both(a: &mut i64, b: &mut i64, k: &i64) {
     irrev { call wipe(b); }                      // this function is irreversible too
 }
 ```
+
+## History, rollback and monads
+
+Effects are monads, and the paper "Reversible monadic computing" says which
+ones keep a computation reversible: the Frobenius monads, such as a log kept in
+a group. roop has two, and each shows up in a function's signature.
+
+**History.** `Stack<T, N>` holds at most `N` values. `push s <- x;` moves `x`
+onto the stack and leaves zero, and `pop s -> x;` moves the top into a zero `x`,
+so each is the other's inverse. Inside `logged h { ... }` destroying updates are
+allowed: each one pushes the value it destroys onto `h`, and backward it checks
+the result, pops the old value and puts it back. A function that destroys
+information therefore stays reversible, and takes its history as a parameter,
+because that is where the information went. A temporary stack is an ancilla that
+starts `empty` and must be emptied again, which is Bennett's trick: compute,
+copy the result, uncompute.
+
+```rust
+fn settle_to(balance: &mut i64, amount: &i64, h: &mut Stack<i64, 8>) {
+    logged h { balance = amount * 2; }
+}
+fn quote(balance: &mut i64, amount: &i64, quoted: &mut i64) {
+    ancilla h: Stack<i64, 8> = empty {
+        call settle_to(balance, amount, h);
+        quoted += balance;
+        uncall settle_to(balance, amount, h);      // the history is empty again
+    }
+}
+```
+
+**Failure.** `try { body } catch_rollback { handler } -> failed;` runs the body.
+If anything in it fails (an exit assertion, a full or empty stack, an index out
+of bounds, a failing callee), the body is undone by running what it already did
+backward, which is the dagger of the executed prefix, and then the handler runs
+on the restored state. `failed` must be zero going in and is set when the handler
+ran. That bit is the exception monad's outcome kept as data, and it is what makes
+the statement reversible: backward, it says whether to undo the handler or the
+body. The body and handler cannot read or write `failed`, and cannot contain
+`irrev` code, tasks, parallel loops or channels, since those could not be undone.
+Without `-> failed`, a `try` is the irreversible kind and needs `irrev`.
+
+Rollback is real reverse execution, not a snapshot. Every function a `try` calls
+gets a failure-atomic variant that undoes itself and reports failure, so a
+failing callee leaves its arguments as it found them. A loop that fails in its
+fifth iteration undoes the four finished ones with its own inverse.
+
+```rust
+fn transfer(payer: &mut i64, payee: &mut i64, amount: &i64,
+            refusals: &mut i64, refused: &mut bool) {
+    try {
+        payer -= amount;
+        payee += amount;
+        if payer >= 0 { } fi payer >= 0;
+    } catch_rollback {
+        refusals += 1;
+    } -> refused;
+}
+```
+
+`roop/examples/history` has these. `crates/roop-lean/lean/Frobenius.lean` states
+the theory they rest on and checks it in Lean: the Frobenius law holds for every
+group (so for the `try` outcome, `Bool` under xor, and for counters under `+`);
+it fails for lists under concatenation, which is why a stack is not reversed by a
+structure of its own but by each pop being the dagger of its push; and the
+dagger of a computation that logs to a group is the computation that runs
+backward and logs the inverse.
 
 ## Verification in Lean
 
@@ -44,6 +111,11 @@ that neither direction ever fails with an unrestored ancilla. Lean is stricter
 than the roop checker: it rejects a branch whose exit assertion does not
 actually identify which side ran, which the checker cannot decide.
 
+Stacks, `logged` blocks and `try` are covered. A `try` is undone by its outcome
+on the states the function produced, so such a function gets the first roundtrip
+theorem (`f_inv_f`) and not the second: the inverse of a handler also applies to
+states the body would not have failed on. `roop lean` lists these functions.
+
 Loops are covered too. Each loop's entry, exit, body and step are lifted into
 top-level definitions, Lean proves that the inverse body and step undo the body
 and step, and a general lemma about the reversible loop (`Roop.janus_inv`, in the
@@ -60,7 +132,7 @@ proof.
 
 Not covered: floating point is translated with no roundtrip claim, since
 `x + k - k` need not equal `x`; irreversible functions get a forward model only;
-`try`, channels and concurrent tasks are skipped and listed; borrow
+a `try` without an outcome, channels and concurrent tasks are skipped and listed; borrow
 exclusivity and the disjointness of `#[concurrent]` tasks are checked by the
 compiler but not stated as theorems; the commutation theorem is skipped for a
 parallel loop with another loop in its body.
