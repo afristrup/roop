@@ -3,7 +3,7 @@ use roop_syntax::{Block, Span, Stmt, StmtKind};
 
 /// Checks a group of tasks as a closed system: disjoint state, a static
 /// channel protocol, no deadlock, and every channel drained at the end.
-pub fn analyse_group(tasks: &[&Stmt]) -> Result<(), CheckError> {
+pub fn analyse_group(tasks: &[&Stmt], declared: &[String]) -> Result<(), CheckError> {
     let span = Span::from(tasks[0].span.start..tasks[tasks.len() - 1].span.end);
     let blocks: Vec<&Block> = tasks
         .iter()
@@ -17,5 +17,11 @@ pub fn analyse_group(tasks: &[&Stmt]) -> Result<(), CheckError> {
         .iter()
         .map(|block| channel_ops(block, &mut Vec::new()))
         .collect::<Result<Vec<_>, _>>()?;
+    if let Some(op) = ops.iter().flatten().find(|op| !declared.contains(&op.chan)) {
+        return Err(CheckError::UnknownChannel {
+            chan: op.chan.clone(),
+            span,
+        });
+    }
     simulate_group(&ops, span)
 }

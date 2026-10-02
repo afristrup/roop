@@ -11,7 +11,7 @@ pub fn walk_channels(
     for item in task_groups(block) {
         match item {
             Item::Group(tasks) => {
-                analyse_group(&tasks)?;
+                analyse_group(&tasks, declared)?;
                 for task in tasks {
                     for child in child_blocks(task) {
                         walk_channels(child, declared, true)?;
