@@ -48,7 +48,7 @@ pub fn run_lean(args: &LeanArgs) -> Result<(), CliError> {
 fn count(reversible: &[String], open: &[String]) -> String {
     let proved: Vec<&String> = reversible
         .iter()
-        .filter(|name| !open.iter().any(|o| o.starts_with(&format!("{name}_"))))
+        .filter(|name| !open.iter().any(|o| *o == format!("{name}_inv_f")))
         .collect();
     format!("{} of {} functions", proved.len(), reversible.len())
 }

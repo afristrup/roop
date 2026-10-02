@@ -199,3 +199,37 @@ fn prints_usage_for_bad_arguments() {
     assert!(!out.status.success());
     assert!(stderr(&out).contains("usage: roop build"));
 }
+
+#[test]
+fn lean_subcommand_writes_a_model_and_reports_what_it_proved() {
+    let src = "fn add(x: &mut i64, k: &i64) { x += k; }
+               fn count(x: &mut i64, i: &mut i64, n: &i64) {
+                   from i == 0 { x += 2; } loop { i += 1; } until i == n;
+               }
+               irrev fn wipe(x: &mut i64) { x = 0; }
+               fn pipe(x: &mut i64, y: &mut i64) {
+                   chan c: i64 {
+                       #[concurrent] { send c <- x; }
+                       #[concurrent] { recv c -> y; }
+                   }
+               }";
+    let dir = project("lean", "", src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(report.contains("1 of 2 functions"), "{report}");
+    assert!(report.contains("count_inv_f"), "{report}");
+    assert!(report.contains("forward model only: wipe"), "{report}");
+    assert!(report.contains("skipped pipe"), "{report}");
+    assert!(report.contains("Lean accepted the file"), "{report}");
+    let lean = std::fs::read_to_string(dir.join("prog.lean")).unwrap();
+    assert!(lean.contains("theorem Thm.\u{ab}add_inv_f\u{bb}"));
+}
+
+#[test]
+fn lean_subcommand_reports_checker_errors() {
+    let dir = project("lean-bad", "", "fn f(x: &mut i64) { x = 1; }");
+    let out = roop(&dir, &["lean", "prog.roop"]);
+    assert!(!out.status.success());
+    assert!(stderr(&out).contains("irrev"), "{}", stderr(&out));
+}
