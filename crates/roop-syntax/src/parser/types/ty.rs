@@ -21,6 +21,14 @@ pub fn ty<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Type, Err<'a>> + Clone 
             .then(len)
             .delimited_by(just(Token::LBracket), just(Token::RBracket))
             .map(|(t, n)| Type::Array(Box::new(t), n));
-        named.or(reference).or(array)
+        let stack = select! { Token::Ident("Stack") => () }
+            .ignore_then(
+                ty.clone()
+                    .then_ignore(just(Token::Comma))
+                    .then(len)
+                    .delimited_by(just(Token::Lt), just(Token::Gt)),
+            )
+            .map(|(t, n)| Type::Stack(Box::new(t), n));
+        stack.or(named).or(reference).or(array)
     })
 }

@@ -1,7 +1,7 @@
 use crate::{Block, Stmt, StmtKind, Token, UpdateOp};
 use crate::{
-    Err, TokenInput, attr, block, borrow_stmt, chan_stmt, expr, ident, irrev_stmt, match_stmt,
-    overwrite_stmt, place, recv_stmt, send_stmt, try_stmt, ty,
+    Err, TokenInput, attr, block, borrow_stmt, chan_stmt, expr, ident, irrev_stmt, logged_stmt,
+    match_stmt, overwrite_stmt, place, pop_stmt, push_stmt, recv_stmt, send_stmt, try_stmt, ty,
 };
 use chumsky::prelude::*;
 
@@ -12,6 +12,7 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
         let borrow = borrow_stmt(blk.clone());
         let try_ = try_stmt(blk.clone());
         let irrev = irrev_stmt(blk.clone());
+        let logged = logged_stmt(blk.clone());
         let chan = chan_stmt(blk.clone());
         let plain_block = blk.clone().map(StmtKind::Block);
         let semi = just(Token::Semi);
@@ -114,6 +115,9 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
             .or(send_stmt())
             .or(recv_stmt())
             .or(irrev)
+            .or(logged)
+            .or(push_stmt())
+            .or(pop_stmt())
             .or(overwrite_stmt())
             .or(plain_block);
 

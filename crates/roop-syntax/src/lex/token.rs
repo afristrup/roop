@@ -45,6 +45,14 @@ pub enum Token<'a> {
     Send,
     #[token("recv")]
     Recv,
+    #[token("push")]
+    Push,
+    #[token("pop")]
+    Pop,
+    #[token("logged")]
+    Logged,
+    #[token("empty")]
+    Empty,
     #[token("try")]
     Try,
     #[token("catch_rollback")]

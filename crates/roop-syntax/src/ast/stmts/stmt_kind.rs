@@ -50,9 +50,29 @@ pub enum StmtKind {
         chan: String,
         target: Place,
     },
+    /// Moves the value of `source` onto the stack, leaving it zero.
+    Push {
+        stack: Place,
+        source: Place,
+    },
+    /// Moves the top of the stack into `target`, which must be zero.
+    Pop {
+        stack: Place,
+        target: Place,
+    },
+    /// Destroying updates are allowed inside; each pushes what it destroys on
+    /// `history`, so the block stays reversible.
+    Logged {
+        history: Place,
+        body: Block,
+    },
+    /// Runs `body`; if it fails, undoes it and runs `handler`. With an
+    /// `outcome` place the failure is recorded there (zero before, set when the
+    /// handler ran), which keeps the statement reversible.
     Try {
         body: Block,
         handler: Block,
+        outcome: Option<Place>,
     },
     From {
         entry: Expr,

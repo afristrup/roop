@@ -14,6 +14,7 @@ pub fn expr<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Expr, Err<'a>> + Clon
                 .map(Expr::Float)
                 .map_err(|e| Rich::custom(span, e.to_string()))
         });
+        let empty = just(Token::Empty).to(Expr::Empty);
         let boolean =
             select! { Token::True => Expr::Bool(true), Token::False => Expr::Bool(false) };
         let group = expr
@@ -22,6 +23,7 @@ pub fn expr<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Expr, Err<'a>> + Clon
         let atom = int
             .or(float)
             .or(boolean)
+            .or(empty)
             .or(variant().map(|(e, v)| Expr::Variant(e, v)))
             .or(place(expr).map(Expr::Place))
             .or(group);
