@@ -1,6 +1,6 @@
 use crate::LoopLemmas;
 
-const BASE: &str = "beq_iff_eq, Prod.eta, Vector.getElem_set_self, Vector.set_set, Vector.set_getElem_self, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel";
+const BASE: &str = "beq_iff_eq, Prod.eta, Prod.ext_iff, Vector.getElem_set_self, Vector.set_set, Vector.set_getElem_self, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel";
 
 /// Calls in sequence feed each other's results, one loop per round.
 const ROUNDS: usize = 4;
@@ -35,14 +35,12 @@ pub fn proof_script(loop_lemmas: &LoopLemmas) -> String {
     } else {
         ROUNDS
     };
-    let with_ext = format!("{simp}, Prod.ext_iff");
     format!(
         "  all_goals (try (repeat' roop_cases))
   all_goals (try (repeat' (first | (split at *; all_goals (try simp [{simp}] at *)) | split)))
-{}{}  all_goals (try simp [{with_ext}] at *)
+{}  all_goals (try simp [{simp}] at *)
   all_goals (try (repeat' (apply And.intro)))
   all_goals first | done | assumption | omega | bv_omega | bv_decide | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))",
-        round(&simp).repeat(rounds),
-        round(&with_ext)
+        round(&simp).repeat(rounds)
     )
 }
