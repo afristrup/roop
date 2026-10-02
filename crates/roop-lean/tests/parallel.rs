@@ -39,8 +39,8 @@ fn disjoint_writes_through_ancillas_shifts_fields_and_branches_commute() {
 #[test]
 fn a_sequential_loop_gets_no_commutation_theorem() {
     let t = support::verified(
-        "fn acc(a: &mut [i64; 8], i: &mut i64) {
-            from i == 1 { a[i] += a[i - 1]; } loop { i += 1; } until i == 7;
+        "fn plain(a: &mut [i64; 8], b: &[i64; 8], i: &mut i64) {
+            from i == 0 { a[i] += b[i]; } loop { i += 1; } until i == 7;
          }",
     );
     assert!(t.parallel.is_empty());

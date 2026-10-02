@@ -206,6 +206,9 @@ fn lean_subcommand_writes_a_model_and_reports_what_it_proved() {
                fn count(x: &mut i64, i: &mut i64, n: &i64) {
                    from i == 0 { x += 2; } loop { i += 1; } until i == n;
                }
+               fn scale(a: &mut [i64; 4], b: &[i64; 4], i: &mut i64) {
+                   #[parallel] from i == 0 { a[i] += b[i]; } loop { i += 1; } until i == 3;
+               }
                irrev fn wipe(x: &mut i64) { x = 0; }
                fn pipe(x: &mut i64, y: &mut i64) {
                    chan c: i64 {
@@ -217,7 +220,11 @@ fn lean_subcommand_writes_a_model_and_reports_what_it_proved() {
     let out = roop(&dir, &["lean", "prog.roop", "--check"]);
     assert!(out.status.success(), "{}", stderr(&out));
     let report = String::from_utf8_lossy(&out.stdout).into_owned();
-    assert!(report.contains("proved by Lean: add, count"), "{report}");
+    assert!(
+        report.contains("proved by Lean: add, count, scale"),
+        "{report}"
+    );
+    assert!(report.contains("order-independent: scale"), "{report}");
     assert!(!report.contains("open"), "{report}");
     assert!(report.contains("forward model only: wipe"), "{report}");
     assert!(report.contains("skipped pipe"), "{report}");

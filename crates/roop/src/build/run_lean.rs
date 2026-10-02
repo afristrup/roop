@@ -17,6 +17,12 @@ pub fn run_lean(args: &LeanArgs) -> Result<(), CliError> {
         "  reversible, theorems proved by Lean: {}",
         list(&t.reversible)
     );
+    if !t.parallel.is_empty() {
+        println!(
+            "  parallel loops proved order-independent: {}",
+            list(&t.parallel)
+        );
+    }
     if !t.inexact.is_empty() {
         println!(
             "  floating point, no roundtrip claimed: {}",
