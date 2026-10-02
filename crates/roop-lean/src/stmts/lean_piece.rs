@@ -30,10 +30,8 @@ pub fn lean_piece(
         irreversible: env.irreversible,
         function: env.function.clone(),
     };
-    let mut inner = Out {
-        indent: 1,
-        ..Out::default()
-    };
+    let mut inner = Out::default();
+    inner.indent = 1;
     unpack_state(&mut inner, &info.state);
     let state_type = tuple_type(
         &info
