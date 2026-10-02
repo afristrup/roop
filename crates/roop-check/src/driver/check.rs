@@ -1,4 +1,7 @@
-use crate::{CheckError, check_block, check_resolution, check_struct, enum_table, program_blocks};
+use crate::{
+    CheckError, check_block, check_concurrency, check_resolution, check_struct, enum_table,
+    program_blocks,
+};
 use roop_syntax::{Item, Program};
 
 pub fn check(program: &Program) -> Result<(), CheckError> {
@@ -6,6 +9,7 @@ pub fn check(program: &Program) -> Result<(), CheckError> {
     for block in program_blocks(program) {
         check_resolution(&enums, block)?;
     }
+    check_concurrency(program)?;
     for item in &program.items {
         match item {
             Item::Fn(f) => check_block(&f.body)?,
