@@ -33,7 +33,10 @@ pub fn lean_stmt(
             step,
             until,
         } => {
-            let parallel = stmt.attrs.iter().any(|a| matches!(a, Attr::Parallel { .. }));
+            let parallel = stmt
+                .attrs
+                .iter()
+                .any(|a| matches!(a, Attr::Parallel { .. }));
             lean_loop(
                 cx,
                 env,
