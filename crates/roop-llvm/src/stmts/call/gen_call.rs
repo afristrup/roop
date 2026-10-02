@@ -60,6 +60,11 @@ pub fn gen_call(
         });
     }
     let inverse = is_uncall != (dir == Dir::Backward);
+    if inverse && g.ctx.irreversible.contains(callee) {
+        return Err(CodegenError::Unsupported(
+            "running a function containing try backward",
+        ));
+    }
     let symbol = if inverse {
         format!("{callee}_inv")
     } else {

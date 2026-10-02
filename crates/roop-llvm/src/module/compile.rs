@@ -25,6 +25,16 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
          declare void @llvm.trap() noreturn nounwind\n\
          declare void @roop_parallel_for(i64, i64, i64, ptr, ptr)\n\
          declare i32 @roop_gpu_dispatch(i32, ptr, i64, ptr, ptr, i64, i64, i64, i64)\n\
+         declare ptr @roop_chan_new(i64)\n\
+         declare void @roop_chan_send(ptr, ptr)\n\
+         declare i32 @roop_chan_recv(ptr, ptr, ptr)\n\
+         declare i64 @roop_chan_len(ptr)\n\
+         declare void @roop_chan_free(ptr)\n\
+         declare ptr @roop_chan_snapshot(ptr)\n\
+         declare void @roop_chan_restore(ptr, ptr)\n\
+         declare void @roop_chan_snapshot_free(ptr)\n\
+         declare void @roop_concurrent(i64, ptr, ptr)\n\
+         declare void @llvm.memcpy.p0.p0.i64(ptr, ptr, i64, i1)\n\
          @roop_metallib = external constant i8\n\
          @roop_metallib_len = external constant i64\n\
          @roop_ptx = external constant i8\n\n",
@@ -33,10 +43,14 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
     for item in &program.items {
         match item {
             Item::Fn(f) => {
+                let has_inverse = !ctx.irreversible.contains(f.name.as_str());
                 for (symbol, dir) in [
                     (f.name.clone(), Dir::Forward),
                     (format!("{}_inv", f.name), Dir::Backward),
-                ] {
+                ]
+                .into_iter()
+                .filter(|(_, dir)| has_inverse || *dir == Dir::Forward)
+                {
                     let out = gen_function(&ctx, &symbol, None, &f.params, &f.body, dir)?;
                     host.push_str(&out.text);
                     host.push('\n');

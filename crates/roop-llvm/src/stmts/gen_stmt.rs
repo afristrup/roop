@@ -1,7 +1,7 @@
 use crate::{
-    CodegenError, Dialect, Dir, FnGen, gen_ancilla, gen_borrow, gen_call, gen_from, gen_if,
-    gen_match, gen_parallel_auto, gen_parallel_cpu, gen_parallel_gpu, gen_swap, gen_update,
-    parallel_attr,
+    CodegenError, Dialect, Dir, FnGen, gen_ancilla, gen_block, gen_borrow, gen_call, gen_chan,
+    gen_from, gen_if, gen_match, gen_parallel_auto, gen_parallel_cpu, gen_parallel_gpu, gen_recv,
+    gen_send, gen_swap, gen_try, gen_update, parallel_attr,
 };
 use roop_syntax::{Stmt, StmtKind, Target};
 
@@ -50,6 +50,10 @@ pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError
         StmtKind::Borrow { name, source, body } => gen_borrow(g, name, source, body, dir),
         StmtKind::Call { callee, args } => gen_call(g, callee, args, false, dir),
         StmtKind::Uncall { callee, args } => gen_call(g, callee, args, true, dir),
-        StmtKind::Try { .. } => Err(CodegenError::Unsupported("try ... catch_rollback")),
+        StmtKind::Try { body, handler } => gen_try(g, body, handler, dir),
+        StmtKind::Block(body) => gen_block(g, body, dir),
+        StmtKind::Chan { name, ty, body } => gen_chan(g, name, ty, body, dir),
+        StmtKind::Send { chan, source } => gen_send(g, chan, source, dir),
+        StmtKind::Recv { chan, target } => gen_recv(g, chan, target, dir),
     }
 }
