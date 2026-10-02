@@ -1,4 +1,4 @@
-use crate::{Ctx, Dialect, Slot};
+use crate::{Ctx, Dialect, Kernel, Slot};
 
 /// Per-function emission state. Allocas are hoisted to the entry block.
 pub struct FnGen<'a> {
@@ -11,6 +11,9 @@ pub struct FnGen<'a> {
     /// Device kernels cannot trap; a failed assertion stores 1 here instead.
     pub error_flag: Option<String>,
     pub outlined: Vec<String>,
+    pub kernels: Vec<Kernel>,
+    /// Module-level definitions (string constants) the function needs.
+    pub globals: Vec<String>,
     next: usize,
 }
 
@@ -25,6 +28,8 @@ impl<'a> FnGen<'a> {
             dialect,
             error_flag: None,
             outlined: Vec::new(),
+            kernels: Vec::new(),
+            globals: Vec::new(),
             next: 0,
         }
     }

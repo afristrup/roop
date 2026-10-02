@@ -12,7 +12,7 @@ pub fn gen_function(
     params: &[Param],
     body: &Block,
     dir: Dir,
-) -> Result<String, CodegenError> {
+) -> Result<GenOutput, CodegenError> {
     let mut g = FnGen::new(ctx, symbol.into(), Dialect::Host);
     let mut signature = Vec::new();
     if let Some(name) = self_struct {
