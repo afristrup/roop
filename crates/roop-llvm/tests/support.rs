@@ -61,3 +61,42 @@ pub fn verify(ir: &str) {
 pub fn run(ir: &str) -> Option<Option<i32>> {
     run_tool("lli", &["-"], ir).map(|out| out.status.code())
 }
+
+fn runtime_lib() -> std::path::PathBuf {
+    use std::sync::Once;
+    static BUILD: Once = Once::new();
+    BUILD.call_once(|| {
+        let status = Command::new(env!("CARGO"))
+            .args(["build", "-p", "roop-rt"])
+            .status()
+            .unwrap();
+        assert!(status.success());
+    });
+    let target = std::env::var("CARGO_TARGET_DIR")
+        .unwrap_or_else(|_| format!("{}/../../target", env!("CARGO_MANIFEST_DIR")));
+    std::path::PathBuf::from(target).join("debug/libroop_rt.a")
+}
+
+/// Compiles the IR with clang, links the roop runtime and returns the exit
+/// code. None when clang is not installed.
+pub fn run_native(ir: &str) -> Option<Option<i32>> {
+    let clang = tool("clang")?;
+    let dir = std::env::temp_dir().join(format!("roop-{}-{:x}", std::process::id(), ir.len()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let (src, exe) = (dir.join("prog.ll"), dir.join("prog"));
+    std::fs::write(&src, ir).unwrap();
+    let build = Command::new(clang)
+        .arg(&src)
+        .arg(runtime_lib())
+        .args(["-o"])
+        .arg(&exe)
+        .args(["-lpthread", "-lm"])
+        .output()
+        .unwrap();
+    assert!(
+        build.status.success(),
+        "{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    Some(Command::new(&exe).status().unwrap().code())
+}
