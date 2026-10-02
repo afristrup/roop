@@ -21,21 +21,19 @@ pub fn proof_script(loop_lemmas: &LoopLemmas) -> String {
         .iter()
         .map(|lemma| format!("  all_goals (try roop_loop {lemma})\n"))
         .collect();
-    let round = |lemmas: &str| {
-        format!(
-            "  all_goals (try simp [{lemmas}] at *)
+    let with_ext = format!("{simp}, Prod.ext_iff");
+    let round = format!(
+        "  all_goals (try simp [{simp}] at *)
   all_goals (try subst_vars)
-{loops}  all_goals (try simp_all [{lemmas}])
+{loops}  all_goals (try simp_all [{with_ext}])
   all_goals (try subst_vars)
 "
-        )
-    };
+    );
     let rounds = if loop_lemmas.chain.is_empty() {
         1
     } else {
         ROUNDS
     };
-    let with_ext = format!("{simp}, Prod.ext_iff");
     format!(
         "  all_goals (try (repeat' roop_cases))
   all_goals (try (repeat' (first | (split at *; all_goals (try simp [{simp}] at *)) | split)))
@@ -44,6 +42,6 @@ pub fn proof_script(loop_lemmas: &LoopLemmas) -> String {
 {}  all_goals (try simp [{with_ext}] at *)
   all_goals (try (repeat' (apply And.intro)))
   all_goals first | done | assumption | omega | bv_omega | bv_decide | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))",
-        round(&with_ext).repeat(rounds)
+        round.repeat(rounds)
     )
 }
