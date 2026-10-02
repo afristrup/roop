@@ -30,3 +30,21 @@ fn rejects_array_element_depending_on_itself() {
 fn checks_nested_blocks() {
     assert!(run("if y > 0 { x += x; } fi y > 0;").is_err());
 }
+
+#[test]
+fn distinct_fields_do_not_interfere() {
+    let src = "rev fn f(p: &mut P) { p.a += p.b; }";
+    assert_eq!(check(&parse(src).unwrap()), Ok(()));
+}
+
+#[test]
+fn same_field_interferes() {
+    let src = "rev fn f(p: &mut P) { p.a += p.a; }";
+    assert!(check(&parse(src).unwrap()).is_err());
+}
+
+#[test]
+fn whole_struct_overlaps_its_field() {
+    let src = "rev fn f(p: &mut P) { p.a += p; }";
+    assert!(check(&parse(src).unwrap()).is_err());
+}

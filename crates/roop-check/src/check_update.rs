@@ -1,17 +1,15 @@
-use super::{CheckError, expr_vars, place_index_vars, place_root};
+use super::{CheckError, expr_places, place_index_reads, place_root, places_overlap};
 use roop_syntax::{Expr, Place, Span};
-use std::collections::HashSet;
 
-/// Non-interference: the updated variable must not occur in anything the
-/// update reads, otherwise the update is not injective.
+/// Non-interference: the updated place must not overlap anything the update
+/// reads, otherwise the update is not injective.
 pub fn check_update(target: &Place, value: &Expr, span: Span) -> Result<(), CheckError> {
-    let root = place_root(target);
-    let mut read = HashSet::new();
-    expr_vars(value, &mut read);
-    place_index_vars(target, &mut read);
-    if read.contains(root) {
+    let mut reads = Vec::new();
+    expr_places(value, &mut reads);
+    place_index_reads(target, &mut reads);
+    if reads.iter().any(|read| places_overlap(target, read)) {
         return Err(CheckError::SelfReferentialUpdate {
-            var: root.into(),
+            var: place_root(target).into(),
             span,
         });
     }
