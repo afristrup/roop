@@ -17,6 +17,8 @@ pub fn proof_script(loop_lemmas: &[String]) -> String {
   all_goals (try simp [{LEMMAS}] at *)
 {loops}  all_goals (try subst_vars)
   all_goals (try simp_all [{LEMMAS}])
+  all_goals (try subst_vars)
+  all_goals (try simp [{LEMMAS}] at *)
   all_goals first | done | bv_omega | bv_decide | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))"
     )
 }
