@@ -56,5 +56,7 @@ fn is_straight_line(stmt: &Stmt) -> bool {
             | StmtKind::Swap(..)
             | StmtKind::Call { .. }
             | StmtKind::Uncall { .. }
+            | StmtKind::Send { .. }
+            | StmtKind::Recv { .. }
     )
 }

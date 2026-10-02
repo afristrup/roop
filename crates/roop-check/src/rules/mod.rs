@@ -1,5 +1,6 @@
 mod ancilla;
 mod borrow;
+mod concurrent;
 mod control;
 mod enums;
 mod interference;
@@ -8,6 +9,7 @@ mod structs;
 
 pub use ancilla::*;
 pub use borrow::*;
+pub use concurrent::*;
 pub use control::*;
 pub use enums::*;
 pub use interference::*;

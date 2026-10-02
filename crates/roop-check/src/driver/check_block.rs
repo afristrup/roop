@@ -6,7 +6,12 @@ pub fn check_block(block: &Block) -> Result<(), CheckError> {
         check_parallel(stmt)?;
         match &stmt.kind {
             StmtKind::Update { target, value, .. } => check_update(target, value, stmt.span)?,
-            StmtKind::Swap(..) | StmtKind::Call { .. } | StmtKind::Uncall { .. } => {}
+            StmtKind::Swap(..)
+            | StmtKind::Call { .. }
+            | StmtKind::Uncall { .. }
+            | StmtKind::Send { .. }
+            | StmtKind::Recv { .. } => {}
+            StmtKind::Block(block) | StmtKind::Chan { body: block, .. } => check_block(block)?,
             StmtKind::If {
                 then_block,
                 else_block,

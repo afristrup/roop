@@ -58,6 +58,37 @@ pub enum CheckError {
         var: String,
         span: Span,
     },
+    ConcurrentNotBlock {
+        span: Span,
+    },
+    ConcurrentConflict {
+        var: String,
+        span: Span,
+    },
+    ChannelOpOutsideTask {
+        chan: String,
+        span: Span,
+    },
+    UnknownChannel {
+        chan: String,
+        span: Span,
+    },
+    ChannelOpInControlFlow {
+        chan: String,
+        span: Span,
+    },
+    ChannelNotPointToPoint {
+        chan: String,
+        span: Span,
+    },
+    ChannelDeadlock {
+        chan: String,
+        span: Span,
+    },
+    ChannelNotDrained {
+        chan: String,
+        span: Span,
+    },
     TryCannotFail {
         span: Span,
     },
@@ -127,6 +158,46 @@ impl fmt::Display for CheckError {
             Self::ParallelCrossIteration { var, span } => write!(
                 f,
                 "an access to `{var}` overlaps another iteration's write at {}..{}",
+                span.start, span.end
+            ),
+            Self::ConcurrentNotBlock { span } => write!(
+                f,
+                "#[concurrent] applies only to block statements at {}..{}",
+                span.start, span.end
+            ),
+            Self::ConcurrentConflict { var, span } => write!(
+                f,
+                "concurrent tasks share `{var}`, and one of them writes it, at {}..{}",
+                span.start, span.end
+            ),
+            Self::ChannelOpOutsideTask { chan, span } => write!(
+                f,
+                "channel `{chan}` is used outside a #[concurrent] task at {}..{}",
+                span.start, span.end
+            ),
+            Self::UnknownChannel { chan, span } => write!(
+                f,
+                "channel `{chan}` is not declared by an enclosing chan at {}..{}",
+                span.start, span.end
+            ),
+            Self::ChannelOpInControlFlow { chan, span } => write!(
+                f,
+                "channel `{chan}` is used under if, match, loop or try inside a task, so its protocol is not static, at {}..{}",
+                span.start, span.end
+            ),
+            Self::ChannelNotPointToPoint { chan, span } => write!(
+                f,
+                "channel `{chan}` must have one sending task and one receiving task at {}..{}",
+                span.start, span.end
+            ),
+            Self::ChannelDeadlock { chan, span } => write!(
+                f,
+                "tasks deadlock waiting on channel `{chan}` at {}..{}",
+                span.start, span.end
+            ),
+            Self::ChannelNotDrained { chan, span } => write!(
+                f,
+                "channel `{chan}` still holds messages when its tasks finish at {}..{}",
                 span.start, span.end
             ),
             Self::TryCannotFail { span } => write!(

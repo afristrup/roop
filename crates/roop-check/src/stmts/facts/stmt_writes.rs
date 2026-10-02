@@ -11,6 +11,10 @@ pub fn stmt_writes<'a>(stmt: &'a Stmt, out: &mut HashSet<&'a str>) {
             out.insert(place_root(a));
             out.insert(place_root(b));
         }
+        StmtKind::Send { source: p, .. } | StmtKind::Recv { target: p, .. } => {
+            out.insert(place_root(p));
+        }
+        StmtKind::Block(block) | StmtKind::Chan { body: block, .. } => block_writes(block, out),
         StmtKind::Call { args, .. } | StmtKind::Uncall { args, .. } => {
             for arg in args {
                 if let Expr::Place(place) = arg {

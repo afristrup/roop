@@ -38,12 +38,24 @@ pub fn inverts(a: &StmtKind, b: &StmtKind) -> bool {
             },
         ) => ca == cb && aa == ab,
         (
-            StmtKind::Send { chan: ca, source: pa },
-            StmtKind::Recv { chan: cb, target: pb },
+            StmtKind::Send {
+                chan: ca,
+                source: pa,
+            },
+            StmtKind::Recv {
+                chan: cb,
+                target: pb,
+            },
         )
         | (
-            StmtKind::Recv { chan: ca, target: pa },
-            StmtKind::Send { chan: cb, source: pb },
+            StmtKind::Recv {
+                chan: ca,
+                target: pa,
+            },
+            StmtKind::Send {
+                chan: cb,
+                source: pb,
+            },
         ) => ca == cb && pa == pb,
         _ => false,
     }
