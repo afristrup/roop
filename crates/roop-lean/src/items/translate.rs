@@ -103,6 +103,7 @@ fn translate_fn(cx: &Ctx, def: &FnDef, deps: &[String]) -> Result<Piece, LeanErr
     Ok(Piece {
         text,
         reversible,
+        inexact,
         open,
     })
 }
