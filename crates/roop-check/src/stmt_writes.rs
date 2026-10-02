@@ -26,6 +26,10 @@ pub fn stmt_writes<'a>(stmt: &'a Stmt, out: &mut HashSet<&'a str>) {
             block_writes(then_block, out);
             block_writes(else_block, out);
         }
+        StmtKind::Try { body, handler } => {
+            block_writes(body, out);
+            block_writes(handler, out);
+        }
         StmtKind::Match { arms, .. } => {
             for arm in arms {
                 block_writes(&arm.body, out);

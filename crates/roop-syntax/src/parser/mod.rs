@@ -14,6 +14,7 @@ mod place;
 mod program;
 mod stmt;
 mod struct_def;
+mod try_stmt;
 mod ty;
 
 use binary_level::binary_level;
@@ -31,6 +32,7 @@ use pattern::pattern;
 use place::place;
 use stmt::stmt;
 use struct_def::struct_def;
+use try_stmt::try_stmt;
 use ty::ty;
 
 pub use program::program;

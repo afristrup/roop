@@ -1,8 +1,10 @@
+mod can_roll_back;
 mod check;
 mod check_ancilla;
 mod check_block;
 mod check_match;
 mod check_struct;
+mod check_try;
 mod check_update;
 mod error;
 mod expr_places;
@@ -17,10 +19,12 @@ mod places_overlap;
 mod stmt_reads;
 mod stmt_writes;
 
+use can_roll_back::can_roll_back;
 use check_ancilla::check_ancilla;
 use check_block::check_block;
 use check_match::check_match;
 use check_struct::check_struct;
+use check_try::check_try;
 use check_update::check_update;
 use expr_places::expr_places;
 use expr_vars::expr_vars;

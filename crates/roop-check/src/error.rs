@@ -7,6 +7,7 @@ pub enum CheckError {
     AncillaNotRestored { name: String, span: Span },
     AncillaTouchedInControlFlow { name: String, span: Span },
     NonExhaustiveMatch { span: Span },
+    TryCannotFail { span: Span },
     UnpairedBuild { name: String, span: Span },
     UnbuildNotInverse { name: String, span: Span },
 }
@@ -27,6 +28,11 @@ impl fmt::Display for CheckError {
             Self::AncillaTouchedInControlFlow { name, span } => write!(
                 f,
                 "ancilla `{name}` is modified inside control flow at {}..{}",
+                span.start, span.end
+            ),
+            Self::TryCannotFail { span } => write!(
+                f,
+                "try body has no exit assertion or call that could roll back at {}..{}",
                 span.start, span.end
             ),
             Self::UnpairedBuild { name, span } => write!(

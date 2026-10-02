@@ -18,6 +18,10 @@ pub enum StmtKind {
         scrutinee: Expr,
         arms: Vec<MatchArm>,
     },
+    Try {
+        body: Block,
+        handler: Block,
+    },
     From {
         entry: Expr,
         body: Block,

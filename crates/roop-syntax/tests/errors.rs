@@ -30,3 +30,8 @@ fn rejects_match_arm_without_exit_assertion() {
 fn rejects_empty_match() {
     assert!(parse("rev fn f(x: &mut i64) { match x { } }").is_err());
 }
+
+#[test]
+fn rejects_try_without_handler() {
+    assert!(parse("rev fn f(x: &mut i64) { try { x += 1; } }").is_err());
+}

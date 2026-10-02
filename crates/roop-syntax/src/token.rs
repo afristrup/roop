@@ -35,6 +35,10 @@ pub enum Token<'a> {
     Uncall,
     #[token("mut")]
     Mut,
+    #[token("try")]
+    Try,
+    #[token("catch_rollback")]
+    CatchRollback,
     #[token("build")]
     Build,
     #[token("unbuild")]
