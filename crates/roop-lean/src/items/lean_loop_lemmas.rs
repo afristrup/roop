@@ -31,7 +31,6 @@ pub fn lean_loop_lemmas(info: &LoopInfo, deps: &[String], earlier: &[String]) ->
     };
 
     let mut text = String::new();
-    let mut lemmas: Vec<String> = earlier.to_vec();
     for part in ["body", "step"] {
         let (fwd, inv) = (esc_fn(&format!("{id}_{part}")), esc_fn(&format!("{id}_{part}_inv")));
         let mut unfold = vec![fwd.clone(), inv.clone()];
@@ -46,7 +45,7 @@ pub fn lean_loop_lemmas(info: &LoopInfo, deps: &[String], earlier: &[String]) ->
                 destructure(a),
                 destructure(b),
                 unfold_simp(&unfold, "h \u{22a2}"),
-                proof_script(&lemmas),
+                proof_script(earlier),
             ));
         }
     }
@@ -92,7 +91,5 @@ pub fn lean_loop_lemmas(info: &LoopInfo, deps: &[String], earlier: &[String]) ->
         lemma_of("body", "f_inv"),
         lemma_of("step", "f_inv"),
     ));
-    lemmas.push(inv_f.clone());
-    lemmas.push(f_inv.clone());
     (text, vec![inv_f, f_inv])
 }
