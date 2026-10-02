@@ -11,6 +11,7 @@ mod types;
 use ctx::*;
 use error::*;
 use exprs::*;
+use items::*;
 use names::*;
 use out::*;
 use stmts::*;
