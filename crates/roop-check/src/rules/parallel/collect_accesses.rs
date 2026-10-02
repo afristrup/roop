@@ -17,6 +17,9 @@ fn collect_stmt(stmt: &Stmt, scope: &mut Vec<Binding>, out: &mut Vec<Access>) {
     }
     match &stmt.kind {
         StmtKind::Update { target, .. } => written(target, scope, out),
+        StmtKind::Send { source: place, .. } | StmtKind::Recv { target: place, .. } => {
+            written(place, scope, out)
+        }
         StmtKind::Swap(a, b) => {
             written(a, scope, out);
             written(b, scope, out);
