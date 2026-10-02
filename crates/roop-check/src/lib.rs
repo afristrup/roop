@@ -8,7 +8,10 @@ mod stmts;
 pub use driver::check;
 pub use error::CheckError;
 pub use rules::check_parallel_body;
-pub use stmts::{BodyEffects, BodyFeatures, body_effects, body_features};
+pub use rules::{TaskItem, task_groups};
+pub use stmts::{
+    BodyEffects, BodyFeatures, body_effects, body_features, channels_used, contains_try,
+};
 
 use driver::*;
 use exprs::*;

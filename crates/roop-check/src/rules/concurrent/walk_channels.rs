@@ -1,4 +1,4 @@
-use crate::{CheckError, Item, analyse_group, child_blocks, task_groups};
+use crate::{CheckError, TaskItem, analyse_group, child_blocks, task_groups};
 use roop_syntax::{Block, StmtKind};
 
 /// Walks a function body checking every task group, and that each channel
@@ -10,7 +10,7 @@ pub fn walk_channels(
 ) -> Result<(), CheckError> {
     for item in task_groups(block) {
         match item {
-            Item::Group(tasks) => {
+            TaskItem::Group(tasks) => {
                 analyse_group(&tasks, declared)?;
                 for task in tasks {
                     for child in child_blocks(task) {
@@ -18,7 +18,7 @@ pub fn walk_channels(
                     }
                 }
             }
-            Item::Single(stmt) => match &stmt.kind {
+            TaskItem::Single(stmt) => match &stmt.kind {
                 StmtKind::Send { chan, .. } | StmtKind::Recv { chan, .. } => {
                     if !declared.contains(chan) {
                         return Err(CheckError::UnknownChannel {
