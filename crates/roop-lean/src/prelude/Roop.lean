@@ -140,12 +140,17 @@ theorem janus_inv {σ : Type} (E S : σ → Res Bool) (B P Bi Pi : σ → Res σ
       simp [runN_stop run, check, back]
 
 open Lean Elab Tactic Meta in
-/-- Applies a loop lemma to every hypothesis it accepts and keeps the results. -/
+/-- Applies a loop lemma to every hypothesis that mentions the same loop pieces
+as the lemma's premise, and keeps the results. -/
 elab "roop_loop " l:ident : tactic => withMainContext do
+  let needed ← forallTelescope (← getConstInfo l.getId).type fun xs _ => do
+    return (← inferType xs.back!).getUsedConstants
   for decl in (← getLCtx) do
     if decl.isImplementationDetail then continue
+    let present := decl.type.getUsedConstants
+    unless needed.all present.contains do continue
     try
-      let app ← withReducible (mkAppM l.getId #[decl.toExpr])
+      let app ← mkAppM l.getId #[decl.toExpr]
       let ty ← inferType app
       liftMetaTactic fun g => do
         let (_, g) ← (← g.assert `this ty app).intro1
