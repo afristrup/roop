@@ -1,0 +1,15 @@
+[package]
+name = "roop"
+edition.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "roop"
+path = "src/main.rs"
+
+[dependencies]
+roop-syntax = { path = "../roop-syntax" }
+roop-check = { path = "../roop-check" }
+roop-opt = { path = "../roop-opt" }
+roop-llvm = { path = "../roop-llvm" }
+roop-config = { path = "../roop-config" }
