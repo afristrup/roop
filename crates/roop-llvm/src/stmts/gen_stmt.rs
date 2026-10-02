@@ -1,6 +1,6 @@
 use crate::{
     CodegenError, Dialect, Dir, FnGen, gen_ancilla, gen_block, gen_borrow, gen_call, gen_chan,
-    gen_from, gen_if, gen_match, gen_overwrite, gen_parallel_auto, gen_parallel_cpu,
+    gen_from, gen_if, gen_logged, gen_match, gen_overwrite, gen_pop, gen_push, gen_parallel_auto, gen_parallel_cpu,
     gen_parallel_gpu, gen_recv, gen_send, gen_swap, gen_try, gen_update, parallel_attr,
 };
 use roop_syntax::{Stmt, StmtKind, Target};
@@ -50,7 +50,14 @@ pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError
         StmtKind::Borrow { name, source, body } => gen_borrow(g, name, source, body, dir),
         StmtKind::Call { callee, args } => gen_call(g, callee, args, false, dir),
         StmtKind::Uncall { callee, args } => gen_call(g, callee, args, true, dir),
-        StmtKind::Try { body, handler } => gen_try(g, body, handler, dir),
+        StmtKind::Try {
+            body,
+            handler,
+            outcome,
+        } => gen_try(g, body, handler, outcome.as_ref(), dir),
+        StmtKind::Push { stack, source } => gen_push(g, stack, source, dir),
+        StmtKind::Pop { stack, target } => gen_pop(g, stack, target, dir),
+        StmtKind::Logged { history, body } => gen_logged(g, history, body, dir),
         StmtKind::Block(body) => gen_block(g, body, dir),
         StmtKind::Irrev(body) => match dir {
             Dir::Forward => gen_block(g, body, dir),

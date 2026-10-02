@@ -9,7 +9,7 @@ pub fn has_f64(ctx: &Ctx, ty: &Type) -> bool {
             .structs
             .get(n.as_str())
             .is_some_and(|def| def.fields.iter().any(|f| has_f64(ctx, &f.ty))),
-        Type::Array(elem, _) => has_f64(ctx, elem),
+        Type::Array(elem, _) | Type::Stack(elem, _) => has_f64(ctx, elem),
         Type::Ref { inner, .. } => has_f64(ctx, inner),
     }
 }

@@ -6,6 +6,7 @@ mod gen_block;
 mod gen_stmt;
 mod parallel;
 mod scope;
+mod stack;
 
 pub use basic::*;
 pub use call::*;
@@ -15,3 +16,4 @@ pub use gen_block::*;
 pub use gen_stmt::*;
 pub use parallel::*;
 pub use scope::*;
+pub use stack::*;

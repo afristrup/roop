@@ -11,6 +11,9 @@ pub fn gen_expr(g: &mut FnGen, expr: &Expr) -> Result<Value, CodegenError> {
             reg: format!("0x{:016X}", f.to_bits()),
             ty: Type::Named("f64".into()),
         }),
+        Expr::Empty => Err(CodegenError::InvalidOperand(
+            "`empty` only starts an ancilla stack",
+        )),
         Expr::Bool(b) => Ok(Value {
             reg: b.to_string(),
             ty: bool_type(),

@@ -1,5 +1,5 @@
 use crate::{AbortMode, Ctx, Dialect, Kernel, Slot};
-use roop_syntax::Type;
+use roop_syntax::{Place, Type};
 
 /// Per-function emission state. Allocas are hoisted to the entry block.
 pub struct FnGen<'a> {
@@ -12,6 +12,8 @@ pub struct FnGen<'a> {
     /// Device kernels cannot trap; a failed assertion stores 1 here instead.
     pub error_flag: Option<String>,
     pub abort: AbortMode,
+    /// The history stacks of the enclosing `logged` blocks, innermost last.
+    pub logged: Vec<Place>,
     /// Channels in scope with their message types; each has a `chan:NAME`
     /// variable holding its handle so tasks can capture it.
     pub chan_types: Vec<(String, Type)>,
@@ -33,6 +35,7 @@ impl<'a> FnGen<'a> {
             dialect,
             error_flag: None,
             abort: AbortMode::Trap,
+            logged: Vec::new(),
             chan_types: Vec::new(),
             outlined: Vec::new(),
             kernels: Vec::new(),

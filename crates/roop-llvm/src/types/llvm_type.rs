@@ -16,5 +16,6 @@ pub fn llvm_type(ctx: &Ctx, ty: &Type) -> Result<String, CodegenError> {
         },
         Type::Ref { .. } => Ok("ptr".into()),
         Type::Array(elem, len) => Ok(format!("[{len} x {}]", llvm_type(ctx, elem)?)),
+        Type::Stack(elem, cap) => Ok(format!("{{ i64, [{cap} x {}] }}", llvm_type(ctx, elem)?)),
     }
 }
