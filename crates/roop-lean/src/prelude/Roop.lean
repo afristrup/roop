@@ -223,7 +223,7 @@ def Stack.pop {α : Type} [HasZero α] {n : Nat} (s : Stack α n) : Res (α × S
   else .error .outOfBounds
 
 theorem Stack.pop_push {α : Type} [HasZero α] [BEq α] [LawfulBEq α] {n : Nat}
-    (s s' : Stack α n) (x : α) (h : s.pop = .ok (x, s')) : s'.push x = .ok s := by
+    {s s' : Stack α n} {x : α} (h : s.pop = .ok (x, s')) : s'.push x = .ok s := by
   unfold Stack.pop at h
   split at h
   · rename_i hh
@@ -240,7 +240,7 @@ theorem Stack.pop_push {α : Type} [HasZero α] [BEq α] [LawfulBEq α] {n : Nat
 
 
 theorem Stack.push_pop {α : Type} [HasZero α] [BEq α] [LawfulBEq α] {n : Nat}
-    (s s' : Stack α n) (x : α) (h : s.push x = .ok s') : s'.pop = .ok (x, s) := by
+    {s s' : Stack α n} {x : α} (h : s.push x = .ok s') : s'.pop = .ok (x, s) := by
   unfold Stack.push at h
   split at h
   · rename_i hh
