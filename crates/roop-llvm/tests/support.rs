@@ -169,12 +169,3 @@ pub fn metallib(air_ir: &str) -> Option<Vec<u8>> {
     );
     std::fs::read(&lib).ok()
 }
-
-/// IR module defining the symbols the host code declares as external.
-pub fn metallib_blob_module(bytes: &[u8]) -> String {
-    let escaped: String = bytes.iter().map(|b| format!("\\{b:02X}")).collect();
-    format!(
-        "@roop_metallib = constant [{n} x i8] c\"{escaped}\"\n@roop_metallib_len = constant i64 {n}\n",
-        n = bytes.len()
-    )
-}
