@@ -131,7 +131,10 @@ pub fn lean_loop_lemmas(
     };
     for (name, order) in [
         ("loop_no_ancilla", ["entry", "stop", "body", "step"]),
-        ("loop_inv_no_ancilla", ["stop", "entry", "body_inv", "step_inv"]),
+        (
+            "loop_inv_no_ancilla",
+            ["stop", "entry", "body_inv", "step_inv"],
+        ),
     ] {
         let janus: Vec<String> = order.iter().map(|part| applied(part)).collect();
         let thm = esc_thm(&format!("{id}_{name}"));

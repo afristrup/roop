@@ -1,6 +1,6 @@
 use crate::{
-    LoopLemmas, esc, esc_fn, esc_thm, is_mut_ref, lean_type, proof_script, tuple_expr, tuple_proj, tuple_type,
-    unfold_simp,
+    LoopLemmas, esc, esc_fn, esc_thm, is_mut_ref, lean_type, proof_script, tuple_expr, tuple_proj,
+    tuple_type, unfold_simp,
 };
 use roop_syntax::{FnDef, Param};
 

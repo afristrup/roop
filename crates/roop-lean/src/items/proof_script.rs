@@ -28,7 +28,11 @@ pub fn proof_script(loop_lemmas: &LoopLemmas) -> String {
   all_goals (try subst_vars)
 "
     );
-    let rounds = if loop_lemmas.chain.is_empty() { 1 } else { ROUNDS };
+    let rounds = if loop_lemmas.chain.is_empty() {
+        1
+    } else {
+        ROUNDS
+    };
     format!(
         "  all_goals (try (repeat' (first | (split at *; all_goals (try simp [{simp}] at *)) | split)))
 {}  all_goals (try simp [{simp}] at *)

@@ -1,6 +1,6 @@
 use crate::{
-    Ctx, Dir, LoopLemmas, LeanError, PRELUDE, Translation, esc_fn, lean_enum, lean_fn, lean_loop_lemmas,
-    lean_struct, lean_theorems,
+    Ctx, Dir, LeanError, LoopLemmas, PRELUDE, Translation, esc_fn, lean_enum, lean_fn,
+    lean_loop_lemmas, lean_struct, lean_theorems,
 };
 use roop_check::is_irreversible_fn;
 use roop_syntax::{FnDef, Item, Program};
