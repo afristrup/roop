@@ -49,6 +49,9 @@ pub fn translate(program: &Program) -> Translation {
                     } else {
                         result.forward_only.push(def.name.clone());
                     }
+                    if piece.parallel {
+                        result.parallel.push(def.name.clone());
+                    }
                     lemmas.extend(piece.lemmas);
                 }
                 Err(LeanError::Unknown(what)) if what.starts_with("function") => {
@@ -79,6 +82,8 @@ struct Piece {
     text: String,
     reversible: bool,
     inexact: bool,
+    /// Whether a `#[parallel]` loop got its commutation theorem.
+    parallel: bool,
     /// Lemmas about the function's loops, for the proofs that come after.
     lemmas: LoopLemmas,
 }
@@ -94,6 +99,7 @@ fn translate_fn(
     let mut text = format!("{}{}", forward.lifted, forward.text);
     let mut known = lemmas.clone();
     let mut fresh = LoopLemmas::default();
+    let mut parallel = false;
     let mut inexact = text.contains("Float");
     if reversible {
         let backward = lean_fn(cx, def, Dir::Backward)?;
@@ -105,6 +111,10 @@ fn translate_fn(
             for info in &forward.loops {
                 let (lemma_text, names) = lean_loop_lemmas(info, deps, &known);
                 text.push_str(&lemma_text);
+                if let Some(commute) = lean_commute(info, deps, &known) {
+                    text.push_str(&commute);
+                    parallel = true;
+                }
                 known.extend(names.clone());
                 fresh.extend(names);
             }
@@ -117,6 +127,7 @@ fn translate_fn(
         text,
         reversible,
         inexact,
+        parallel,
         lemmas: fresh,
     })
 }
