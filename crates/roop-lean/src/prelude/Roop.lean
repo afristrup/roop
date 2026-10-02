@@ -206,4 +206,14 @@ elab "roop_loop " l:ident : tactic => withMainContext do
           return [g]
     catch _ => pure ()
 
+open Lean Elab Tactic Meta in
+/-- Case split on the first conditional in the goal whose condition is closed. -/
+elab "roop_cases" : tactic => withMainContext do
+  let target ← instantiateMVars (← getMainTarget)
+  let found := target.find? fun e =>
+    (e.isAppOfArity ``dite 5 || e.isAppOfArity ``ite 5) && !(e.getArg! 1).hasLooseBVars
+  let some e := found | throwError "no conditional left"
+  let cond ← Term.exprToSyntax (e.getArg! 1)
+  evalTactic (← `(tactic| by_cases h : $cond))
+
 end Roop
