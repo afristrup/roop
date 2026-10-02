@@ -1,6 +1,6 @@
 use crate::{
     CodegenError, Dialect, Dir, FnGen, Kernel, KernelArg, Slot, gen_block, kernel_prologue, layout,
-    llvm_type, mem_store, ptr_type,
+    llvm_type, mem_store, params_space, ptr_type,
 };
 use roop_syntax::{Block, Type};
 
