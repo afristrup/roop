@@ -26,7 +26,7 @@ pub fn proof_script(loop_lemmas: &LoopLemmas) -> String {
         "  all_goals (try simp [{simp}] at *)
   all_goals (try subst_vars)
   all_goals (try roop_uncycle)
-{loops}  all_goals (try simp_all [{simp}])
+{loops}  all_goals (first | roop_catch (simp_all [{simp}]) | (try simp_all [{with_ext}]))
   all_goals (try subst_vars)
 "
     );

@@ -386,4 +386,10 @@ elab "roop_uncycle" : tactic => withMainContext do
         let h ← Term.exprToSyntax decl.toExpr
         evalTactic (← `(tactic| simp only [Prod.ext_iff] at $h:term))
 
+open Lean Elab Tactic in
+/-- Runs a tactic, turning running out of recursion depth, which `first` does
+not recover from, into an ordinary failure. -/
+elab "roop_catch " t:tactic : tactic =>
+  tryCatchRuntimeEx (evalTactic t) fun _ => throwError "recursion limit"
+
 end Roop
