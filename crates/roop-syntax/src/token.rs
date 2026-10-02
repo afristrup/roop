@@ -35,6 +35,10 @@ pub enum Token<'a> {
     Uncall,
     #[token("mut")]
     Mut,
+    #[token("build")]
+    Build,
+    #[token("unbuild")]
+    Unbuild,
     #[token("match")]
     Match,
     #[token("assert")]

@@ -1,5 +1,6 @@
 mod bin_op;
 mod block;
+mod build_fn;
 mod expr;
 mod field;
 mod fn_def;
@@ -18,6 +19,7 @@ mod update_op;
 
 pub use bin_op::BinOp;
 pub use block::Block;
+pub use build_fn::BuildFn;
 pub use expr::Expr;
 pub use field::Field;
 pub use fn_def::FnDef;

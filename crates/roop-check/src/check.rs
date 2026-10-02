@@ -1,10 +1,12 @@
-use super::{CheckError, check_block};
+use super::{CheckError, check_block, check_struct};
 use roop_syntax::{Item, Program};
 
 pub fn check(program: &Program) -> Result<(), CheckError> {
     for item in &program.items {
-        if let Item::Fn(f) = item {
-            check_block(&f.body)?;
+        match item {
+            Item::Fn(f) => check_block(&f.body)?,
+            Item::Struct(def) => check_struct(def)?,
+            Item::Mod(_) | Item::Use(_) => {}
         }
     }
     Ok(())

@@ -7,6 +7,8 @@ pub enum CheckError {
     AncillaNotRestored { name: String, span: Span },
     AncillaTouchedInControlFlow { name: String, span: Span },
     NonExhaustiveMatch { span: Span },
+    UnpairedBuild { name: String, span: Span },
+    UnbuildNotInverse { name: String, span: Span },
 }
 
 impl fmt::Display for CheckError {
@@ -25,6 +27,16 @@ impl fmt::Display for CheckError {
             Self::AncillaTouchedInControlFlow { name, span } => write!(
                 f,
                 "ancilla `{name}` is modified inside control flow at {}..{}",
+                span.start, span.end
+            ),
+            Self::UnpairedBuild { name, span } => write!(
+                f,
+                "struct `{name}` must define both build and unbuild at {}..{}",
+                span.start, span.end
+            ),
+            Self::UnbuildNotInverse { name, span } => write!(
+                f,
+                "unbuild of `{name}` is not provably the inverse of build at {}..{}",
                 span.start, span.end
             ),
             Self::NonExhaustiveMatch { span } => write!(

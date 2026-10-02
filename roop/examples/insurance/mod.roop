@@ -2,6 +2,14 @@ rev struct Policy {
     premium: i64,
     reserve: i64,
     claims: i64,
+    build(initial: &i64) {
+        self.premium += initial;
+        self.reserve += initial;
+    }
+    unbuild(initial: &i64) {
+        self.reserve -= initial;
+        self.premium -= initial;
+    }
 }
 
 rev fn collect(p: &mut Policy, payment: &i64) {

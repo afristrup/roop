@@ -1,5 +1,6 @@
 mod binary_level;
 mod block;
+mod build_fn;
 mod comma_list;
 mod err;
 mod expr;
@@ -7,14 +8,17 @@ mod ident;
 mod input;
 mod item;
 mod match_stmt;
+mod param;
 mod pattern;
 mod place;
 mod program;
 mod stmt;
+mod struct_def;
 mod ty;
 
 use binary_level::binary_level;
 use block::block;
+use build_fn::build_fn;
 use comma_list::comma_list;
 use err::Err;
 use expr::expr;
@@ -22,9 +26,11 @@ use ident::ident;
 use input::TokenInput;
 use item::item;
 use match_stmt::match_stmt;
+use param::param;
 use pattern::pattern;
 use place::place;
 use stmt::stmt;
+use struct_def::struct_def;
 use ty::ty;
 
 pub use program::program;
