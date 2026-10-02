@@ -117,7 +117,7 @@ int main(void) {
     assert_eq!(run(src, main), 0);
 }
 
-const GUARDED: &str = "fn guarded(x: &mut i64, y: &mut i64, z: &mut i64, w: &mut i64) {
+const GUARDED: &str = "irrev fn guarded(x: &mut i64, y: &mut i64, z: &mut i64, w: &mut i64) {
     try {
         chan c: i64 {
             #[concurrent] { x += 5; send c <- y; }
@@ -158,7 +158,7 @@ int main(void) {
 
 #[test]
 fn a_task_that_fails_before_sending_does_not_leave_its_peer_waiting_forever() {
-    let src = "fn stuck(x: &mut i64, y: &mut i64, z: &mut i64, w: &mut i64) {
+    let src = "irrev fn stuck(x: &mut i64, y: &mut i64, z: &mut i64, w: &mut i64) {
         try {
             chan c: i64 {
                 #[concurrent] { if x > 100 { w += 1; } fi w > 0; send c <- y; }
@@ -180,7 +180,7 @@ int main(void) {
 
 #[test]
 fn a_sequential_try_restores_what_it_wrote() {
-    let src = "fn t(x: &mut i64, y: &mut i64, z: &mut i64) {
+    let src = "irrev fn t(x: &mut i64, y: &mut i64, z: &mut i64) {
         try {
             y += 5;
             if x > 0 { y += 1; } fi y > 100;
@@ -200,7 +200,7 @@ int main(void) {
 
 #[test]
 fn a_failure_inside_a_parallel_loop_rolls_back_arrays_written_by_worker_threads() {
-    let src = "fn t(a: &mut [i64; 64], s: &mut i64, i: &mut i64) {
+    let src = "irrev fn t(a: &mut [i64; 64], s: &mut i64, i: &mut i64) {
         try {
             #[parallel(cpu)] from i == 0 {
                 a[i] += 10;
@@ -224,7 +224,7 @@ int main(void) {
 
 #[test]
 fn nested_tries_roll_back_to_the_innermost_checkpoint() {
-    let src = "fn t(x: &mut i64, y: &mut i64, z: &mut i64) {
+    let src = "irrev fn t(x: &mut i64, y: &mut i64, z: &mut i64) {
         try {
             x += 1;
             try {
@@ -248,22 +248,8 @@ int main(void) {
 }
 
 #[test]
-fn a_function_containing_try_has_no_inverse() {
-    let src = "fn t(x: &mut i64, y: &mut i64) {
-        try { if x > 0 { y += 1; } fi y > 0; } catch_rollback { y += 2; }
-    }
-    fn u(x: &mut i64, y: &mut i64) { uncall t(x, y); }";
-    let program = roop_syntax::parse(src).unwrap();
-    roop_check::check(&program).unwrap();
-    let err = roop_llvm::compile_all(&program, &Options::default())
-        .err()
-        .unwrap();
-    assert!(err.to_string().contains("containing try backward"), "{err}");
-}
-
-#[test]
-fn undeclared_inverse_symbol_is_not_emitted_for_try_functions() {
-    let src = "fn t(x: &mut i64, y: &mut i64) {
+fn irreversible_functions_get_no_inverse_symbol() {
+    let src = "irrev fn t(x: &mut i64, y: &mut i64) {
         try { if x > 0 { y += 1; } fi y > 0; } catch_rollback { y += 2; }
     }";
     let ir = support::ir(src);
