@@ -1,5 +1,5 @@
-mod loop_info;
+mod lifted;
 mod writer;
 
-pub use loop_info::*;
+pub use lifted::*;
 pub use writer::*;

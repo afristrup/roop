@@ -5,9 +5,9 @@ use crate::Lifted;
 pub struct Out {
     pub text: String,
     pub indent: usize,
-    /// Top-level definitions the text refers to: the pieces of loops.
+    /// Top-level definitions the text refers to: the parts of loops and tries.
     pub lifted: String,
-    /// Loops translated so far, inner loops before the loops around them.
+    /// Loops and tries translated so far, inner ones before those around them.
     pub pieces: Vec<Lifted>,
     /// Ancillas whose restoration is checked, forward or backward.
     pub ancillas: usize,
