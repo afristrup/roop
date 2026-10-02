@@ -26,6 +26,7 @@ fn collect_stmt(stmt: &Stmt, scope: &mut Vec<Binding>, out: &mut Vec<Access>) {
             written(stack, scope, out);
             written(place, scope, out);
         }
+        StmtKind::Logged { history, .. } => written(history, scope, out),
         StmtKind::Swap(a, b) => {
             written(a, scope, out);
             written(b, scope, out);
