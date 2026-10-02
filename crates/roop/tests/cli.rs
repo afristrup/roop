@@ -217,8 +217,8 @@ fn lean_subcommand_writes_a_model_and_reports_what_it_proved() {
     let out = roop(&dir, &["lean", "prog.roop", "--check"]);
     assert!(out.status.success(), "{}", stderr(&out));
     let report = String::from_utf8_lossy(&out.stdout).into_owned();
-    assert!(report.contains("1 of 2 functions"), "{report}");
-    assert!(report.contains("count_inv_f"), "{report}");
+    assert!(report.contains("proved by Lean: add, count"), "{report}");
+    assert!(!report.contains("open"), "{report}");
     assert!(report.contains("forward model only: wipe"), "{report}");
     assert!(report.contains("skipped pipe"), "{report}");
     assert!(report.contains("Lean accepted the file"), "{report}");
