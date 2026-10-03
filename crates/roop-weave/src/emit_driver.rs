@@ -23,10 +23,10 @@ pub fn emit_driver(model: &Model, batch: usize) -> String {
     }
     pointers.extend(
         [
-            "q",
-            "p",
-            "aq",
-            "ap",
+            "(int64_t*)q",
+            "(int64_t*)p",
+            "(int64_t*)aq",
+            "(int64_t*)ap",
             "(int64_t*)xs",
             "(int64_t*)ts",
             "&rate",
@@ -47,7 +47,7 @@ pub fn emit_driver(model: &Model, batch: usize) -> String {
 #include <stdio.h>
 #include <stdlib.h>
 
-{declare}static int64_t q[{n}], p[{n}], aq[{n}], ap[{n}];
+{declare}static int64_t q[{batch}][{n}], p[{batch}][{n}], aq[{batch}][{n}], ap[{batch}][{n}];
 static int64_t xs[{batch}][{n}], ts[{batch}][{k}];
 
 void {name}_train({types});

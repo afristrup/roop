@@ -167,4 +167,93 @@ code at 1M elements and up is identical with `auto` on or off, and the differenc
 in the first table was run-to-run noise. The cost model's GPU side, calibrated for
 64-bit integer loops, has not been re-checked.
 
-Not measured: CUDA benchmark results are not included yet.
+Not measured: CUDA, since the launcher has not run on NVIDIA hardware.
+
+## weave's training step
+
+One step of gradient descent on 32 samples through 8 leapfrog layers of width 64
+(the cauchy force, 4 outputs), the network of `throughput_of_a_training_step` in
+`crates/roop/tests/weave.rs`. Run `python3 bench/weave_speed.py --baseline
+CHECKOUT` (a checkout of the commit to compare with, built in release); it builds
+each variant of the roop program, times the Rust baselines of
+`bench/native/weave_speed.rs`, and prints this table. Each figure is the best of
+several rounds of ten steps with the first round dropped. The machine was an
+Apple M4 that other work was using (load average 7 to 8 at the start, and the
+figures moved by up to 10 per cent between two runs; the earliest measurements,
+taken at a load of 15 to 80, moved by a factor of two, and none of them are used
+here), so read the ratios and not the digits.
+
+| | samples/s | ms a step |
+|:---|---:|---:|
+| before (`feat/torch-to-weave` with the dgemm and daxpy kernels): one sample at a time | 2200 to 2350 | 13.6 to 14.8 |
+| one sample at a time, ancillas computed backward | 1700 to 1930 | 16.6 to 18.9 |
+| one sample at a time | 6470 to 6590 | 4.9 |
+| the batch as matrix products, as loops | 1450 to 1520 | 21 to 22 |
+| the batch, ancillas zeroed, as loops | 6050 to 6080 | 5.3 |
+| the batch, ancillas zeroed, matrix kernels | 25600 to 26100 | 1.23 to 1.25 |
+| the batch in 2 chunks on threads | 32700 to 34500 | 0.93 to 0.98 |
+| the batch in 4 chunks on threads | 18300 to 19700 | 1.6 to 1.75 |
+| Rust, integers, one sample at a time | 6970 to 7150 | 4.5 |
+| Rust, integers, the batch as matrices | 7190 to 7480 | 4.3 to 4.45 |
+| Rust, integers, the batch in 10 chunks | 24200 to 24700 | 1.3 |
+| Rust, doubles, one sample at a time | 7540 to 7580 | 4.2 |
+| Rust, doubles, the batch in 10 chunks | 26100 to 27700 | 1.2 |
+| Accelerate, doubles, the batch as `dgemm` | 47100 to 48000 | 0.67 |
+| Accelerate, doubles, the batch in 10 chunks | 34000 to 34900 | 0.92 |
+
+The first row is the old code, with the old arithmetic. Every roop row below it
+runs the new code, and all of them end three steps with the same weights, to the
+bit (checksum 6843866773079962822), which is also what the Rust integer version
+ends with after three steps: roop's reversible step and hand-written Rust that
+stores its activations compute the same numbers. Memory does not grow with the
+depth in any roop row.
+
+What each change is worth, in the order they were made:
+
+- **Zeroing ancillas.** The old code, run one sample at a time, spent most of its
+  time computing intermediates backward to restore them. When a `call f(w, ..)`
+  made an ancilla and an `uncall f(w, ..)` takes it off, with nothing between
+  that changes what `f` read and `f` writing nothing else, the compiler now sets
+  the ancilla to zero (`[optimize] clear_ancillas`, on by default). Running
+  backward it does the same to the other statement. The two rows differ by a
+  factor of 3.4 to 3.8 with this alone, and it needs no particular kind of
+  program.
+- **Wide contractions.** The old contractions divided every product by 4096
+  before adding. A sum cannot be given to the matrix unit that way, so weave's
+  contractions (`q12w` in `einsum`) add the products exactly in 64 bits and divide
+  the sum once, which is also more accurate. It is not the same arithmetic as
+  before, and the gradient of a matrix is now in Q24, the sums of the products
+  that `adjoint` adds up. This is what takes the old 2200 samples a second to the
+  new 1700 to 1900 when everything else is off (the same loops, with a pass to
+  scale and a scratch array added), and it is the price of the next row.
+- **Batching.** Run as loops, the batch is as fast as one sample at a time, since
+  the same multiply-adds are done. It pays when the products are matrices: the
+  compiler recognizes the loops of `imatmul`, `imatmul_nt` and `imatmul_tn` and
+  calls a kernel that converts the integers to doubles, which hold them exactly
+  when every product and sum is below 2^52 (otherwise it runs the loops), runs
+  PR 13's SME `dgemm`, and converts back. A 32 by 64 by 64 product takes 6 to 9
+  microseconds that way and about 80 as loops, in a C harness; the step goes from
+  6000 to 26000 samples a second. For `q12`, which divides every product,
+  doubles cannot be summed, and a NEON kernel (`roop_q12_matmul`, about 3 to 4
+  times faster than the loops, exact and falling back to loops outside the range
+  the doubles hold) is used; weave no longer calls it, but `qmatmul` and the
+  other `q12` einsums do.
+- **Threads.** `weave::step_parallel` splits the batch into chunks, each with its
+  own gradients, runs them with `#[parallel(cpu)]` and adds the gradients up,
+  which gives, to the bit, the weights of one batch. Two chunks of 16 help (about
+  1.3 times), four of 8 hurt, because the SME unit is shared by the cores of a
+  cluster, the matrix products of a small chunk spend more of their time on
+  conversions than on the unit, and each chunk repeats the weights' conversions.
+  On a quiet machine four chunks gave 26000 to 38000 in earlier runs; with the
+  other work on this machine the figure was not stable, and the table is the
+  run that was.
+
+Caveats. The Rust rows are what an idiomatic Rust program does, with iterators
+and no intrinsics, in the same arithmetic as roop or in doubles; a tuned integer
+Rust program could use the same trick of summing in doubles. Accelerate's
+`dgemm` is not reversible and keeps its activations; it is 1.8 times faster than
+roop's best single-thread step, which is the answer to whether a reversible step
+can match it: not here. The old row is `0baf7b8`, built from a `git archive` into
+its own target directory. Other work on the machine, including Lean runs, was
+active throughout, and the numbers that were taken when the load average was
+above 15 are not reported.

@@ -13,7 +13,7 @@ pub struct BodyEffects {
 
 pub fn body_effects(block: &Block) -> BodyEffects {
     let mut accesses = Vec::new();
-    collect_accesses(block, &mut Vec::<Binding>::new(), &mut accesses);
+    collect_accesses(block, &mut Vec::<Binding>::new(), &mut accesses, None);
     let mut effects = BodyEffects::default();
     for access in accesses.iter().filter(|a| !a.local) {
         let root = place_root(&access.place).to_string();

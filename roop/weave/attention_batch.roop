@@ -1,0 +1,130 @@
+// The attention block of `attn` on a batch of samples: the state is B rows of
+// N = S * D numbers, each read as S rows of D, and every contraction is one
+// einsum with a batch label. The gradients added are the sums of what each
+// sample adds, term for term.
+
+use einsum::wattend;
+use einsum::wattend_t;
+use einsum::wproject;
+use einsum::wscores;
+use einsum::wunproject;
+use einsum::iweight_grad;
+use super::attention::*;
+
+// m += x read as S rows of D numbers, for each sample
+pub fn fold_batch<S, D, N, B>(m: &mut [[[i64; D]; S]; B], x: &[[i64; N]; B]) {
+    ancilla r: i64 = 0;
+    from r == 0 { call fold<S, D, N>(m[r], x[r]); } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// x += m written as one row of S * D numbers, for each sample
+pub fn unfold_batch<S, D, N, B>(x: &mut [[i64; N]; B], m: &[[[i64; D]; S]; B]) {
+    ancilla r: i64 = 0;
+    from r == 0 { call unfold<S, D, N>(x[r], m[r]); } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// y += attention of x for each sample, with the intermediates undone.
+pub fn attn_batch<S, D, N, B>(
+    y: &mut [[i64; N]; B],
+    wq: &[[i64; D]; D],
+    wk: &[[i64; D]; D],
+    wv: &[[i64; D]; D],
+    x: &[[i64; N]; B],
+) {
+    ancilla xm: [[[i64; D]; S]; B] = 0;
+    ancilla q: [[[i64; D]; S]; B] = 0;
+    ancilla k: [[[i64; D]; S]; B] = 0;
+    ancilla v: [[[i64; D]; S]; B] = 0;
+    ancilla a: [[[i64; S]; S]; B] = 0;
+    ancilla o: [[[i64; D]; S]; B] = 0;
+    call fold_batch<S, D, N, B>(xm, x);
+    call wproject(q, xm, wq);
+    call wproject(k, xm, wk);
+    call wproject(v, xm, wv);
+    call wscores(a, q, k);
+    call wattend(o, a, v);
+    call unfold_batch<S, D, N, B>(y, o);
+    uncall wattend(o, a, v);
+    uncall wscores(a, q, k);
+    uncall wproject(v, xm, wv);
+    uncall wproject(k, xm, wk);
+    uncall wproject(q, xm, wq);
+    uncall fold_batch<S, D, N, B>(xm, x);
+}
+
+// With u the adjoint of what `attn_batch` added to, adds the adjoint of x to ax
+// and the gradients of the three weights, summed over the samples.
+pub fn attn_vjp_batch<S, D, N, B>(
+    ax: &mut [[i64; N]; B],
+    gwq: &mut [[i64; D]; D],
+    gwk: &mut [[i64; D]; D],
+    gwv: &mut [[i64; D]; D],
+    u: &[[i64; N]; B],
+    wq: &[[i64; D]; D],
+    wk: &[[i64; D]; D],
+    wv: &[[i64; D]; D],
+    x: &[[i64; N]; B],
+) {
+    ancilla xm: [[[i64; D]; S]; B] = 0;
+    ancilla q: [[[i64; D]; S]; B] = 0;
+    ancilla k: [[[i64; D]; S]; B] = 0;
+    ancilla v: [[[i64; D]; S]; B] = 0;
+    ancilla a: [[[i64; S]; S]; B] = 0;
+    ancilla du: [[[i64; D]; S]; B] = 0;
+    ancilla da: [[[i64; S]; S]; B] = 0;
+    ancilla dq: [[[i64; D]; S]; B] = 0;
+    ancilla dk: [[[i64; D]; S]; B] = 0;
+    ancilla dv: [[[i64; D]; S]; B] = 0;
+    ancilla dxm: [[[i64; D]; S]; B] = 0;
+    call fold_batch<S, D, N, B>(xm, x);
+    call wproject(q, xm, wq);
+    call wproject(k, xm, wk);
+    call wproject(v, xm, wv);
+    call wscores(a, q, k);
+    call fold_batch<S, D, N, B>(du, u);
+    call wscores(da, du, v);
+    call wattend_t(dv, a, du);
+    call wattend(dq, da, k);
+    call wattend_t(dk, da, q);
+    call wunproject(dxm, dq, wq);
+    call wunproject(dxm, dk, wk);
+    call wunproject(dxm, dv, wv);
+    call unfold_batch<S, D, N, B>(ax, dxm);
+    call iweight_grad(gwq, dq, xm);
+    call iweight_grad(gwk, dk, xm);
+    call iweight_grad(gwv, dv, xm);
+    uncall wunproject(dxm, dv, wv);
+    uncall wunproject(dxm, dk, wk);
+    uncall wunproject(dxm, dq, wq);
+    uncall wattend_t(dk, da, q);
+    uncall wattend(dq, da, k);
+    uncall wattend_t(dv, a, du);
+    uncall wscores(da, du, v);
+    uncall fold_batch<S, D, N, B>(du, u);
+    uncall wscores(a, q, k);
+    uncall wproject(v, xm, wv);
+    uncall wproject(k, xm, wk);
+    uncall wproject(q, xm, wq);
+    uncall fold_batch<S, D, N, B>(xm, x);
+}
+
+// The backward step of `attn_batch`: on entry y is the output and ay its
+// adjoint; on exit y is what it was before, and ax and the gradients have been
+// added to.
+pub fn attn_back_batch<S, D, N, B>(
+    y: &mut [[i64; N]; B],
+    ay: &[[i64; N]; B],
+    ax: &mut [[i64; N]; B],
+    gwq: &mut [[i64; D]; D],
+    gwk: &mut [[i64; D]; D],
+    gwv: &mut [[i64; D]; D],
+    wq: &[[i64; D]; D],
+    wk: &[[i64; D]; D],
+    wv: &[[i64; D]; D],
+    x: &[[i64; N]; B],
+) {
+    call attn_vjp_batch<S, D, N, B>(ax, gwq, gwk, gwv, ay, wq, wk, wv, x);
+    uncall attn_batch<S, D, N, B>(y, wq, wk, wv, x);
+}

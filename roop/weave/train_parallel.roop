@@ -1,0 +1,104 @@
+// Training on several batches at once, one for each thread: a batch of B
+// samples is a chunk, and C chunks run side by side, each with its own buffers
+// and its own gradients. The gradients are integers, so adding them up after
+// the loop gives, to the bit, what one batch of C * B samples would.
+
+use super::kernels::*;
+use super::net::*;
+use super::net_batch::*;
+use super::rows::*;
+use super::train::*;
+use super::train_batch::*;
+
+// gw += hw and gb += hb
+pub fn add_grads<N, M, L>(
+    gw: &mut [[[i64; N]; M]; L],
+    gb: &mut [[i64; M]; L],
+    hw: &[[[i64; N]; M]; L],
+    hb: &[[i64; M]; L],
+) {
+    ancilla l: i64 = 0;
+    from l == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            gb[l][j] += hb[l][j];
+            call add_vec<N>(gw[l][j], hw[l][j]);
+        } loop { j += 1; } until j == M - 1;
+        j -= M - 1;
+    } loop { l += 1; } until l == L - 1;
+    l -= L - 1;
+}
+
+// The loss of a chunk and its gradients, with the input read in and given back.
+pub fn grad_chunk<N, M, L, K, B>(
+    total: &mut i64,
+    q: &mut [[i64; N]; B],
+    p: &mut [[i64; N]; B],
+    aq: &mut [[i64; N]; B],
+    ap: &mut [[i64; N]; B],
+    gw: &mut [[[i64; N]; M]; L],
+    gb: &mut [[i64; M]; L],
+    ws: &[[[i64; N]; M]; L],
+    bs: &[[i64; M]; L],
+    xs: &[[i64; N]; B],
+    ts: &[[i64; K]; B],
+    h: &i64,
+    kind: &i64,
+) {
+    call add_rows<N, B>(q, xs);
+    call grad_batch<N, M, L, K, B>(total, q, p, aq, ap, gw, gb, ws, bs, h, kind, ts);
+    uncall add_rows<N, B>(q, xs);
+}
+
+// One step of gradient descent on C chunks of B samples. The chunks are run on
+// threads. `totals` collects each chunk's loss, `tw` and `tb` are scratch for
+// the summed gradients, and every buffer starts at zero and is left at zero.
+pub irrev fn step_parallel<N, M, L, K, B, C>(
+    totals: &mut [i64; C],
+    ws: &mut [[[i64; N]; M]; L],
+    bs: &mut [[i64; M]; L],
+    gw: &mut [[[[i64; N]; M]; L]; C],
+    gb: &mut [[[i64; M]; L]; C],
+    tw: &mut [[[i64; N]; M]; L],
+    tb: &mut [[i64; M]; L],
+    q: &mut [[[i64; N]; B]; C],
+    p: &mut [[[i64; N]; B]; C],
+    aq: &mut [[[i64; N]; B]; C],
+    ap: &mut [[[i64; N]; B]; C],
+    xs: &[[[i64; N]; B]; C],
+    ts: &[[[i64; K]; B]; C],
+    h: &i64,
+    lr: &i64,
+    kind: &i64,
+) {
+    ancilla c: i64 = 0;
+    #[parallel(cpu)]
+    from c == 0 {
+        call grad_chunk<N, M, L, K, B>(
+            totals[c],
+            q[c],
+            p[c],
+            aq[c],
+            ap[c],
+            gw[c],
+            gb[c],
+            ws,
+            bs,
+            xs[c],
+            ts[c],
+            h,
+            kind,
+        );
+    } loop { c += 1; } until c == C - 1;
+    c -= C - 1;
+    ancilla d: i64 = 0;
+    from d == 0 {
+        call add_grads<N, M, L>(tw, tb, gw[d], gb[d]);
+        call clear_grads<N, M, L>(gw[d], gb[d]);
+        call clear_mat<N, B>(aq[d]);
+        call clear_mat<N, B>(ap[d]);
+    } loop { d += 1; } until d == C - 1;
+    d -= C - 1;
+    call sgd<N, M, L>(ws, bs, tw, tb, lr);
+    call clear_grads<N, M, L>(tw, tb);
+}

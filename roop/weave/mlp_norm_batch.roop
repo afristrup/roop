@@ -1,0 +1,64 @@
+// `mlp_norm` on B samples, one row of the state each, taken in turn: the contributions to the
+// shared weights add up, the same as the sum over samples.
+
+use super::mlp_norm::*;
+
+pub fn mlp_norm_batch<N, M, B>(
+    y: &mut [[i64; N]; B],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    g: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    x: &[[i64; N]; B],
+    kind: &i64,
+    eps: &i64,
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        call mlp_norm<N, M>(y[r], w1, b1, g, w2, b2, x[r], kind, eps);
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+pub fn mlp_norm_back_batch<N, M, B>(
+    y: &mut [[i64; N]; B],
+    ay: &[[i64; N]; B],
+    ax: &mut [[i64; N]; B],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gg: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    g: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    x: &[[i64; N]; B],
+    kind: &i64,
+    eps: &i64,
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        call mlp_norm_back<N, M>(
+            y[r],
+            ay[r],
+            ax[r],
+            gw1,
+            gb1,
+            gg,
+            gw2,
+            gb2,
+            w1,
+            b1,
+            g,
+            w2,
+            b2,
+            x[r],
+            kind,
+            eps,
+        );
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}

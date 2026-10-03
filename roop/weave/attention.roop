@@ -6,9 +6,10 @@
 // is no softmax, since it needs an exponential, so the scores are the inner
 // products themselves. Each product is one of the Q12 einsums.
 
-use einsum::qmatmul;
-use einsum::qmatmul_nt;
-use einsum::qmatmul_tn;
+use einsum::imatmul_tn;
+use einsum::wmatmul;
+use einsum::wmatmul_nt;
+use einsum::wmatmul_tn;
 
 // m += x read as S rows of D numbers
 pub fn fold<S, D, N>(m: &mut [[i64; D]; S], x: &[i64; N]) {
@@ -47,17 +48,17 @@ pub fn attn<S, D, N>(
     ancilla a: [[i64; S]; S] = 0;
     ancilla o: [[i64; D]; S] = 0;
     call fold<S, D, N>(xm, x);
-    call qmatmul_nt(q, xm, wq);
-    call qmatmul_nt(k, xm, wk);
-    call qmatmul_nt(v, xm, wv);
-    call qmatmul_nt(a, q, k);
-    call qmatmul(o, a, v);
+    call wmatmul_nt(q, xm, wq);
+    call wmatmul_nt(k, xm, wk);
+    call wmatmul_nt(v, xm, wv);
+    call wmatmul_nt(a, q, k);
+    call wmatmul(o, a, v);
     call unfold<S, D, N>(y, o);
-    uncall qmatmul(o, a, v);
-    uncall qmatmul_nt(a, q, k);
-    uncall qmatmul_nt(v, xm, wv);
-    uncall qmatmul_nt(k, xm, wk);
-    uncall qmatmul_nt(q, xm, wq);
+    uncall wmatmul(o, a, v);
+    uncall wmatmul_nt(a, q, k);
+    uncall wmatmul_nt(v, xm, wv);
+    uncall wmatmul_nt(k, xm, wk);
+    uncall wmatmul_nt(q, xm, wq);
     uncall fold<S, D, N>(xm, x);
 }
 
@@ -86,34 +87,34 @@ pub fn attn_vjp<S, D, N>(
     ancilla dv: [[i64; D]; S] = 0;
     ancilla dxm: [[i64; D]; S] = 0;
     call fold<S, D, N>(xm, x);
-    call qmatmul_nt(q, xm, wq);
-    call qmatmul_nt(k, xm, wk);
-    call qmatmul_nt(v, xm, wv);
-    call qmatmul_nt(a, q, k);
+    call wmatmul_nt(q, xm, wq);
+    call wmatmul_nt(k, xm, wk);
+    call wmatmul_nt(v, xm, wv);
+    call wmatmul_nt(a, q, k);
     call fold<S, D, N>(du, u);
-    call qmatmul_nt(da, du, v);
-    call qmatmul_tn(dv, a, du);
-    call qmatmul(dq, da, k);
-    call qmatmul_tn(dk, da, q);
-    call qmatmul(dxm, dq, wq);
-    call qmatmul(dxm, dk, wk);
-    call qmatmul(dxm, dv, wv);
+    call wmatmul_nt(da, du, v);
+    call wmatmul_tn(dv, a, du);
+    call wmatmul(dq, da, k);
+    call wmatmul_tn(dk, da, q);
+    call wmatmul(dxm, dq, wq);
+    call wmatmul(dxm, dk, wk);
+    call wmatmul(dxm, dv, wv);
     call unfold<S, D, N>(ax, dxm);
-    call qmatmul_tn(gwq, dq, xm);
-    call qmatmul_tn(gwk, dk, xm);
-    call qmatmul_tn(gwv, dv, xm);
-    uncall qmatmul(dxm, dv, wv);
-    uncall qmatmul(dxm, dk, wk);
-    uncall qmatmul(dxm, dq, wq);
-    uncall qmatmul_tn(dk, da, q);
-    uncall qmatmul(dq, da, k);
-    uncall qmatmul_tn(dv, a, du);
-    uncall qmatmul_nt(da, du, v);
+    call imatmul_tn(gwq, dq, xm);
+    call imatmul_tn(gwk, dk, xm);
+    call imatmul_tn(gwv, dv, xm);
+    uncall wmatmul(dxm, dv, wv);
+    uncall wmatmul(dxm, dk, wk);
+    uncall wmatmul(dxm, dq, wq);
+    uncall wmatmul_tn(dk, da, q);
+    uncall wmatmul(dq, da, k);
+    uncall wmatmul_tn(dv, a, du);
+    uncall wmatmul_nt(da, du, v);
     uncall fold<S, D, N>(du, u);
-    uncall qmatmul_nt(a, q, k);
-    uncall qmatmul_nt(v, xm, wv);
-    uncall qmatmul_nt(k, xm, wk);
-    uncall qmatmul_nt(q, xm, wq);
+    uncall wmatmul_nt(a, q, k);
+    uncall wmatmul_nt(v, xm, wv);
+    uncall wmatmul_nt(k, xm, wk);
+    uncall wmatmul_nt(q, xm, wq);
     uncall fold<S, D, N>(xm, x);
 }
 

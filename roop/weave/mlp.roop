@@ -7,9 +7,9 @@
 // and W2 is N by M, so any torch `Linear, activation, Linear` fits.
 
 use einsum::qhadamard;
-use einsum::qmatvec;
-use einsum::qmatvec_t;
-use einsum::qouter;
+use einsum::wmatvec;
+use einsum::wmatvec_t;
+use einsum::iouter;
 use super::act::*;
 use super::kernels::*;
 
@@ -28,7 +28,7 @@ pub fn mlp<N, M>(
     call affine<N, M>(z, w1, x, b1);
     call act<M>(a, z, kind);
     call add_vec<N>(y, b2);
-    call qmatvec(y, w2, a);
+    call wmatvec(y, w2, a);
     uncall act<M>(a, z, kind);
     uncall affine<N, M>(z, w1, x, b1);
 }
@@ -56,15 +56,15 @@ pub fn mlp_vjp<N, M>(
     call affine<N, M>(z, w1, x, b1);
     call act<M>(a, z, kind);
     call dact<M>(d, z, kind);
-    call qmatvec_t(ta, w2, u);
+    call wmatvec_t(ta, w2, u);
     call qhadamard(tz, d, ta);
     call add_vec<N>(gb2, u);
-    call qouter(gw2, u, a);
+    call iouter(gw2, u, a);
     call add_vec<M>(gb1, tz);
-    call qouter(gw1, tz, x);
-    call qmatvec_t(ax, w1, tz);
+    call iouter(gw1, tz, x);
+    call wmatvec_t(ax, w1, tz);
     uncall qhadamard(tz, d, ta);
-    uncall qmatvec_t(ta, w2, u);
+    uncall wmatvec_t(ta, w2, u);
     uncall dact<M>(d, z, kind);
     uncall act<M>(a, z, kind);
     uncall affine<N, M>(z, w1, x, b1);

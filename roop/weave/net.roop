@@ -17,7 +17,7 @@
 use super::act::*;
 use super::kernels::*;
 use einsum::qhadamard;
-use einsum::qmatvec;
+use einsum::wmatvec;
 
 // p += -h/2 * W^T f(W q + b), with the intermediates computed and undone.
 fn force<N, M>(
@@ -92,11 +92,11 @@ pub fn vjp<N, M>(
     call affine<N, M>(z, w, q, b);
     call act<M>(s, z, kind);
     call dact<M>(d, z, kind);
-    call qmatvec(t, w, u);
+    call wmatvec(t, w, u);
     call qhadamard(dt, d, t);
     call adjoint<N, M>(aq, gw, gb, s, dt, u, w, q, c);
     uncall qhadamard(dt, d, t);
-    uncall qmatvec(t, w, u);
+    uncall wmatvec(t, w, u);
     uncall dact<M>(d, z, kind);
     uncall act<M>(s, z, kind);
     uncall affine<N, M>(z, w, q, b);
@@ -197,14 +197,15 @@ pub fn grad<N, M, L, K>(
     call backward<N, M, L>(q, p, aq, ap, gw, gb, ws, bs, h, kind);
 }
 
-// w -= lr * g
+// w -= lr * g, with g the gradient of a matrix in Q24: the products of Q12
+// numbers that `adjoint` adds up are not divided by 4096
 pub fn sgd_mat<N, M>(w: &mut [[i64; N]; M], g: &[[i64; N]; M], lr: &i64) {
     ancilla j: i64 = 0;
     #[parallel]
     from j == 0 {
         ancilla i: i64 = 0;
         from i == 0 {
-            w[j][i] -= lr * g[j][i] / 4096;
+            w[j][i] -= lr * g[j][i] / 16777216;
         } loop { i += 1; } until i == N - 1;
         i -= N - 1;
     } loop { j += 1; } until j == M - 1;

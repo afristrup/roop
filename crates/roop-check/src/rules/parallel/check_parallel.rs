@@ -1,7 +1,7 @@
-use crate::{CheckError, check_parallel_body};
+use crate::{CheckError, Mutability, check_parallel_body};
 use roop_syntax::{Attr, Stmt, StmtKind, counted_loop};
 
-pub fn check_parallel(stmt: &Stmt) -> Result<(), CheckError> {
+pub fn check_parallel(stmt: &Stmt, mutability: &Mutability) -> Result<(), CheckError> {
     if !stmt
         .attrs
         .iter()
@@ -20,5 +20,12 @@ pub fn check_parallel(stmt: &Stmt) -> Result<(), CheckError> {
     };
     let counted = counted_loop(entry, step, until)
         .ok_or(CheckError::ParallelLoopShape { span: stmt.span })?;
-    check_parallel_body(counted.var, counted.lo, counted.hi, body, stmt.span)
+    check_parallel_body(
+        counted.var,
+        counted.lo,
+        counted.hi,
+        body,
+        stmt.span,
+        Some(mutability),
+    )
 }

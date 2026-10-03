@@ -1,5 +1,7 @@
 use crate::Options;
-use roop_check::is_irreversible_fn;
+use roop_check::{
+    Mutability, fn_mutability, irreversible_fns, is_irreversible_fn, keeping_fns, world_fns,
+};
 use roop_syntax::{EnumDef, FnDef, Item, Program, StructDef};
 use std::collections::HashMap;
 
@@ -10,6 +12,11 @@ pub struct Ctx<'a> {
     pub options: &'a Options,
     /// Functions with irreversible code, which have no inverse.
     pub irreversible: std::collections::HashSet<&'a str>,
+    /// Which parameters of each function it may write.
+    pub mutability: Mutability<'a>,
+    /// Functions that do more than write their arguments: they change the world,
+    /// keep values or are irreversible.
+    pub effectful: std::collections::HashSet<&'a str>,
 }
 
 impl<'a> Ctx<'a> {
@@ -20,6 +27,12 @@ impl<'a> Ctx<'a> {
             fns: HashMap::new(),
             options,
             irreversible: std::collections::HashSet::new(),
+            mutability: fn_mutability(program),
+            effectful: world_fns(program)
+                .into_iter()
+                .chain(keeping_fns(program))
+                .chain(irreversible_fns(program))
+                .collect(),
         };
         for item in &program.items {
             match item {

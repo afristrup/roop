@@ -1,8 +1,8 @@
 use crate::{
-    CheckError, Mutability, Pending, counted_net, flatten_ancillas, inverts, settles, starts_zero,
-    stmt_reads, stmt_writes,
+    CheckError, Mutability, Pending, counted_net, flatten_ancillas, inverts, is_straight_line,
+    settles, starts_zero, stmt_reads, stmt_writes,
 };
-use roop_syntax::{Block, Expr, Span, Stmt, StmtKind};
+use roop_syntax::{Block, Expr, Span, Stmt};
 use std::collections::HashSet;
 
 /// Straight-line matching: every update of the ancilla must be undone by its
@@ -66,19 +66,4 @@ pub fn check_ancilla(
             span,
         })
     }
-}
-
-fn is_straight_line(stmt: &Stmt) -> bool {
-    matches!(
-        stmt.kind,
-        StmtKind::Update { .. }
-            | StmtKind::Swap(..)
-            | StmtKind::Call { .. }
-            | StmtKind::Uncall { .. }
-            | StmtKind::Send { .. }
-            | StmtKind::Recv { .. }
-            | StmtKind::Push { .. }
-            | StmtKind::Pop { .. }
-            | StmtKind::Keep(_)
-    )
 }

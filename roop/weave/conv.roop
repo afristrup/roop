@@ -8,6 +8,7 @@
 // it is a Q12 einsum like the rest, and its adjoints are as well.
 
 use einsum::qmatmul;
+use einsum::imatmul_nt;
 use einsum::qmatmul_nt;
 use einsum::qmatmul_tn;
 use einsum::qrow_sums;
@@ -80,7 +81,7 @@ pub fn conv<C, K, T, N, CK>(
 }
 
 // With u the adjoint of what `conv` added to, adds the adjoint of x to ax and the
-// gradients of the weight and the bias.
+// gradients of the weight, in Q24 like weave's other matrices, and the bias.
 pub fn conv_vjp<C, K, T, N, CK>(
     ax: &mut [i64; N],
     gw: &mut [[i64; CK]; C],
@@ -94,7 +95,7 @@ pub fn conv_vjp<C, K, T, N, CK>(
     ancilla dcol: [[i64; T]; CK] = 0;
     call im2col<C, K, T, N, CK>(col, x);
     call fold<C, T, N>(um, u);
-    call qmatmul_nt(gw, um, col);
+    call imatmul_nt(gw, um, col);
     call qrow_sums(gb, um);
     call qmatmul_tn(dcol, w, um);
     call col2im<C, K, T, N, CK>(ax, dcol);

@@ -24,7 +24,11 @@ pub fn gen_gemm(
     };
     let place = |g: &mut FnGen, name: &str| gen_place(g, &Place::Var(name.into()));
     let (c, a, b) = (place(g, gemm.c)?, place(g, gemm.a)?, place(g, gemm.b)?);
-    let shapes = (matrix_dims(&c.ty), matrix_dims(&a.ty), matrix_dims(&b.ty));
+    let shapes = (
+        matrix_dims(&c.ty, "f64"),
+        matrix_dims(&a.ty, "f64"),
+        matrix_dims(&b.ty, "f64"),
+    );
     let expected = (
         Some((gemm.rows, gemm.cols)),
         Some((gemm.rows, gemm.inner)),

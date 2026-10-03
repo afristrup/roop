@@ -83,6 +83,7 @@ test the_vector_forms_apply_each_element {
 }
 
 // F(x) = W2 (W1 x + b1) + b2 with N = 2 and M = 1, so z = 2.5 and F = (2.5, -2.25).
+// The gradients of the matrices are in Q24, 4096 times the Q12 numbers.
 test mlp_adds_its_function_and_runs_backward {
     y: [i64; 2],
         x: [i64; 2],
@@ -110,8 +111,8 @@ test mlp_adds_its_function_and_runs_backward {
     ay[0] += 4096;
     call mlp_back(y, ay, ax, gw1, gb1, gw2, gb2, w1, b1, w2, b2, x, kind);
     expect y[0] == 0 && y[1] == 0;
-    expect gb2[0] == 4096 && gb2[1] == 0 && gw2[0][0] == 10240 && gw2[1][0] == 0;
-    expect gb1[0] == 4096 && gw1[0][0] == 4096 && gw1[0][1] == 2048;
+    expect gb2[0] == 4096 && gb2[1] == 0 && gw2[0][0] == 41943040 && gw2[1][0] == 0;
+    expect gb1[0] == 4096 && gw1[0][0] == 16777216 && gw1[0][1] == 8388608;
     expect ax[0] == 4096 && ax[1] == 8192;
 }
 
@@ -266,4 +267,91 @@ test rmsnorm_of_a_vector_is_scaled_by_the_root_mean_square {
     eps += 4;
     call rmsnorm<2>(n, z, g, eps);
     expect n[0] > 5480 && n[0] < 5510 && n[1] > 0 - 1845 && n[1] < 0 - 1820;
+}
+
+// The perceptron of `mlp_adds_its_function_and_runs_backward` on two rows, one
+// of them zero: the second row has z = b1 = 0.5 and F = (0.5, -1 + 0.25), so the
+// gradients are the sums over the two rows.
+test mlp_batch_adds_each_rows_function_and_sums_the_gradients {
+    y: [[i64; 2]; 2],
+        x: [[i64; 2]; 2],
+        ax: [[i64; 2]; 2],
+        ay: [[i64; 2]; 2],
+        kind: i64,
+        w1: [[i64; 2]; 1],
+        b1: [i64; 1],
+        w2: [[i64; 1]; 2],
+        b2: [i64; 2],
+        gw1: [[i64; 2]; 1],
+        gb1: [i64; 1],
+        gw2: [[i64; 1]; 2],
+        gb2: [i64; 2];
+    w1[0][0] += 4096;
+    w1[0][1] += 8192;
+    b1[0] += 2048;
+    w2[0][0] += 4096;
+    w2[1][0] -= 4096;
+    b2[1] += 1024;
+    x[0][0] += 4096;
+    x[0][1] += 2048;
+    call mlp_batch(y, w1, b1, w2, b2, x, kind);
+    expect y[0][0] == 10240 && y[0][1] == 0 - 9216;
+    expect y[1][0] == 2048 && y[1][1] == 0 - 1024;
+    ay[0][0] += 4096;
+    ay[1][0] += 4096;
+    call mlp_back_batch(y, ay, ax, gw1, gb1, gw2, gb2, w1, b1, w2, b2, x, kind);
+    expect y[0][0] == 0 && y[0][1] == 0 && y[1][0] == 0 && y[1][1] == 0;
+    expect gb2[0] == 8192 && gb2[1] == 0 && gw2[0][0] == 50331648 && gw2[1][0] == 0;
+    expect gb1[0] == 8192 && gw1[0][0] == 16777216 && gw1[0][1] == 8388608;
+    expect ax[0][0] == 4096 && ax[0][1] == 8192 && ax[1][0] == 4096 && ax[1][1] == 8192;
+}
+
+test attention_batch_of_identity_weights_returns_each_input {
+    y: [[i64; 4]; 2],
+        x: [[i64; 4]; 2],
+        wq: [[i64; 2]; 2],
+        wk: [[i64; 2]; 2],
+        wv: [[i64; 2]; 2];
+    wq[0][0] += 4096;
+    wq[1][1] += 4096;
+    wk[0][0] += 4096;
+    wk[1][1] += 4096;
+    wv[0][0] += 4096;
+    wv[1][1] += 4096;
+    x[0][0] += 4096;
+    x[0][3] += 4096;
+    x[1][1] += 8192;
+    call attn_batch<2, 2, 4, 2>(y, wq, wk, wv, x);
+    expect y[0][0] == 4096 && y[0][1] == 0 && y[0][2] == 0 && y[0][3] == 4096;
+    expect y[1][0] == 0 && y[1][1] == 32768 && y[1][2] == 0 && y[1][3] == 0;
+}
+
+test fold_batch_and_unfold_batch_are_the_same_numbers_in_two_shapes {
+    x: [[i64; 6]; 2], m: [[[i64; 3]; 2]; 2], z: [[i64; 6]; 2];
+    x[0][4] += 7;
+    x[1][1] += 9;
+    call fold_batch<2, 3, 6, 2>(m, x);
+    expect m[0][1][1] == 7 && m[1][0][1] == 9;
+    call unfold_batch<2, 3, 6, 2>(z, m);
+    expect z[0][4] == 7 && z[1][1] == 9;
+}
+
+// One layer with W = 1, b = 0.5, h = 1 and the identity force: the force on a row
+// with q is -0.5 (q + 0.5) twice, the second time at the moved q.
+test a_batch_of_layers_runs_each_row_through_the_same_weights {
+    q: [[i64; 1]; 3],
+        p: [[i64; 1]; 3],
+        w: [[i64; 1]; 1],
+        b: [i64; 1],
+        h: i64,
+        kind: i64;
+    w[0][0] += 4096;
+    b[0] += 2048;
+    h += 4096;
+    q[1][0] += 4096;
+    q[2][0] += 8192;
+    call layer_batch<1, 1, 3>(q, p, w, b, h, kind);
+    expect q[0][0] == 0 - 1024 && p[0][0] == 0 - 1536;
+    expect q[1][0] == 1024 && p[1][0] == 0 - 4608;
+    expect q[2][0] == 3072 && p[2][0] == 0 - 7680;
 }

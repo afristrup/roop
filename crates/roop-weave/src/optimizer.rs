@@ -29,16 +29,18 @@ impl Optimizer {
             _ => unreachable!("parameters are vectors or matrices"),
         };
         let shape = if tensor.dims.len() == 2 { "mat" } else { "vec" };
+        // The vector versions are told the unit of the gradient; the matrix ones know it.
+        let unit = if tensor.dims.len() == 1 { ", 1" } else { "" };
         let names: Vec<&str> = state.iter().map(|t| t.name.as_str()).collect();
         match self {
             Self::Sgd => format!("    call sgd_{shape}{generics}({w}, g{w}, lr);\n"),
             Self::Momentum { beta } => format!(
-                "    call momentum_{shape}{generics}({w}, g{w}, {}, lr, {});\n",
+                "    call momentum_{shape}{generics}({w}, g{w}, {}, lr, {}{unit});\n",
                 names[0],
                 quantize(*beta)
             ),
             Self::Adam { beta1, beta2 } => format!(
-                "    call adam_{shape}{generics}({w}, g{w}, {}, {}, lr, {}, {});\n",
+                "    call adam_{shape}{generics}({w}, g{w}, {}, {}, lr, {}, {}{unit});\n",
                 names[0],
                 names[1],
                 quantize(*beta1),
