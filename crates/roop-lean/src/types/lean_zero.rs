@@ -5,6 +5,7 @@ use roop_syntax::Type;
 pub fn lean_zero(ty: &Type) -> Result<String, LeanError> {
     match ty {
         Type::Named(n) if n == "i64" => Ok("(0 : Roop.I64)".into()),
+        Type::Named(n) if n == "u8" => Ok("(0 : Roop.U8)".into()),
         Type::Named(n) if n == "bool" => Ok("false".into()),
         Type::Named(n) if n == "f64" => Ok("(0.0 : Float)".into()),
         _ => Err(LeanError::Unsupported(

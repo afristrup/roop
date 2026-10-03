@@ -1,3 +1,4 @@
+mod escape;
 mod float_text;
 mod format_source;
 mod is_simple;
@@ -10,6 +11,7 @@ mod print_binary;
 mod print_block;
 mod print_build_fn;
 mod print_call;
+mod print_entries;
 mod print_enum;
 mod print_expr;
 mod print_fn;
@@ -34,6 +36,7 @@ mod print_use;
 mod same_program;
 mod update_text;
 
+pub use escape::*;
 pub use float_text::*;
 pub use format_source::*;
 pub use is_simple::*;
@@ -46,6 +49,7 @@ pub use print_binary::*;
 pub use print_block::*;
 pub use print_build_fn::*;
 pub use print_call::*;
+pub use print_entries::*;
 pub use print_enum::*;
 pub use print_expr::*;
 pub use print_fn::*;

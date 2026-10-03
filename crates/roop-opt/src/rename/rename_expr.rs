@@ -10,8 +10,13 @@ pub fn rename_expr(expr: &Expr, from: &str, to: &str) -> Expr {
             *op,
             Box::new(rename_expr(r, from, to)),
         ),
-        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Empty | Expr::Variant(..) => {
-            expr.clone()
-        }
+        Expr::Cast(inner, ty) => Expr::Cast(Box::new(rename_expr(inner, from, to)), ty.clone()),
+        Expr::Int(_)
+        | Expr::Float(_)
+        | Expr::Bool(_)
+        | Expr::Byte(_)
+        | Expr::Str(_)
+        | Expr::Empty
+        | Expr::Variant(..) => expr.clone(),
     }
 }

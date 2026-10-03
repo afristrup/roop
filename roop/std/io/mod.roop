@@ -1,0 +1,80 @@
+// Input and output, and they are reversible. What a program writes is pending
+// until it is committed, so running a function backward takes its output back,
+// and a `try` that fails shows nothing of what it wrote. What a program reads
+// goes back to be read again by the inverse of the read. So `uncall greet()`
+// un-prints, and a function that reads a line can be undone and run again on
+// the same line.
+//
+// Reading the real standard input, and `commit`, are where the world is shown
+// something or tells the program something it did not know. A read shows what
+// is pending first, since whoever is to answer must see it, and the main
+// program commits the rest when it ends. After that it cannot be taken back,
+// and asking to is a runtime error.
+//
+// A text is a buffer `[u8; N]` and a length `len`: the bytes after the first
+// `len` are zero. A string literal is a read-only `[u8; N]` of its own length.
+
+use super::sys::*;
+use super::text::*;
+
+// Writes the text to standard output.
+pub fn print<N>(s: &[u8; N]) {
+    call roop_out(1, s, N);
+}
+
+pub fn println<N>(s: &[u8; N]) {
+    call roop_out(1, s, N);
+    call roop_out(1, "\n", 1);
+}
+
+// The same to standard error.
+pub fn eprint<N>(s: &[u8; N]) {
+    call roop_out(2, s, N);
+}
+
+pub fn eprintln<N>(s: &[u8; N]) {
+    call roop_out(2, s, N);
+    call roop_out(2, "\n", 1);
+}
+
+// Writes the first len bytes of a buffer to standard output.
+pub fn print_buf<N>(buf: &[u8; N], len: &i64) {
+    call roop_out(1, buf, len);
+}
+
+pub fn eprint_buf<N>(buf: &[u8; N], len: &i64) {
+    call roop_out(2, buf, len);
+}
+
+// Writes a number. The digits are built in a buffer, written out, and the
+// buffer is emptied again by running the building backward: compute, copy,
+// uncompute, Bennett's trick, so nothing is left over.
+pub fn print_int(n: &i64) {
+    ancilla out: [u8; 24] = 0;
+    ancilla len: i64 = 0;
+    call put_int(out, len, n);
+    call roop_out(1, out, len);
+    uncall put_int(out, len, n);
+}
+
+pub fn println_int(n: &i64) {
+    call print_int(n);
+    call roop_out(1, "\n", 1);
+}
+
+// Reads a line of standard input into buf, which must be zero, without its
+// newline. len is the number of bytes, and status is 0, 1 at the end of the
+// input, or a negative error. Run backward, it puts the line back.
+pub fn read_line<N>(buf: &mut [u8; N], len: &mut i64, status: &mut i64) {
+    call roop_in_line(buf, N, len, status);
+}
+
+// How many bytes are written and not shown yet.
+pub fn pending(len: &mut i64) {
+    call roop_pending(len);
+}
+
+// Shows everything written so far. Irreversible: it cannot be taken back.
+pub irrev fn commit() {
+    call roop_commit();
+}

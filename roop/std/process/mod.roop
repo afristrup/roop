@@ -1,0 +1,35 @@
+// The process: its arguments and environment and the clock, which are
+// reversible reads, and its exit, which is not.
+//
+// The arguments and the environment do not change while the program runs. The
+// clock does, and the time it gave is remembered, so running a read backward and
+// forward again gives the same time, like a replay of the run.
+
+use super::sys::*;
+
+// Ends the program at once with this status, after showing what is pending.
+pub irrev fn exit(code: &i64) {
+    call roop_exit(code);
+}
+
+// How many arguments the program got, its own name first.
+pub fn arg_count(count: &mut i64) {
+    call roop_arg_count(count);
+}
+
+// Argument number index into buf, which must be zero; len is its length, or -1
+// when there is no such argument. An argument longer than buf is cut off.
+pub fn arg<N>(index: &i64, buf: &mut [u8; N], len: &mut i64) {
+    call roop_arg(index, buf, N, len);
+}
+
+// The environment variable called name, in the same way; len is -1 when it is
+// not set.
+pub fn getenv<N, M>(name: &[u8; N], buf: &mut [u8; M], len: &mut i64) {
+    call roop_getenv(name, N, buf, M, len);
+}
+
+// Milliseconds since 1970.
+pub fn now_ms(ms: &mut i64) {
+    call roop_clock(ms);
+}

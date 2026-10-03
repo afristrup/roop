@@ -1,5 +1,6 @@
 mod expr_type;
 mod is_bool;
+mod is_byte;
 mod is_float;
 mod lean_type;
 mod lean_zero;
@@ -11,6 +12,7 @@ mod tuple_type;
 
 pub use expr_type::*;
 pub use is_bool::*;
+pub use is_byte::*;
 pub use is_float::*;
 pub use lean_type::*;
 pub use lean_zero::*;

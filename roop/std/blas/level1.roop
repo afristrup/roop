@@ -5,106 +5,95 @@
 
 // y <- alpha * x + y. Constructive, so no history is needed.
 pub fn iaxpy<N>(y: &mut [i64; N], x: &[i64; N], alpha: &i64) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 { y[i] += alpha * x[i]; } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 { y[i] += alpha * x[i]; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 pub fn daxpy<N>(y: &mut [f64; N], x: &[f64; N], alpha: &f64) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 { y[i] += alpha * x[i]; } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 { y[i] += alpha * x[i]; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // x <-> y.
 pub fn iswap<N>(x: &mut [i64; N], y: &mut [i64; N]) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 { x[i] <=> y[i]; } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 { x[i] <=> y[i]; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 pub fn dswap<N>(x: &mut [f64; N], y: &mut [f64; N]) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 { x[i] <=> y[i]; } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 { x[i] <=> y[i]; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // result += x . y. A reduction, so the loop is sequential.
 pub fn idot<N>(result: &mut i64, x: &[i64; N], y: &[i64; N]) {
-    ancilla i: i64 = 0 {
-        from i == 0 { result += x[i] * y[i]; } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    from i == 0 { result += x[i] * y[i]; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 pub fn ddot<N>(result: &mut f64, x: &[f64; N], y: &[f64; N]) {
-    ancilla i: i64 = 0 {
-        from i == 0 { result += x[i] * y[i]; } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    from i == 0 { result += x[i] * y[i]; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // y <- x, destroying y. Memory mode: the old y goes on the history, so the
 // reverse routine restores it. Without a history, y must be zero first.
 pub fn icopy<N>(y: &mut [i64; N], x: &[i64; N], history: &mut Stack<i64, N>) {
-    ancilla i: i64 = 0 {
-        from i == 0 {
-            logged history {
-                y[i] = x[i];
-            }
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    from i == 0 {
+        logged history {
+            y[i] = x[i];
+        }
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 pub fn dcopy<N>(y: &mut [f64; N], x: &[f64; N], history: &mut Stack<f64, N>) {
-    ancilla i: i64 = 0 {
-        from i == 0 {
-            logged history {
-                y[i] = x[i];
-            }
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    from i == 0 {
+        logged history {
+            y[i] = x[i];
+        }
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // x <- alpha * x. The reverse routine divides by alpha again. Guarded: alpha
 // must be nonzero and no product may overflow, which is the paper's bound on
 // alpha. Scaling by zero destroys x, so it goes through `ifill`, which saves it.
 pub fn iscal<N>(x: &mut [i64; N], alpha: &i64) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 { x[i] *= alpha; } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 { x[i] *= alpha; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 pub fn dscal<N>(x: &mut [f64; N], alpha: &f64) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 { x[i] *= alpha; } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 { x[i] *= alpha; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // x <- value, destroying x. Memory mode: the old x goes on the history.
 pub fn ifill<N>(x: &mut [i64; N], value: &i64, history: &mut Stack<i64, N>) {
-    ancilla i: i64 = 0 {
-        from i == 0 {
-            logged history {
-                x[i] = value;
-            }
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    from i == 0 {
+        logged history {
+            x[i] = value;
+        }
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // A Givens rotation of the pairs (x[i], y[i]) as three shears: x += a*y,
@@ -113,15 +102,14 @@ pub fn ifill<N>(x: &mut [i64; N], value: &i64, history: &mut Stack<i64, N>) {
 // reversible in integers, where a plain rotation (c*x + s*y, c*y - s*x) could
 // not be, and its reverse routine is the rotation by -theta.
 pub fn irot<N>(x: &mut [i64; N], y: &mut [i64; N], a: &i64, b: &i64) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            x[i] += a * y[i];
-            y[i] += b * x[i];
-            x[i] += a * y[i];
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        x[i] += a * y[i];
+        y[i] += b * x[i];
+        x[i] += a * y[i];
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // A Givens rotation of the pairs (x[i], y[i]) as three shears: x += a*y,
@@ -130,13 +118,12 @@ pub fn irot<N>(x: &mut [i64; N], y: &mut [i64; N], a: &i64, b: &i64) {
 // reversible in integers, where a plain rotation (c*x + s*y, c*y - s*x) could
 // not be, and its reverse routine is the rotation by -theta.
 pub fn drot<N>(x: &mut [f64; N], y: &mut [f64; N], a: &f64, b: &f64) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            x[i] += a * y[i];
-            y[i] += b * x[i];
-            x[i] += a * y[i];
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        x[i] += a * y[i];
+        y[i] += b * x[i];
+        x[i] += a * y[i];
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }

@@ -1,0 +1,85 @@
+// Files and directories, and they are reversible. A function that changes a
+// file keeps what it replaced, and running it backward puts that back, after
+// checking that the file is as the function left it: if someone else changed it
+// in between, the runtime stops rather than lose their change. So a program
+// that writes, renames and removes files can be taken back, and a `try` that
+// fails leaves the disk as it found it. Only `std::io::commit` and the end of
+// the program make output real; the files are changed at once, but the journal
+// that undoes them is kept for as long as the program runs.
+//
+// A path is an array of bytes that ends at its first zero byte, so a string
+// literal works, and so does a buffer that was read from an argument or built
+// with std::text. A function that can fail sets `status` to 0 on success and
+// otherwise to minus the error code of the operating system, such as -2 for a
+// file that does not exist. Results go into places that are zero.
+
+use super::sys::*;
+
+// Sets found to 1 when the path exists, otherwise 0.
+pub fn exists<N>(path: &[u8; N], found: &mut i64) {
+    call roop_fs_exists(path, N, found);
+}
+
+pub fn is_dir<N>(path: &[u8; N], found: &mut i64) {
+    call roop_fs_is_dir(path, N, found);
+}
+
+// The size of a file in bytes, or a negative error.
+pub fn size<N>(path: &[u8; N], bytes: &mut i64) {
+    call roop_fs_size(path, N, bytes);
+}
+
+// Reads the whole file, as much as fits in buf, which must be zero. len is the
+// number of bytes.
+pub fn read_file<N, M>(
+    path: &[u8; N],
+    buf: &mut [u8; M],
+    len: &mut i64,
+    status: &mut i64,
+) {
+    call roop_fs_read(path, N, buf, M, len, status);
+}
+
+// The names in a directory, in order, each followed by a newline, as many as
+// fit in buf, which must be zero. len is the number of bytes.
+pub fn list_dir<N, M>(
+    path: &[u8; N],
+    buf: &mut [u8; M],
+    len: &mut i64,
+    status: &mut i64,
+) {
+    call roop_fs_list(path, N, buf, M, len, status);
+}
+
+// Writes the first len bytes of buf to the file, making it or replacing it.
+pub fn write_file<N, M>(path: &[u8; N], buf: &[u8; M], len: &i64, status: &mut i64) {
+    call roop_fs_write(path, N, buf, len, status);
+}
+
+// The same, added at the end of the file.
+pub fn append_file<N, M>(path: &[u8; N], buf: &[u8; M], len: &i64, status: &mut i64) {
+    call roop_fs_append(path, N, buf, len, status);
+}
+
+pub fn remove<N>(path: &[u8; N], status: &mut i64) {
+    call roop_fs_remove(path, N, status);
+}
+
+// Removes an empty directory.
+pub fn remove_dir<N>(path: &[u8; N], status: &mut i64) {
+    call roop_fs_remove_dir(path, N, status);
+}
+
+// Makes a directory, and the ones above it that are missing.
+pub fn make_dir<N>(path: &[u8; N], status: &mut i64) {
+    call roop_fs_mkdir(path, N, status);
+}
+
+pub fn rename<N, M>(source: &[u8; N], target: &[u8; M], status: &mut i64) {
+    call roop_fs_rename(source, N, target, M, status);
+}
+
+// Copies a file over another, whatever its size.
+pub fn copy_file<N, M>(source: &[u8; N], target: &[u8; M], status: &mut i64) {
+    call roop_fs_copy(source, N, target, M, status);
+}

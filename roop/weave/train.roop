@@ -6,30 +6,24 @@ use super::kernels::*;
 use super::net::*;
 
 pub irrev fn clear<N>(v: &mut [i64; N]) {
-    ancilla i: i64 = 0 {
-        from i == 0 { v[i] = 0; } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    from i == 0 { v[i] = 0; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 pub irrev fn clear_grads<N, L>(gw: &mut [[[i64; N]; N]; L], gb: &mut [[i64; N]; L]) {
-    ancilla l: i64 = 0 {
-        from l == 0 {
-            ancilla j: i64 = 0 {
-                from j == 0 {
-                    gb[l][j] = 0;
-                    ancilla i: i64 = 0 {
-                        from i == 0 {
-                            gw[l][j][i] = 0;
-                        } loop { i += 1; } until i == N - 1;
-                        i -= N - 1;
-                    }
-                } loop { j += 1; } until j == N - 1;
-                j -= N - 1;
-            }
-        } loop { l += 1; } until l == L - 1;
-        l -= L - 1;
-    }
+    ancilla l: i64 = 0;
+    from l == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            gb[l][j] = 0;
+            ancilla i: i64 = 0;
+            from i == 0 { gw[l][j][i] = 0; } loop { i += 1; } until i == N - 1;
+            i -= N - 1;
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    } loop { l += 1; } until l == L - 1;
+    l -= L - 1;
 }
 
 // One step of gradient descent on a batch of B samples. `total` collects the

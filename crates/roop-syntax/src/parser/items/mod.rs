@@ -1,5 +1,7 @@
 mod bennett_def;
 mod decls;
+mod einsum_def;
+mod extern_def;
 mod generics;
 mod item;
 mod program;
@@ -9,6 +11,8 @@ mod use_decl;
 
 pub use bennett_def::*;
 pub use decls::*;
+pub use einsum_def::*;
+pub use extern_def::*;
 pub use generics::*;
 pub use item::*;
 pub use program::*;

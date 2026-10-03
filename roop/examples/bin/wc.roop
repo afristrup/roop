@@ -1,0 +1,50 @@
+// Counts the lines, words and bytes of its standard input. The counting is
+// reversible code, and the output is built in a buffer with std::text and
+// written once, with `print_buf`.
+
+use std::io::*;
+use std::text::*;
+
+irrev fn main() {
+    ancilla line: [u8; 4096] = 0;
+    ancilla len: i64 = 0;
+    ancilla eof: i64 = 0;
+    ancilla first: i64 = 1;
+    ancilla lines: i64 = 0;
+    ancilla words: i64 = 0;
+    ancilla bytes: i64 = 0;
+    from first == 1 {
+        call read_line(line, len, eof);
+        if eof == 0 {
+            lines += 1;
+            bytes += len + 1;
+            call count_words(line, len, words);
+        } fi eof == 0;
+    } loop {
+        first = 0;
+        call clear(line, len);
+        eof = 0;
+    } until eof == 1;
+    ancilla out: [u8; 64] = 0;
+    ancilla n: i64 = 0;
+    call put_int(out, n, lines);
+    call put(out, n, " ");
+    call put_int(out, n, words);
+    call put(out, n, " ");
+    call put_int(out, n, bytes);
+    call put(out, n, "\n");
+    call print_buf(out, n);
+}
+
+// words gets the number of words in the first len bytes of line: places where
+// a space is followed by something else, and the start if it is not a space.
+fn count_words<N>(line: &[u8; N], len: &i64, words: &mut i64) {
+    if len > 0 && line[0] != b' ' { words += 1; } fi len > 0 && line[0] != b' ';
+    ancilla k: i64 = 0;
+    from k == 0 {
+        if k + 1 < len && line[k] == b' ' && line[k + 1] != b' ' {
+            words += 1;
+        } fi k + 1 < len && line[k] == b' ' && line[k + 1] != b' ';
+    } loop { k += 1; } until k == N - 2;
+    k -= N - 2;
+}

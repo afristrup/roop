@@ -1,0 +1,110 @@
+// Text is a buffer and a length. Every test also runs backward, which takes
+// what was appended off again, so these check that appending is reversible.
+
+use std::text::*;
+
+test put_appends_text {
+    out: [u8; 16], len: i64;
+    call put(out, len, "abc");
+    call put(out, len, "de");
+    expect len == 5;
+    expect out[0] == b'a' && out[2] == b'c' && out[4] == b'e' && out[5] == 0;
+}
+
+test put_n_appends_a_prefix {
+    out: [u8; 8], len: i64, n: i64;
+    n += 2;
+    call put_n(out, len, "hello", n);
+    expect len == 2 && out[0] == b'h' && out[1] == b'e' && out[2] == 0;
+}
+
+test put_n_of_nothing_appends_nothing {
+    out: [u8; 8], len: i64, n: i64;
+    call put_n(out, len, "hello", n);
+    expect len == 0 && out[0] == 0;
+}
+
+test put_byte_appends_a_byte {
+    out: [u8; 4], len: i64, c: u8;
+    c += b'x';
+    call put_byte(out, len, c);
+    expect len == 1 && out[0] == b'x';
+}
+
+test put_int_writes_zero {
+    out: [u8; 24], len: i64, n: i64;
+    call put_int(out, len, n);
+    expect len == 1 && out[0] == b'0' && out[1] == 0;
+}
+
+test put_int_writes_a_small_number {
+    out: [u8; 24], len: i64, n: i64;
+    n += 7;
+    call put_int(out, len, n);
+    expect len == 1 && out[0] == b'7';
+}
+
+test put_int_writes_a_negative_number {
+    out: [u8; 24], len: i64, n: i64;
+    n -= 42;
+    call put_int(out, len, n);
+    expect len == 3
+        && out[0] == b'-'
+        && out[1] == b'4'
+        && out[2] == b'2'
+        && out[3] == 0;
+}
+
+test put_int_writes_the_largest_number {
+    out: [u8; 24], len: i64, want: [u8; 24], wlen: i64, n: i64, same: i64;
+    n += 9223372036854775807;
+    call put_int(out, len, n);
+    call put(want, wlen, "9223372036854775807");
+    call eq(out, want, same);
+    expect len == 19 && same == 1;
+}
+
+test put_int_writes_after_other_text {
+    out: [u8; 24], len: i64, n: i64;
+    n += 1250;
+    call put(out, len, "x=");
+    call put_int(out, len, n);
+    expect len == 6
+        && out[2] == b'1'
+        && out[3] == b'2'
+        && out[4] == b'5'
+        && out[5] == b'0';
+}
+
+test eq_tells_texts_apart {
+    a: [u8; 4],
+        b: [u8; 4],
+        c: [u8; 4],
+        alen: i64,
+        blen: i64,
+        clen: i64,
+        same_ab: i64,
+        same_ac: i64;
+    call put(a, alen, "abcd");
+    call put(b, blen, "abcd");
+    call put(c, clen, "abce");
+    call eq(a, b, same_ab);
+    call eq(a, c, same_ac);
+    expect same_ab == 1 && same_ac == 0;
+}
+
+test copy_copies_into_a_zero_buffer {
+    a: [u8; 3], b: [u8; 3], len: i64;
+    call put(a, len, "xyz");
+    call copy(b, a);
+    expect b[0] == b'x' && b[1] == b'y' && b[2] == b'z';
+}
+
+test is_digit_recognises_digits {
+    digit: u8, letter: u8, yes_digit: i64, yes_letter: i64;
+    digit += b'7';
+    letter += b'q';
+    call is_digit(digit, yes_digit);
+    call is_digit(letter, yes_letter);
+    expect yes_digit == 1 && yes_letter == 0;
+}

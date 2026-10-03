@@ -1,0 +1,69 @@
+// The world can be taken back. Every test runs forward and then backward, and
+// the runner checks afterwards that no output is still pending: running the
+// test backward took back what it wrote.
+
+use std::io::*;
+
+test println_is_pending_until_it_is_committed {
+    waiting: i64;
+    call println("hello");
+    call pending(waiting);
+    expect waiting == 6;
+}
+
+test print_int_leaves_only_the_digits {
+    n: i64, waiting: i64;
+    n += 12345;
+    call print_int(n);
+    call pending(waiting);
+    expect waiting == 5;
+}
+
+test a_negative_number_has_a_sign {
+    n: i64, waiting: i64;
+    n -= 42;
+    call println_int(n);
+    call pending(waiting);
+    expect waiting == 4;
+}
+
+test output_written_in_a_try_that_fails_is_taken_back {
+    failed: bool, waiting: i64;
+    try {
+        call println("lost");
+        expect false;
+    } catch_rollback {
+        call println("kept");
+    } -> failed;
+    call pending(waiting);
+    expect failed && waiting == 5;
+}
+
+test output_written_in_a_try_that_succeeds_stays {
+    failed: bool, waiting: i64;
+    try { call println("kept"); } catch_rollback { call println("lost"); } -> failed;
+    call pending(waiting);
+    expect !failed && waiting == 5;
+}
+
+test uncall_un_prints {
+    waiting: i64;
+    call println("one");
+    call println("two");
+    uncall println("two");
+    call pending(waiting);
+    expect waiting == 4;
+}
+
+test a_read_can_be_taken_back_and_read_again {
+    first: [u8; 4],
+        first_len: i64,
+        first_status: i64,
+        second: [u8; 4],
+        second_len: i64,
+        second_status: i64;
+    call read_line(first, first_len, first_status);
+    uncall read_line(first, first_len, first_status);
+    call read_line(second, second_len, second_status);
+    expect first_status == 0 && second_status == 1;
+}

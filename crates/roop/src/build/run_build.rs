@@ -22,13 +22,30 @@ pub fn build_program(
     config: &roop_config::Config,
     program: &roop_syntax::Program,
 ) -> Result<(), CliError> {
-    let options = host_options(config);
+    let mut options = host_options(config);
+    options.no_entry = !args.link.is_empty();
+    let has_main = program
+        .items
+        .iter()
+        .any(|item| matches!(item, roop_syntax::Item::Fn(f) if f.name == "main" && !f.external));
+    let emit = args.emit.unwrap_or(if has_main || !args.link.is_empty() {
+        Emit::Executable
+    } else {
+        Emit::Object
+    });
+    let output = args.output.clone().unwrap_or_else(|| {
+        args.input.with_extension(match emit {
+            Emit::Ir => "ll",
+            Emit::Object => "o",
+            Emit::Executable => "",
+        })
+    });
     roop_check::check(program).map_err(CliError::Check)?;
     let program = fuse_parallel(program);
     let compiled = compile_all(&program, &options).map_err(CliError::Codegen)?;
 
-    if args.emit == Emit::Ir {
-        return write_ir(args, &compiled);
+    if emit == Emit::Ir {
+        return write_ir(&output, &compiled);
     }
     let scratch = BuildDir::create()?;
     let dir = scratch.path();
@@ -48,7 +65,7 @@ pub fn build_program(
 
     let mut command = clang()?;
     command.arg("-O2").arg(&host_path);
-    match args.emit {
+    match emit {
         Emit::Object => {
             command.arg("-c");
         }
@@ -62,21 +79,21 @@ pub fn build_program(
             }
         }
     }
-    command.arg("-o").arg(&args.output);
+    command.arg("-o").arg(&output);
     run_tool(command)?;
     Ok(())
 }
 
-fn write_ir(args: &BuildArgs, compiled: &roop_llvm::Compiled) -> Result<(), CliError> {
+fn write_ir(output: &Path, compiled: &roop_llvm::Compiled) -> Result<(), CliError> {
     let write = |path: &Path, text: &str| {
         std::fs::write(path, text).map_err(|e| CliError::Io(path.display().to_string(), e))
     };
-    write(&args.output, &compiled.host)?;
+    write(output, &compiled.host)?;
     if let Some(air) = &compiled.air {
-        write(&args.output.with_extension("air.ll"), air)?;
+        write(&output.with_extension("air.ll"), air)?;
     }
     if let Some(ptx) = &compiled.ptx {
-        write(&args.output.with_extension("ptx.ll"), ptx)?;
+        write(&output.with_extension("ptx.ll"), ptx)?;
     }
     Ok(())
 }

@@ -147,13 +147,184 @@ parameters, and `N - 1` and similar fold to a constant.
 
 ```rust
 fn axpy<N>(y: &mut [i64; N], x: &[i64; N], k: &i64) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 { y[i] += k * x[i]; } loop { i += 1; } until i == N - 1;
-        i -= N - 1;        // a counted loop ends at its bound, so i is restored
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 { y[i] += k * x[i]; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;        // a counted loop ends at its bound, so i is restored
 }
 ```
+
+A call that leaves the lengths out gets them from its arguments: `call axpy(y, x, k)`
+is `call axpy<4>(y, x, k)` when `y` is a `[i64; 4]`, and `<N>` when it is the
+caller's own `[i64; N]`. This works from parameters, ancillas and string
+literals, through fields and indices, and for several lengths at once. A call the
+arguments do not settle still needs its lengths written out.
+
+## Ancilla declarations
+
+An ancilla that lasts to the end of its block does not need a block of its own:
+
+```rust
+fn scale_rows<M, N>(a: &mut [[i64; N]; M], k: &i64) {
+    ancilla i: i64 = 0;          // lasts to the closing brace
+    from i == 0 {
+        ancilla j: i64 = 0;      // and this one to the end of the loop body
+        from j == 0 { a[i][j] += k; } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    } loop { i += 1; } until i == M - 1;
+    i -= M - 1;
+}
+```
+
+`ancilla x: T = e;` followed by statements means `ancilla x: T = e { statements }`,
+so it is checked the same way, and `roop fmt` writes an ancilla that ends its
+block this way. The braces stay for an ancilla with something after it.
+
+## Bytes and text
+
+`u8` is an unsigned byte. It adds, subtracts and xors with wrap-around, compares
+and divides without sign, and an integer literal in a place that holds a `u8`
+is one. Casts convert between the number types: `n as u8` keeps the low byte,
+`c as i64` widens, `x as f64` converts, and `x as i64` from a float saturates, so
+a number out of range or a NaN is never undefined. `b'a'` is a byte, and
+`"hello\n"` is a read-only `[u8; 6]`, which can be an argument to a `&[u8; N]`
+parameter and nothing else; the escapes are `\n \t \r \0 \\ \" \' \xHH`. Text is
+an array of bytes and a length, and the bytes after the length are zero, so
+appending adds into zeros and running the append backward takes it off again.
+
+## Programs
+
+A program starts at `main`. `irrev fn main(status: &mut i64)` leaves the exit
+status in `status`, and `irrev fn main()` exits with 0. `roop run` builds and
+runs it, and `roop build` makes an executable when there is a `main`:
+
+```rust
+use std::io::println;
+
+irrev fn main() {
+    call println("Hello, world!");
+}
+```
+
+```
+roop run examples/bin/hello.roop
+roop run examples/bin/echo.roop a b c      # what follows the file is the program's
+```
+
+`extern fn name<N>(params);` declares a function the runtime provides. It takes
+its arguments by reference like any roop function, and is irreversible.
+`extern world fn` is the reversible kind, which the next section explains. The
+library declares them in `std::sys`, and the modules built on it, `io`, `fs`,
+`process`, `text` and `math`, are what programs use. They are in `roop/std` and
+`roop/examples/bin` has `hello`, `echo`, `cat`, `wc`, `rot13`, `fib`, `copy`, `ls`
+and `undo`.
+
+## The world
+
+Output cannot be unprinted and a file that was overwritten is gone. Reversible
+languages mostly leave this outside, and reverse only the program. roop makes
+the world something a program can run backward, for as long as nobody has seen
+or touched it for good. Three ideas do it, each from the literature.
+
+**Output is pending until it is committed.** `print` adds to a queue the runtime
+holds, and its inverse takes the last of it back. Nothing is shown until
+`std::io::commit`, the end of the program, or a read from the real standard
+input, since whoever is to answer must see the question. So `uncall greet()`
+un-prints, and a `try` that fails shows nothing of what it wrote: the rollback
+that already undoes a failed `try` runs the inverse of each print. After a
+commit the output cannot be taken back, and asking to is a runtime error. This
+is Bennett's trick with the world as the copy: compute, copy out, uncompute
+([Bennett 1973](https://mathweb.ucsd.edu/~sbuss/CourseWeb/Math268_2013W/Bennett_Reversibiity.pdf)),
+and `print_int` is written that way, building the digits in a buffer, writing them,
+and running the building backward. It is also the shape of the log monads that
+[Heunen and Karvonen](https://arxiv.org/abs/1505.04330) show reversible: a
+computation with an effect is reversible when the monad is Frobenius, which
+holds for a log kept in a group and fails for a list under concatenation. A
+pending queue is not a group, so it is reversed by each write being the dagger
+of its take-back, like a stack, the same reason roop's history stack is.
+
+**Input is a tape that remembers.** `read_line` takes the next line from the
+real input, or from lines that were put back, and the inverse of a read puts its
+line back, so the next read gets it again. This is what record and replay
+debuggers do: they record what the outside world told the program, so a run can
+be repeated and reversed ([rr](https://en.wikipedia.org/wiki/Rr_(debugging))). The
+clock works the same way: a time that was read is kept, so reading again after an
+undo gives the same time.
+
+**A file operation keeps what it replaced.** Writing, appending, removing,
+renaming, copying and making directories each leave an entry in a journal, and
+their inverses restore the file, after checking that it is as the operation left
+it. If someone changed the file in between, the runtime stops rather than lose
+their change. Reads are reversible by being repeatable: running one backward
+empties its results, and running it again gives the same, since the files were
+put back.
+
+A result goes into a place that is zero, like a `pop` or a `recv`, because the
+old value would be lost and the inverse could not bring it back; the runtime
+refuses a place that is not zero. That is why a loop that reads lines clears its
+buffer, which is an irreversible act, in irrev code. A reversible loop keeps
+every line, in a row of an array. Parallel loops and concurrent tasks may not
+call anything that changes the world, since the world has an order and they
+have none; the checker rejects it.
+
+```rust
+fn announce() {
+    call println("step one");
+    call println("step two");
+}
+
+irrev fn main() {
+    ancilla failed: bool = false;
+    try {
+        call announce();
+        expect false;                      // the try fails
+    } catch_rollback {
+        call println("rolled back: nothing from announce was shown");
+    } -> failed;
+}
+```
+
+That prints only the handler's line. Tests may use all of this: every `roop test`
+runs forward and then backward, and checks that no output is left pending. Files
+the tests wrote are gone again, which `roop/tests/files.roop` checks. `std::io`,
+`std::fs` and `std::process` are written this way, and Lean does not model the
+world: functions that reach it are skipped and listed.
+
+## Einsum
+
+`einsum fn name: T = "subscripts";` writes a tensor contraction as loops:
+
+```rust
+einsum fn matmul: f64 = "ij,jk->ik";
+
+test matmul_of_two_by_two {
+    out: [[f64; 2]; 2], x0: [[f64; 2]; 2], x1: [[f64; 2]; 2];
+    x0[0][0] += 1.0; x0[0][1] += 2.0; x0[1][0] += 3.0; x0[1][1] += 4.0;
+    x1[0][0] += 5.0; x1[0][1] += 6.0; x1[1][0] += 7.0; x1[1][1] += 8.0;
+    call matmul(out, x0, x1);              // the lengths come from the arguments
+    expect out[0][0] == 19.0 && out[1][1] == 50.0;
+}
+```
+
+The function is `matmul(out, x0, x1)`: `out` gets the sum, over the labels not in
+the output, of the product of the elements of the operands. It is added into
+`out`, so a zero `out` ends up holding the result and running it backward takes
+it off. Each label becomes a length, `n_i`, `n_j`, in order of first appearance.
+The loops over the output labels are parallel, since each iteration writes its
+own part of `out`, and the sums are sequential, so the result is the same on
+every run. Without `->` the output is the labels that appear once, in
+alphabetical order, as in NumPy. A label used twice in one operand takes the
+diagonal, so `"ii->"` is the trace.
+
+The `einsum` package, `roop/einsum`, has `dot`, `outer`, `matvec`, `matmul`,
+`transpose`, `trace`, sums, a bilinear form, batched matrix products, the
+contraction of three indices with a matrix, and the two products of attention,
+`scores` (`"bqd,bkd->bqk"`) and `attend` (`"bqk,bkd->bqd"`), each with an `i` (64-bit
+integer) and a `d` (f64) version. Their tests are checked against sums worked out by
+hand, in `roop/tests/einsum.roop`. Because a contraction is reversible, so is its
+gradient: the vector-jacobian product of an einsum is another einsum with the
+labels moved, such as `"ik,jk->ij"` for the gradient of `matmul` with respect to
+its first operand.
 
 ## Standard library
 
@@ -185,6 +356,15 @@ difference after a forward and a reverse call; a test does the same on `dgemm`.
 i64, with a `g` prefix): `axpy`, `swap`, `dotu`, `gemv`, `geru` and `gemm`.
 Gaussian integers are exact, so Lean proves those reverse. Complex scaling is
 left out because it loses information at zero.
+
+**std::io**, **std::fs**, **std::process**, **std::text** and **std::math** are what
+programs are made of. `io` has `print`, `println`, `print_int`, `read_line` and
+`commit`; `fs` has `exists`, `size`, `read_file`, `write_file`, `append_file`,
+`remove`, `rename`, `copy_file`, `make_dir`, `remove_dir` and `list_dir`; `process`
+has the arguments, the environment, the clock and `exit`; `text` has `put`,
+`put_int` (decimal, reversible), `eq`, `copy` and `parse_int`; `math` has `ipow`,
+`imax`, `iabs`, `isign` and the Fibonacci pair `fibpair`, which is injective and
+runs backward from a pair to its index.
 
 **std::session** has the sessions of the next section, and `roop/examples/server`
 is a server built on them: when a better offer turns up it rolls its last step

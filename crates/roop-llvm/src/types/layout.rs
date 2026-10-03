@@ -7,7 +7,7 @@ pub fn layout(ctx: &Ctx, ty: &Type) -> Result<(u64, u64), CodegenError> {
     match ty {
         Type::Named(name) => match name.as_str() {
             "i64" | "f64" => Ok((8, 8)),
-            "bool" => Ok((1, 1)),
+            "bool" | "u8" => Ok((1, 1)),
             _ if ctx.enums.contains_key(name.as_str()) => Ok((4, 4)),
             _ => {
                 let def =

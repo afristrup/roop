@@ -2,15 +2,17 @@ use crate::{CliError, Fixture, fixture_of};
 use roop_syntax::FnDef;
 
 fn bytes(f: &Fixture) -> usize {
-    f.count * if f.kind == 'b' { 1 } else { 8 }
+    f.count * if matches!(f.kind, 'b' | 'u') { 1 } else { 8 }
 }
 
 /// The C `main` that runs one test, chosen by index: it makes the fixtures
 /// zero, runs the test forward, then backward, and checks that every fixture
-/// is zero again. Exit 0 passes, 3 means the backward run did not restore.
+/// is zero again and that no output is still pending. Exit 0 passes, 3 means the
+/// backward run did not restore.
 pub fn test_driver(tests: &[&FnDef]) -> Result<String, CliError> {
     let mut out = String::from(
         "#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n\
+         void roop_pending(int64_t *len);\n\
          static int zero(const void *p, size_t n) {\n    const unsigned char *b = p;\n    \
          for (size_t i = 0; i < n; i++) if (b[i]) return 0;\n    return 1;\n}\n",
     );
@@ -50,6 +52,10 @@ pub fn test_driver(tests: &[&FnDef]) -> Result<String, CliError> {
                 f.name
             ));
         }
+        body.push_str(
+            "        { int64_t pending = 0; roop_pending(&pending); \
+             if (pending) { printf(\"output is still pending\\n\"); return 3; } }\n",
+        );
         cases.push_str(&format!(
             "    case {k}: {{\n{body}        return 0;\n    }}\n"
         ));

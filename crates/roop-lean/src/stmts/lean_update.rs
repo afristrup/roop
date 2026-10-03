@@ -1,6 +1,6 @@
 use crate::{
-    Ctx, Dir, Env, LeanError, Out, assign_place, is_bool, is_float, lean_expr, place_type,
-    read_place,
+    Ctx, Dir, Env, LeanError, Out, assign_place, is_bool, is_byte, is_float, lean_expr_as,
+    place_type, read_place,
 };
 use roop_syntax::{Expr, Place, UpdateOp};
 
@@ -21,7 +21,13 @@ pub fn lean_update(
         op
     };
     let ty = place_type(cx, env, target)?;
-    let (old, e) = (read_place(cx, env, target)?, lean_expr(cx, env, value)?);
+    let (old, e) = (
+        read_place(cx, env, target)?,
+        lean_expr_as(cx, env, value, &ty)?,
+    );
+    if is_byte(&ty) && matches!(op, UpdateOp::Mul | UpdateOp::Div) {
+        return Err(LeanError::Unsupported("`*=` and `/=` on bytes".into()));
+    }
     let float = is_float(&ty);
     let guard = match (op, float) {
         (UpdateOp::Mul, false) => Some(format!("Roop.mulOk {old} {e}")),

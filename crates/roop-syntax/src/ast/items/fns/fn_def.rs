@@ -1,4 +1,4 @@
-use crate::{Block, Param};
+use crate::{Block, Einsum, Param};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FnDef {
@@ -16,4 +16,13 @@ pub struct FnDef {
     /// Declared `bennett fn name = target;`: the compute, copy, uncompute
     /// version of `target`, which `roop-opt` writes out before the checks.
     pub bennett: Option<String>,
+    /// Declared `extern fn name(params);`: implemented outside roop, by the
+    /// runtime, with the same calling convention. Always irreversible.
+    pub external: bool,
+    /// For an extern function: it changes the outside world, and the runtime
+    /// provides its inverse as `name_inv`, so reversible code may call it.
+    pub world: bool,
+    /// Declared `einsum fn name: T = "ij,jk->ik";`: the contraction, which
+    /// `roop-opt` writes out as loops before the checks.
+    pub einsum: Option<Einsum>,
 }

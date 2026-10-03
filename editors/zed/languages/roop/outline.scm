@@ -4,6 +4,12 @@
   "fn" @context
   name: (_) @name) @item
 
+(extern_item
+  (visibility)? @context
+  "extern" @context
+  "fn" @context
+  name: (_) @name) @item
+
 (test_item
   "test" @context
   name: (_) @name) @item
@@ -11,6 +17,12 @@
 (bennett_item
   (visibility)? @context
   "bennett" @context
+  "fn" @context
+  name: (_) @name) @item
+
+(einsum_item
+  (visibility)? @context
+  "einsum" @context
   "fn" @context
   name: (_) @name) @item
 

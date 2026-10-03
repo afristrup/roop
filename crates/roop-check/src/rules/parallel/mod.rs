@@ -1,5 +1,6 @@
 mod access;
 mod binding;
+mod check_no_world;
 mod check_parallel;
 mod check_parallel_body;
 mod collect_accesses;
@@ -11,6 +12,7 @@ mod resolve_place;
 
 pub use access::*;
 pub use binding::*;
+pub use check_no_world::*;
 pub use check_parallel::*;
 pub use check_parallel_body::*;
 pub use collect_accesses::*;

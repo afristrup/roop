@@ -1,4 +1,4 @@
-use crate::{Ctx, Env, LeanError, lean_expr, lean_type};
+use crate::{Ctx, Env, LeanError, lean_expr_as, lean_type};
 use roop_syntax::{Expr, Type};
 
 /// The start value of an ancilla. `empty` needs its type spelled out, and `0`
@@ -14,7 +14,7 @@ pub fn init_text(cx: &Ctx, env: &Env, ty: &Type, init: &Expr) -> Result<String, 
         let zero = array_zero(elem)?;
         return Ok(format!("(Vector.replicate {len} {zero})"));
     }
-    lean_expr(cx, env, init)
+    lean_expr_as(cx, env, init, ty)
 }
 
 /// Zero for an array element, which may be an array itself.

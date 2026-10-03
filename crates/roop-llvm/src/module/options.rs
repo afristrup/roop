@@ -8,4 +8,6 @@ pub struct Options {
     /// LLVM CPU name, e.g. `apple-m4`.
     pub cpu: Option<String>,
     pub parallel: ParallelOptions,
+    /// A C `main` is linked in, so none is made for the roop `main`.
+    pub no_entry: bool,
 }

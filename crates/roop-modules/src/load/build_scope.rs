@@ -1,4 +1,4 @@
-use crate::{ModuleError, ModuleScope, Tree, global_name, imports_of, item_name};
+use crate::{ModuleError, ModuleScope, Tree, imports_of, item_global, item_name};
 use roop_syntax::{Item, UseShape};
 use std::collections::HashMap;
 
@@ -25,7 +25,7 @@ pub fn build_scope(tree: &Tree, id: usize) -> Result<ModuleScope, ModuleError> {
             bind(
                 &mut names,
                 name.to_string(),
-                global_name(&module.path, name),
+                item_global(&module.path, item, name),
             )?;
         }
     }

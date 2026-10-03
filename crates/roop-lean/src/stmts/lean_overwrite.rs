@@ -1,6 +1,6 @@
 use crate::{
-    Ctx, Dir, Env, LeanError, Out, assign_place, is_float, lean_expr, overwrite_value, place_type,
-    read_place, stack_elem,
+    Ctx, Dir, Env, LeanError, Out, assign_place, is_float, lean_expr_as, overwrite_value,
+    place_type, read_place, stack_elem,
 };
 use roop_syntax::{Expr, OverwriteOp, Place};
 
@@ -17,8 +17,12 @@ pub fn lean_overwrite(
     value: &Expr,
     dir: Dir,
 ) -> Result<(), LeanError> {
-    let float = is_float(&place_type(cx, env, target)?);
-    let (old, e) = (read_place(cx, env, target)?, lean_expr(cx, env, value)?);
+    let ty = place_type(cx, env, target)?;
+    let float = is_float(&ty);
+    let (old, e) = (
+        read_place(cx, env, target)?,
+        lean_expr_as(cx, env, value, &ty)?,
+    );
     let Some(history) = env.logged.last() else {
         if dir == Dir::Backward {
             return Err(LeanError::Unsupported("an overwrite run backward".into()));

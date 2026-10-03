@@ -12,7 +12,17 @@ pub fn gen_call_status(
     fail: &str,
 ) -> Result<(), CodegenError> {
     let (def, inverse) = resolve(g, callee, is_uncall, dir)?;
-    let passed = call_arguments(g, &def.params, args)?;
+    let passed = call_arguments(g, &def.params, args, def.external)?;
+    if def.external {
+        // The runtime reports a failure in a status argument, not by failing.
+        let symbol = if inverse {
+            format!("{callee}_inv")
+        } else {
+            callee.into()
+        };
+        g.emit(&format!("call void @{symbol}({})", passed.join(", ")));
+        return Ok(());
+    }
     let symbol = format!("{callee}{}_try", if inverse { "_inv" } else { "" });
     let status = format!("%{}", g.fresh("t"));
     g.emit(&format!(

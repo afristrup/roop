@@ -5,3 +5,8 @@ members = ["crates/*"]
 [workspace.package]
 edition = "2024"
 version = "0.1.0"
+
+# Test binaries and incremental caches made the target directory run to tens of
+# gigabytes with full debug info. Line tables are enough for backtraces.
+[profile.dev]
+debug = "line-tables-only"

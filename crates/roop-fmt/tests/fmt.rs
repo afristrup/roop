@@ -299,3 +299,67 @@ fn a_bennett_function_is_one_line() {
         "pub bennett fn quote = settle_to;\n\nbennett fn q2 = f;\n"
     );
 }
+
+#[test]
+fn an_ancilla_at_the_end_of_a_block_is_a_declaration() {
+    let src = "fn f(a: &mut i64) { ancilla i: i64 = 0 { ancilla j: i64 = 0 { a += i; a += j; } } }";
+    let out = fmt(src);
+    assert_eq!(
+        out,
+        "fn f(a: &mut i64) {\n    ancilla i: i64 = 0;\n    ancilla j: i64 = 0;\n    a += i;\n    a += j;\n}\n"
+    );
+    assert_eq!(fmt(&out), out);
+}
+
+#[test]
+fn an_ancilla_followed_by_statements_keeps_its_braces() {
+    let src = "fn f(a: &mut i64) { ancilla i: i64 = 0 { a += i; } a += 1; }";
+    let out = fmt(src);
+    assert!(
+        out.contains("ancilla i: i64 = 0 {\n        a += i;\n    }\n    a += 1;"),
+        "{out}"
+    );
+}
+
+#[test]
+fn comments_around_a_declaration_stay() {
+    let src = "fn f(a: &mut i64) {\n    // before\n    ancilla i: i64 = 0; // beside\n    // between\n    a += i;\n    // last\n}\n";
+    assert_eq!(fmt(src), src);
+}
+
+#[test]
+fn a_comment_after_the_brace_of_a_braced_ancilla_moves_after_the_declaration() {
+    let out = fmt("fn f(a: &mut i64) { ancilla i: i64 = 0 { // why\n a += i; } }");
+    assert_eq!(
+        out,
+        "fn f(a: &mut i64) {\n    ancilla i: i64 = 0; // why\n    a += i;\n}\n"
+    );
+}
+
+#[test]
+fn strings_bytes_and_casts_print_so_they_lex_again() {
+    let src = "fn f(c: &mut u8, n: &mut i64) { call g(\"a\\n\\\"q\\\"\\x01\"); c += b'\\n'; c += b'\\''; n += c as i64 + (c as i64) * 2; n += -n as i64; }";
+    let out = fmt(src);
+    assert!(out.contains("call g(\"a\\n\\\"q\\\"\\x01\");"), "{out}");
+    assert!(out.contains("c += b'\\n';"), "{out}");
+    assert!(out.contains("c += b'\\'';"), "{out}");
+    assert!(out.contains("n += c as i64 + c as i64 * 2;"), "{out}");
+    assert!(out.contains("n += -n as i64;"), "{out}");
+    assert_eq!(fmt(&out), out);
+}
+
+#[test]
+fn an_extern_function_is_one_line() {
+    let out =
+        fmt("pub  extern fn   roop_write<N>(fd:&i64,buf:&[u8;N]);extern fn roop_close(fd:&i64);");
+    assert_eq!(
+        out,
+        "pub extern fn roop_write<N>(fd: &i64, buf: &[u8; N]);\n\nextern fn roop_close(fd: &i64);\n"
+    );
+}
+
+#[test]
+fn slashes_in_a_string_stay() {
+    let src = "fn f() {\n    call g(\"http://x\"); // comment\n}\n";
+    assert_eq!(fmt(src), src);
+}

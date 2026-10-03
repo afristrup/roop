@@ -6,6 +6,7 @@ pub fn lean_type(ty: &Type) -> String {
     match ty {
         Type::Named(name) => match name.as_str() {
             "i64" => "Roop.I64".into(),
+            "u8" => "Roop.U8".into(),
             "f64" => "Float".into(),
             "bool" => "Bool".into(),
             other => esc_ty(other),

@@ -14,6 +14,7 @@ pub struct Ran {
 pub fn run_exe(exe: &Path, args: &[String], timeout: Duration) -> std::io::Result<Ran> {
     let mut child = Command::new(exe)
         .args(args)
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()?;

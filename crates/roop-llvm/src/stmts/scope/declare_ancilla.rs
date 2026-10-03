@@ -1,4 +1,4 @@
-use crate::{CodegenError, FnGen, Slot, gen_expr, llvm_type, mem_store, same_type};
+use crate::{CodegenError, FnGen, Slot, gen_expr_as, llvm_type, mem_store, same_type};
 use roop_syntax::{Expr, Type};
 
 /// Allocates the ancilla and stores its start value; `empty` is a zeroed stack
@@ -19,7 +19,7 @@ pub fn declare_ancilla(g: &mut FnGen, ty: &Type, init: &Expr) -> Result<Slot, Co
     } else if *init == Expr::Int(0) && matches!(ty, Type::Array(..)) {
         mem_store(g, &slot, "zeroinitializer")?;
     } else {
-        let v = gen_expr(g, init)?;
+        let v = gen_expr_as(g, init, ty)?;
         same_type(ty, &v.ty)?;
         mem_store(g, &slot, &v.reg)?;
     }

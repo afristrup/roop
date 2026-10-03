@@ -12,6 +12,8 @@ pub struct Scope<'a> {
     pub irreversible_fns: &'a HashSet<&'a str>,
     /// Functions a failed `try` could not roll back.
     pub non_atomic_fns: &'a HashSet<&'a str>,
+    /// Functions that change the world outside the program.
+    pub world_fns: &'a HashSet<&'a str>,
     /// Which parameters of each function it may write.
     pub mutability: &'a Mutability<'a>,
     /// What the enclosing `if` conditions guarantee.

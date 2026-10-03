@@ -1,0 +1,40 @@
+========================================
+einsum and world functions
+========================================
+
+pub einsum fn dmatmul: f64 = "ij,jk->ik";
+einsum fn idot: i64 = "i,i->";
+pub extern world fn roop_out<N>(fd: &i64, buf: &[u8; N], len: &i64);
+
+----------------------------------------
+
+(source_file
+  (einsum_item
+    (visibility)
+    (identifier)
+    (primitive_type)
+    (string_literal))
+  (einsum_item
+    (identifier)
+    (primitive_type)
+    (string_literal))
+  (extern_item
+    (visibility)
+    (identifier)
+    (generics
+      (identifier))
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type)))
+      (parameter
+        (identifier)
+        (reference_type
+          (array_type
+            (primitive_type)
+            (identifier))))
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type))))))

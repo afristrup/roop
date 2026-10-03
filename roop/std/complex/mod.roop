@@ -13,37 +13,34 @@ pub struct Gaussian { re: i64, im: i64 }
 
 // y <- alpha * x + y
 pub fn zaxpy<N>(y: &mut [Complex; N], x: &[Complex; N], alpha: &Complex) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            y[i].re += alpha.re * x[i].re - alpha.im * x[i].im;
-            y[i].im += alpha.re * x[i].im + alpha.im * x[i].re;
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        y[i].re += alpha.re * x[i].re - alpha.im * x[i].im;
+        y[i].im += alpha.re * x[i].im + alpha.im * x[i].re;
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // x <-> y
 pub fn zswap<N>(x: &mut [Complex; N], y: &mut [Complex; N]) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            x[i].re <=> y[i].re;
-            x[i].im <=> y[i].im;
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        x[i].re <=> y[i].re;
+        x[i].im <=> y[i].im;
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // result <- result + x . y (the unconjugated dot product)
 pub fn zdotu<N>(result: &mut Complex, x: &[Complex; N], y: &[Complex; N]) {
-    ancilla i: i64 = 0 {
-        from i == 0 {
-            result.re += x[i].re * y[i].re - x[i].im * y[i].im;
-            result.im += x[i].re * y[i].im + x[i].im * y[i].re;
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    from i == 0 {
+        result.re += x[i].re * y[i].re - x[i].im * y[i].im;
+        result.im += x[i].re * y[i].im + x[i].im * y[i].re;
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // y <- alpha * A * x + y
@@ -53,27 +50,23 @@ pub fn zgemv<M, N>(
     x: &[Complex; N],
     alpha: &Complex,
 ) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            ancilla j: i64 = 0 {
-                from j == 0 {
-                    ancilla tr: f64 = 0.0 {
-                        ancilla ti: f64 = 0.0 {
-                            tr += a[i][j].re * x[j].re - a[i][j].im * x[j].im;
-                            ti += a[i][j].re * x[j].im + a[i][j].im * x[j].re;
-                            y[i].re += alpha.re * tr - alpha.im * ti;
-                            y[i].im += alpha.re * ti + alpha.im * tr;
-                            ti -= a[i][j].re * x[j].im + a[i][j].im * x[j].re;
-                            tr -= a[i][j].re * x[j].re - a[i][j].im * x[j].im;
-                        }
-                    }
-                } loop { j += 1; } until j == N - 1;
-                j -= N - 1;
-            }
-        } loop { i += 1; } until i == M - 1;
-        i -= M - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            ancilla tr: f64 = 0.0;
+            ancilla ti: f64 = 0.0;
+            tr += a[i][j].re * x[j].re - a[i][j].im * x[j].im;
+            ti += a[i][j].re * x[j].im + a[i][j].im * x[j].re;
+            y[i].re += alpha.re * tr - alpha.im * ti;
+            y[i].im += alpha.re * ti + alpha.im * tr;
+            ti -= a[i][j].re * x[j].im + a[i][j].im * x[j].re;
+            tr -= a[i][j].re * x[j].re - a[i][j].im * x[j].im;
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    } loop { i += 1; } until i == M - 1;
+    i -= M - 1;
 }
 
 // A <- alpha * x * y^T + A (the unconjugated rank-1 update)
@@ -83,27 +76,23 @@ pub fn zgeru<M, N>(
     y: &[Complex; N],
     alpha: &Complex,
 ) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            ancilla j: i64 = 0 {
-                from j == 0 {
-                    ancilla tr: f64 = 0.0 {
-                        ancilla ti: f64 = 0.0 {
-                            tr += x[i].re * y[j].re - x[i].im * y[j].im;
-                            ti += x[i].re * y[j].im + x[i].im * y[j].re;
-                            a[i][j].re += alpha.re * tr - alpha.im * ti;
-                            a[i][j].im += alpha.re * ti + alpha.im * tr;
-                            ti -= x[i].re * y[j].im + x[i].im * y[j].re;
-                            tr -= x[i].re * y[j].re - x[i].im * y[j].im;
-                        }
-                    }
-                } loop { j += 1; } until j == N - 1;
-                j -= N - 1;
-            }
-        } loop { i += 1; } until i == M - 1;
-        i -= M - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            ancilla tr: f64 = 0.0;
+            ancilla ti: f64 = 0.0;
+            tr += x[i].re * y[j].re - x[i].im * y[j].im;
+            ti += x[i].re * y[j].im + x[i].im * y[j].re;
+            a[i][j].re += alpha.re * tr - alpha.im * ti;
+            a[i][j].im += alpha.re * ti + alpha.im * tr;
+            ti -= x[i].re * y[j].im + x[i].im * y[j].re;
+            tr -= x[i].re * y[j].re - x[i].im * y[j].im;
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    } loop { i += 1; } until i == M - 1;
+    i -= M - 1;
 }
 
 // C <- alpha * A * B + C
@@ -113,71 +102,59 @@ pub fn zgemm<M, N, K>(
     b: &[[Complex; N]; K],
     alpha: &Complex,
 ) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            ancilla j: i64 = 0 {
-                from j == 0 {
-                    ancilla l: i64 = 0 {
-                        from l == 0 {
-                            ancilla tr: f64 = 0.0 {
-                                ancilla ti: f64 = 0.0 {
-                                    tr += a[i][l].re * b[l][j].re
-                                        - a[i][l].im * b[l][j].im;
-                                    ti += a[i][l].re * b[l][j].im
-                                        + a[i][l].im * b[l][j].re;
-                                    c[i][j].re += alpha.re * tr - alpha.im * ti;
-                                    c[i][j].im += alpha.re * ti + alpha.im * tr;
-                                    ti -= a[i][l].re * b[l][j].im
-                                        + a[i][l].im * b[l][j].re;
-                                    tr -= a[i][l].re * b[l][j].re
-                                        - a[i][l].im * b[l][j].im;
-                                }
-                            }
-                        } loop { l += 1; } until l == K - 1;
-                        l -= K - 1;
-                    }
-                } loop { j += 1; } until j == N - 1;
-                j -= N - 1;
-            }
-        } loop { i += 1; } until i == M - 1;
-        i -= M - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            ancilla l: i64 = 0;
+            from l == 0 {
+                ancilla tr: f64 = 0.0;
+                ancilla ti: f64 = 0.0;
+                tr += a[i][l].re * b[l][j].re - a[i][l].im * b[l][j].im;
+                ti += a[i][l].re * b[l][j].im + a[i][l].im * b[l][j].re;
+                c[i][j].re += alpha.re * tr - alpha.im * ti;
+                c[i][j].im += alpha.re * ti + alpha.im * tr;
+                ti -= a[i][l].re * b[l][j].im + a[i][l].im * b[l][j].re;
+                tr -= a[i][l].re * b[l][j].re - a[i][l].im * b[l][j].im;
+            } loop { l += 1; } until l == K - 1;
+            l -= K - 1;
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    } loop { i += 1; } until i == M - 1;
+    i -= M - 1;
 }
 
 // y <- alpha * x + y
 pub fn gaxpy<N>(y: &mut [Gaussian; N], x: &[Gaussian; N], alpha: &Gaussian) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            y[i].re += alpha.re * x[i].re - alpha.im * x[i].im;
-            y[i].im += alpha.re * x[i].im + alpha.im * x[i].re;
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        y[i].re += alpha.re * x[i].re - alpha.im * x[i].im;
+        y[i].im += alpha.re * x[i].im + alpha.im * x[i].re;
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // x <-> y
 pub fn gswap<N>(x: &mut [Gaussian; N], y: &mut [Gaussian; N]) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            x[i].re <=> y[i].re;
-            x[i].im <=> y[i].im;
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        x[i].re <=> y[i].re;
+        x[i].im <=> y[i].im;
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // result <- result + x . y (the unconjugated dot product)
 pub fn gdotu<N>(result: &mut Gaussian, x: &[Gaussian; N], y: &[Gaussian; N]) {
-    ancilla i: i64 = 0 {
-        from i == 0 {
-            result.re += x[i].re * y[i].re - x[i].im * y[i].im;
-            result.im += x[i].re * y[i].im + x[i].im * y[i].re;
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    }
+    ancilla i: i64 = 0;
+    from i == 0 {
+        result.re += x[i].re * y[i].re - x[i].im * y[i].im;
+        result.im += x[i].re * y[i].im + x[i].im * y[i].re;
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
 }
 
 // y <- alpha * A * x + y
@@ -187,27 +164,23 @@ pub fn ggemv<M, N>(
     x: &[Gaussian; N],
     alpha: &Gaussian,
 ) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            ancilla j: i64 = 0 {
-                from j == 0 {
-                    ancilla tr: i64 = 0 {
-                        ancilla ti: i64 = 0 {
-                            tr += a[i][j].re * x[j].re - a[i][j].im * x[j].im;
-                            ti += a[i][j].re * x[j].im + a[i][j].im * x[j].re;
-                            y[i].re += alpha.re * tr - alpha.im * ti;
-                            y[i].im += alpha.re * ti + alpha.im * tr;
-                            ti -= a[i][j].re * x[j].im + a[i][j].im * x[j].re;
-                            tr -= a[i][j].re * x[j].re - a[i][j].im * x[j].im;
-                        }
-                    }
-                } loop { j += 1; } until j == N - 1;
-                j -= N - 1;
-            }
-        } loop { i += 1; } until i == M - 1;
-        i -= M - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            ancilla tr: i64 = 0;
+            ancilla ti: i64 = 0;
+            tr += a[i][j].re * x[j].re - a[i][j].im * x[j].im;
+            ti += a[i][j].re * x[j].im + a[i][j].im * x[j].re;
+            y[i].re += alpha.re * tr - alpha.im * ti;
+            y[i].im += alpha.re * ti + alpha.im * tr;
+            ti -= a[i][j].re * x[j].im + a[i][j].im * x[j].re;
+            tr -= a[i][j].re * x[j].re - a[i][j].im * x[j].im;
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    } loop { i += 1; } until i == M - 1;
+    i -= M - 1;
 }
 
 // A <- alpha * x * y^T + A (the unconjugated rank-1 update)
@@ -217,27 +190,23 @@ pub fn ggeru<M, N>(
     y: &[Gaussian; N],
     alpha: &Gaussian,
 ) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            ancilla j: i64 = 0 {
-                from j == 0 {
-                    ancilla tr: i64 = 0 {
-                        ancilla ti: i64 = 0 {
-                            tr += x[i].re * y[j].re - x[i].im * y[j].im;
-                            ti += x[i].re * y[j].im + x[i].im * y[j].re;
-                            a[i][j].re += alpha.re * tr - alpha.im * ti;
-                            a[i][j].im += alpha.re * ti + alpha.im * tr;
-                            ti -= x[i].re * y[j].im + x[i].im * y[j].re;
-                            tr -= x[i].re * y[j].re - x[i].im * y[j].im;
-                        }
-                    }
-                } loop { j += 1; } until j == N - 1;
-                j -= N - 1;
-            }
-        } loop { i += 1; } until i == M - 1;
-        i -= M - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            ancilla tr: i64 = 0;
+            ancilla ti: i64 = 0;
+            tr += x[i].re * y[j].re - x[i].im * y[j].im;
+            ti += x[i].re * y[j].im + x[i].im * y[j].re;
+            a[i][j].re += alpha.re * tr - alpha.im * ti;
+            a[i][j].im += alpha.re * ti + alpha.im * tr;
+            ti -= x[i].re * y[j].im + x[i].im * y[j].re;
+            tr -= x[i].re * y[j].re - x[i].im * y[j].im;
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    } loop { i += 1; } until i == M - 1;
+    i -= M - 1;
 }
 
 // C <- alpha * A * B + C
@@ -247,34 +216,25 @@ pub fn ggemm<M, N, K>(
     b: &[[Gaussian; N]; K],
     alpha: &Gaussian,
 ) {
-    ancilla i: i64 = 0 {
-        #[parallel]
-        from i == 0 {
-            ancilla j: i64 = 0 {
-                from j == 0 {
-                    ancilla l: i64 = 0 {
-                        from l == 0 {
-                            ancilla tr: i64 = 0 {
-                                ancilla ti: i64 = 0 {
-                                    tr += a[i][l].re * b[l][j].re
-                                        - a[i][l].im * b[l][j].im;
-                                    ti += a[i][l].re * b[l][j].im
-                                        + a[i][l].im * b[l][j].re;
-                                    c[i][j].re += alpha.re * tr - alpha.im * ti;
-                                    c[i][j].im += alpha.re * ti + alpha.im * tr;
-                                    ti -= a[i][l].re * b[l][j].im
-                                        + a[i][l].im * b[l][j].re;
-                                    tr -= a[i][l].re * b[l][j].re
-                                        - a[i][l].im * b[l][j].im;
-                                }
-                            }
-                        } loop { l += 1; } until l == K - 1;
-                        l -= K - 1;
-                    }
-                } loop { j += 1; } until j == N - 1;
-                j -= N - 1;
-            }
-        } loop { i += 1; } until i == M - 1;
-        i -= M - 1;
-    }
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            ancilla l: i64 = 0;
+            from l == 0 {
+                ancilla tr: i64 = 0;
+                ancilla ti: i64 = 0;
+                tr += a[i][l].re * b[l][j].re - a[i][l].im * b[l][j].im;
+                ti += a[i][l].re * b[l][j].im + a[i][l].im * b[l][j].re;
+                c[i][j].re += alpha.re * tr - alpha.im * ti;
+                c[i][j].im += alpha.re * ti + alpha.im * tr;
+                ti -= a[i][l].re * b[l][j].im + a[i][l].im * b[l][j].re;
+                tr -= a[i][l].re * b[l][j].re - a[i][l].im * b[l][j].im;
+            } loop { l += 1; } until l == K - 1;
+            l -= K - 1;
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    } loop { i += 1; } until i == M - 1;
+    i -= M - 1;
 }

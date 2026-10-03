@@ -14,7 +14,7 @@ pub fn check_zero(g: &mut FnGen, slot: &Slot) -> Result<(), CodegenError> {
     let compare = match kind {
         Kind::Float => format!("fcmp oeq {ty} {}, 0.000000e+00", current.reg),
         Kind::Bool => format!("icmp eq {ty} {}, false", current.reg),
-        Kind::Int | Kind::Enum => format!("icmp eq {ty} {}, 0", current.reg),
+        Kind::Int | Kind::Byte | Kind::Enum => format!("icmp eq {ty} {}, 0", current.reg),
     };
     g.emit(&format!("{reg} = {compare}"));
     gen_assert(
