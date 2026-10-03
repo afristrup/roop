@@ -2,6 +2,7 @@
 mod act;
 mod attention;
 mod kernels;
+mod losses;
 mod mlp;
 mod net;
 mod train;
@@ -9,6 +10,7 @@ mod train;
 pub use act::*;
 pub use attention::*;
 pub use kernels::*;
+pub use losses::*;
 pub use mlp::*;
 pub use net::*;
 pub use train::*;

@@ -189,3 +189,36 @@ test fold_and_unfold_are_the_same_numbers_in_two_shapes {
     call unfold<2, 3, 6>(z, m);
     expect z[4] == 7;
 }
+
+test softmax_of_equal_scores_is_uniform {
+    aq: [i64; 2], total: i64, q: [i64; 2], t: [i64; 2];
+    t[0] += 4096;
+    call seed_softmax<2, 2>(aq, total, q, t);
+    expect aq[0] == 0 - 2048 && aq[1] == 2048;
+}
+
+test softmax_of_a_clear_winner_is_close_to_one {
+    aq: [i64; 3], total: i64, q: [i64; 3], t: [i64; 3];
+    q[1] += 20480;
+    t[1] += 4096;
+    call seed_softmax<3, 3>(aq, total, q, t);
+    expect aq[1] > 0 - 40
+        && aq[1] <= 0
+        && aq[0] >= 0
+        && aq[0] < 40
+        && aq[2] >= 0
+        && aq[2] < 40;
+}
+
+test softmax_of_one_third_is_exact_enough {
+    aq: [i64; 3], total: i64, q: [i64; 3], t: [i64; 3];
+    call seed_softmax<3, 3>(aq, total, q, t);
+    expect aq[0] > 1360 && aq[0] < 1370 && aq[1] == aq[0] && aq[2] == aq[0];
+}
+
+test sigmoid_loss_seeds_the_prediction_minus_the_target {
+    aq: [i64; 2], total: i64, q: [i64; 2], t: [i64; 2];
+    t[0] += 4096;
+    call seed_sigmoid<2, 2>(aq, total, q, t);
+    expect aq[0] == 0 - 2048 && aq[1] == 2048;
+}
