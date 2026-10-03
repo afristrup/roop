@@ -15,6 +15,9 @@ fn walk_build(v: &mut dyn Visitor, build: &mut BuildFn) {
 pub fn walk_item(v: &mut dyn Visitor, item: &mut Item) {
     match item {
         Item::Fn(f) => {
+            if let Some(target) = &mut f.bennett {
+                v.name(target);
+            }
             walk_params(v, &mut f.params);
             walk_block(v, &mut f.body);
         }

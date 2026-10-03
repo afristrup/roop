@@ -5,6 +5,10 @@ pub fn print_fn(ctx: &Ctx, f: &FnDef) -> Doc {
     if f.test {
         return print_test(ctx, f);
     }
+    if let Some(target) = &f.bennett {
+        let public = if f.public { "pub " } else { "" };
+        return Doc::text(format!("{public}bennett fn {} = {target};", f.name));
+    }
     let public = if f.public { "pub " } else { "" };
     let irrev = if f.irreversible { "irrev " } else { "" };
     Doc::concat(vec![

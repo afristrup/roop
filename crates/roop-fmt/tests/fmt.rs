@@ -290,3 +290,12 @@ fn an_if_with_something_inside_is_not_an_expectation() {
     let out = fmt("fn f(a: &mut i64) { if a == 1 { a += 1; } fi true; }");
     assert!(out.contains("if a == 1 { a += 1; } fi true;"), "{out}");
 }
+
+#[test]
+fn a_bennett_function_is_one_line() {
+    let out = fmt("pub  bennett   fn quote=settle_to;bennett fn q2 = f;");
+    assert_eq!(
+        out,
+        "pub bennett fn quote = settle_to;\n\nbennett fn q2 = f;\n"
+    );
+}

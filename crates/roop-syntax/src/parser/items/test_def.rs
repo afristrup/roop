@@ -27,6 +27,7 @@ pub fn test_def<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>> + 
                 irreversible: false,
                 public: false,
                 test: true,
+                bennett: None,
             })
         })
 }

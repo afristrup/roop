@@ -13,4 +13,7 @@ pub struct FnDef {
     /// Declared `test name { fixtures; body }`: a function over its fixtures,
     /// which `roop test` runs forward and then backward.
     pub test: bool,
+    /// Declared `bennett fn name = target;`: the compute, copy, uncompute
+    /// version of `target`, which `roop-opt` writes out before the checks.
+    pub bennett: Option<String>,
 }

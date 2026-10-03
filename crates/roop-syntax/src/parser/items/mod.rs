@@ -1,3 +1,4 @@
+mod bennett_def;
 mod decls;
 mod generics;
 mod item;
@@ -6,6 +7,7 @@ mod sessions;
 mod test_def;
 mod use_decl;
 
+pub use bennett_def::*;
 pub use decls::*;
 pub use generics::*;
 pub use item::*;

@@ -27,6 +27,7 @@ pub fn split_test(program: &Program, test: &str) -> Option<(Program, usize)> {
             irreversible: false,
             public: false,
             test: false,
+            bennett: None,
         }));
     }
     Some((out, def.body.stmts.len()))

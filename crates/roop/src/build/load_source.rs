@@ -11,6 +11,7 @@ pub fn load_source(input: &Path, config: &roop_config::Config) -> Result<Program
 /// The same, with the `test` items kept.
 pub fn load_with_tests(input: &Path, config: &roop_config::Config) -> Result<Program, CliError> {
     let program = roop_modules::load_program(input, config).map_err(CliError::Modules)?;
+    let program = roop_opt::expand_bennett(&program).map_err(CliError::Bennett)?;
     roop_opt::monomorphize(&program).map_err(CliError::Generics)
 }
 
