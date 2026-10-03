@@ -1,0 +1,345 @@
+========================================
+updates swaps overwrites
+========================================
+
+fn f(a: &mut i64, b: &mut i64) {
+    a += 1;
+    a -= b;
+    a ^= 3;
+    a *= 2;
+    a /= 2;
+    a <=> b;
+    a = 5;
+    a %= 3;
+}
+
+----------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type)))
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type))))
+    (block
+      (update_statement
+        (identifier)
+        (integer))
+      (update_statement
+        (identifier)
+        (identifier))
+      (update_statement
+        (identifier)
+        (integer))
+      (update_statement
+        (identifier)
+        (integer))
+      (update_statement
+        (identifier)
+        (integer))
+      (swap_statement
+        (identifier)
+        (identifier))
+      (overwrite_statement
+        (identifier)
+        (integer))
+      (overwrite_statement
+        (identifier)
+        (integer)))))
+
+========================================
+conditionals and loops
+========================================
+
+fn f(a: &mut i64) {
+    if a > 0 { a -= 1; } else { a += 1; } fi a > 0;
+    from a == 0 { a += 1; } loop { a += 1; } until a == 9;
+    from a == 0 { } until a == 1;
+}
+
+----------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type))))
+    (block
+      (if_statement
+        (binary_expression
+          (identifier)
+          (integer))
+        (block
+          (update_statement
+            (identifier)
+            (integer)))
+        (block
+          (update_statement
+            (identifier)
+            (integer)))
+        (binary_expression
+          (identifier)
+          (integer)))
+      (from_statement
+        (binary_expression
+          (identifier)
+          (integer))
+        (block
+          (update_statement
+            (identifier)
+            (integer)))
+        (block
+          (update_statement
+            (identifier)
+            (integer)))
+        (binary_expression
+          (identifier)
+          (integer)))
+      (from_statement
+        (binary_expression
+          (identifier)
+          (integer))
+        (block)
+        (binary_expression
+          (identifier)
+          (integer))))))
+
+========================================
+match
+========================================
+
+fn f(a: &mut i64, s: &mut Status) {
+    match s {
+        Status::Active => { a += 1; } assert s == Status::Active;
+        _ => {} assert true;
+    }
+}
+
+----------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type)))
+      (parameter
+        (identifier)
+        (reference_type
+          (type_identifier
+            (identifier)))))
+    (block
+      (match_statement
+        (identifier)
+        (match_arm
+          (variant_path
+            (identifier)
+            (identifier))
+          (block
+            (update_statement
+              (identifier)
+              (integer)))
+          (binary_expression
+            (identifier)
+            (variant_path
+              (identifier)
+              (identifier))))
+        (match_arm
+          (wildcard)
+          (block)
+          (boolean))))))
+
+========================================
+scopes
+========================================
+
+fn f(a: &mut [i64; 4]) {
+    ancilla i: i64 = 0 { i += 1; i -= 1; }
+    borrow r = a[0] { r += 1; }
+    chan c: i64 { send c <- a[0]; recv c -> a[1]; }
+}
+
+----------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (array_type
+            (primitive_type)
+            (integer)))))
+    (block
+      (ancilla_statement
+        (identifier)
+        (primitive_type)
+        (integer)
+        (block
+          (update_statement
+            (identifier)
+            (integer))
+          (update_statement
+            (identifier)
+            (integer))))
+      (borrow_statement
+        (identifier)
+        (index_expression
+          (identifier)
+          (integer))
+        (block
+          (update_statement
+            (identifier)
+            (integer))))
+      (chan_statement
+        (identifier)
+        (primitive_type)
+        (block
+          (send_statement
+            (identifier)
+            (index_expression
+              (identifier)
+              (integer)))
+          (recv_statement
+            (identifier)
+            (index_expression
+              (identifier)
+              (integer))))))))
+
+========================================
+calls and stacks
+========================================
+
+fn f(a: &mut i64, h: &mut Stack<i64, 4>) {
+    call g<8, N>(a, 1);
+    uncall g<8>(a);
+    push h <- a;
+    pop h -> a;
+}
+
+----------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type)))
+      (parameter
+        (identifier)
+        (reference_type
+          (stack_type
+            (primitive_type)
+            (integer)))))
+    (block
+      (call_statement
+        (identifier)
+        (call_generics
+          (integer)
+          (identifier))
+        (arguments
+          (identifier)
+          (integer)))
+      (call_statement
+        (identifier)
+        (call_generics
+          (integer))
+        (arguments
+          (identifier)))
+      (push_statement
+        (identifier)
+        (identifier))
+      (pop_statement
+        (identifier)
+        (identifier)))))
+
+========================================
+rollback and attributes
+========================================
+
+fn f(a: &mut i64, failed: &mut bool, h: &mut Stack<i64, 4>) {
+    #[parallel(cuda)]
+    from a == 0 { a += 1; } until a == 3;
+    #[concurrent]
+    { a += 1; }
+    try { a += 1; } catch_rollback { a -= 1; } -> failed;
+    logged h { a = 1; }
+    irrev { a = 2; }
+}
+
+----------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type)))
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type)))
+      (parameter
+        (identifier)
+        (reference_type
+          (stack_type
+            (primitive_type)
+            (integer)))))
+    (block
+      (attribute
+        (identifier)
+        (identifier))
+      (from_statement
+        (binary_expression
+          (identifier)
+          (integer))
+        (block
+          (update_statement
+            (identifier)
+            (integer)))
+        (binary_expression
+          (identifier)
+          (integer)))
+      (attribute
+        (identifier))
+      (block
+        (update_statement
+          (identifier)
+          (integer)))
+      (try_statement
+        (block
+          (update_statement
+            (identifier)
+            (integer)))
+        (block
+          (update_statement
+            (identifier)
+            (integer)))
+        (identifier))
+      (logged_statement
+        (identifier)
+        (block
+          (overwrite_statement
+            (identifier)
+            (integer))))
+      (irrev_statement
+        (block
+          (overwrite_statement
+            (identifier)
+            (integer)))))))

@@ -1,0 +1,47 @@
+========================================
+tests and expectations
+========================================
+
+test fibpair_of_4 {
+    n: i64, a: [i64; 3];
+    n += 4;
+    call fibpair(n, a);
+    expect n == 0 && a[0] == 5;
+}
+test no_fixtures { expect true; }
+
+----------------------------------------
+
+(source_file
+  (test_item
+    (identifier)
+    (parameter
+      (identifier)
+      (primitive_type))
+    (parameter
+      (identifier)
+      (array_type
+        (primitive_type)
+        (integer)))
+    (update_statement
+      (identifier)
+      (integer))
+    (call_statement
+      (identifier)
+      (arguments
+        (identifier)
+        (identifier)))
+    (expect_statement
+      (binary_expression
+        (binary_expression
+          (identifier)
+          (integer))
+        (binary_expression
+          (index_expression
+            (identifier)
+            (integer))
+          (integer)))))
+  (test_item
+    (identifier)
+    (expect_statement
+      (boolean))))

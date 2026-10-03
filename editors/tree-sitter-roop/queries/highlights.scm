@@ -1,0 +1,1 @@
+../../zed/languages/roop/highlights.scm

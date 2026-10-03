@@ -1,0 +1,47 @@
+========================================
+a session
+========================================
+
+pub session Negotiation {
+    client: checkpoint select {
+        sea: checkpoint select { house: end, bung: end },
+        mount: offer { house: end },
+    };
+    server: rec x { offer { again: x, done: end } };
+}
+
+----------------------------------------
+
+(source_file
+  (session_item
+    (visibility)
+    (identifier)
+    (role
+      (identifier)
+      (choice_behaviour
+        (branch
+          (identifier)
+          (choice_behaviour
+            (branch
+              (identifier)
+              (end_behaviour))
+            (branch
+              (identifier)
+              (end_behaviour))))
+        (branch
+          (identifier)
+          (choice_behaviour
+            (branch
+              (identifier)
+              (end_behaviour))))))
+    (role
+      (identifier)
+      (rec_behaviour
+        (identifier)
+        (choice_behaviour
+          (branch
+            (identifier)
+            (identifier))
+          (branch
+            (identifier)
+            (end_behaviour)))))))
