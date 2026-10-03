@@ -531,6 +531,18 @@ numbers: `y += (Q K^T) V` with `Q`, `K` and `V` the rows times a weight. It has 
 softmax, since that needs an exponential, so it is the attention weave can run
 backward. Its adjoints are einsums as well (`weave::attn`, `attn_vjp`, `attn_back`).
 
+**The convolution block** is a one-dimensional convolution with zero padding as the third
+half-step: the state of width `C * T` is `C` channels of `T` numbers, the kernel size `K` is
+odd, and `y += conv(x)` with a weight of `C` rows of `C * K`. It is a product with the
+unfolded input, so it is a Q12 einsum like the rest (`weave::conv`, `conv_back`).
+
+**Normalization** is a part of the perceptron block: with `"norm": {"gain": [...], "eps": 0.01}`
+the hidden layer is `gain * z / sqrt(mean(z^2) + eps)` before the activation. weave has no
+square root that adds into a zero place, so `1 / sqrt(s)` is Newton's method run as a chain of
+21 cells, each from the one before. It starts from 1/4 and converges for `s` up to 48, and a
+larger one traps; `eps` cannot be below 1/4096. This is RMSNorm. LayerNorm subtracts a mean
+as well, which is left out.
+
 ```rust
 use weave::step;
 
@@ -585,7 +597,9 @@ It exports the model, compiles it with `roop weave --batch B --driver main.c`, b
 with the C program that trains on files (`prog weights data epochs rate samples trained`),
 trains in fixed point with no activations stored, and copies the trained weights back into
 the torch tensors they came from. `roop weave --driver` writes the program on its own, for
-use outside Python.
+use outside Python. `roop weave --main` adds a `main` that holds the weights and runs the
+model on the command line, the input as whole numbers on the 1/4096 grid, and prints the
+outputs the same way: `roop run net.roop 1024 -2048 3072 0`.
 
 ### From torch
 
@@ -629,7 +643,11 @@ python3 torch_to_weave.py pkg.module:factory --outputs 1 -o model.json
 Most torch layers lose information, so it reads the model as blocks that do not.
 `Linear(N, M), act, Linear(M, N)` is a perceptron block, `Linear(N, M), act`
 alone is a leapfrog layer whose weight is tied to its transpose, and
-`LinearAttention(seq, dim)`, from `weave_modules.py`, is an attention block. The activations
+`LinearAttention(seq, dim)`, from `weave_modules.py`, is an attention block, and an
+`nn.Conv1d(C, C, K, padding=K // 2)` is a convolution block. `Linear, RMSNorm, act, Linear` is a
+perceptron block with normalization (`nn.RMSNorm` needs `eps` of at least 1/4096).
+A residual connection is refused: `x + F(x)` writes what it reads, and inverting it needs an
+iteration that is not a constructive update, so use the coupling blocks above instead. The activations
 are `Identity`, `ReLU`, `Tanh`, `Softsign`, `Sigmoid`, `SiLU` and `GELU`; any other layer is refused, naming
 it, since turning it into something else would not be the model. The compiled
 network is the network of those blocks run on `(q, p)` with the input in `q` and
