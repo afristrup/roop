@@ -8,7 +8,7 @@ pub fn check_task_disjointness(tasks: &[&Block], span: Span) -> Result<(), Check
         .iter()
         .map(|task| {
             let mut out = Vec::new();
-            collect_accesses(task, &mut Vec::new(), &mut out);
+            collect_accesses(task, &mut Vec::new(), &mut out, None);
             out
         })
         .collect();

@@ -11,6 +11,7 @@ mod net_batch;
 mod rows;
 mod train;
 mod train_batch;
+mod train_parallel;
 
 pub use act::*;
 pub use attention::*;
@@ -24,3 +25,4 @@ pub use net_batch::*;
 pub use rows::*;
 pub use train::*;
 pub use train_batch::*;
+pub use train_parallel::*;
