@@ -84,9 +84,19 @@ test the_vector_forms_apply_each_element {
 
 // F(x) = W2 (W1 x + b1) + b2 with N = 2 and M = 1, so z = 2.5 and F = (2.5, -2.25).
 test mlp_adds_its_function_and_runs_backward {
-    y: [i64; 2], x: [i64; 2], ax: [i64; 2], ay: [i64; 2], kind: i64,
-    w1: [[i64; 2]; 1], b1: [i64; 1], w2: [[i64; 1]; 2], b2: [i64; 2],
-    gw1: [[i64; 2]; 1], gb1: [i64; 1], gw2: [[i64; 1]; 2], gb2: [i64; 2];
+    y: [i64; 2],
+        x: [i64; 2],
+        ax: [i64; 2],
+        ay: [i64; 2],
+        kind: i64,
+        w1: [[i64; 2]; 1],
+        b1: [i64; 1],
+        w2: [[i64; 1]; 2],
+        b2: [i64; 2],
+        gw1: [[i64; 2]; 1],
+        gb1: [i64; 1],
+        gw2: [[i64; 1]; 2],
+        gb2: [i64; 2];
     w1[0][0] += 4096;
     w1[0][1] += 8192;
     b1[0] += 2048;

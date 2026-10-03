@@ -943,5 +943,8 @@ test qouter_stays_on_the_grid {
     x1[0] += 2048;
     x1[1] += 4096;
     call qouter(out, x0, x1);
-    expect out[0][0] == 4096 && out[0][1] == 8192 && out[1][0] == 2048 && out[1][1] == 4096;
+    expect out[0][0] == 4096
+        && out[0][1] == 8192
+        && out[1][0] == 2048
+        && out[1][1] == 4096;
 }
