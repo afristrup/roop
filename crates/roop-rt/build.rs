@@ -1,63 +1,52 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const SOURCE: &str = "kernels/sme_dgemm.c";
+const SOURCES: [&str; 2] = ["kernels/sme_dgemm.c", "kernels/sme_daxpy.c"];
+const CLANGS: [&str; 2] = ["clang", "/opt/homebrew/opt/llvm/bin/clang"];
 
 fn main() {
-    println!("cargo:rerun-if-changed={SOURCE}");
+    println!("cargo:rerun-if-changed=kernels");
     println!("cargo::rustc-check-cfg=cfg(no_sme_kernel)");
-    if !built() {
+    if !build_kernels() {
         println!("cargo:rustc-cfg=no_sme_kernel");
     }
 }
 
-/// Compiles the SME matrix kernel into a static library, or says it could not:
-/// only Apple Silicon has the unit, and the compiler needs to know SME.
-fn built() -> bool {
-    let target = std::env::var("TARGET").unwrap_or_default();
-    if target != "aarch64-apple-darwin" {
+/// Compiles the SME kernels into a static library, or says it could not: only
+/// Apple Silicon has the matrix unit, and the compiler has to know SME.
+fn build_kernels() -> bool {
+    if std::env::var("TARGET").as_deref() != Ok("aarch64-apple-darwin") {
         return false;
     }
-    let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());
-    let object = out.join("sme_dgemm.o");
-    let compiled = clang()
-        .args([
-            "-O2",
-            "-fno-builtin",
-            "-mcpu=apple-m4",
-            "-march=armv8.7-a+sme-f64f64",
-        ])
-        .args(["-c", SOURCE, "-o"])
-        .arg(&object)
-        .status()
-        .is_ok_and(|s| s.success());
-    let archived = compiled
-        && Command::new("ar")
-            .arg("crs")
-            .arg(out.join("libroop_sme.a"))
-            .arg(&object)
-            .status()
-            .is_ok_and(|s| s.success());
+    let out = std::env::var("OUT_DIR").unwrap();
+    let objects: Option<Vec<PathBuf>> = SOURCES.iter().map(|s| compile(s, &out)).collect();
+    let archive = Path::new(&out).join("libroop_sme.a");
+    let archived = objects.is_some_and(|objects| {
+        succeeds(Command::new("ar").arg("crs").arg(&archive).args(&objects))
+    });
     if archived {
-        println!("cargo:rustc-link-search=native={}", out.display());
+        println!("cargo:rustc-link-search=native={out}");
         println!("cargo:rustc-link-lib=static=roop_sme");
     } else {
-        println!("cargo:warning=no clang with SME support; dgemm falls back to plain loops");
+        println!("cargo:warning=no clang with SME support, so the matrix kernels use plain loops");
     }
     archived
 }
 
-fn clang() -> Command {
-    let brew = "/opt/homebrew/opt/llvm/bin/clang";
-    let path = if Command::new("clang")
-        .arg("--version")
-        .output()
-        .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).contains("clang version"))
-        && std::path::Path::new(brew).exists() == false
-    {
-        "clang"
-    } else {
-        brew
-    };
-    Command::new(path)
+fn compile(source: &str, out: &str) -> Option<PathBuf> {
+    let stem = Path::new(source).file_stem()?;
+    let object = Path::new(out).join(stem).with_extension("o");
+    let compiled = CLANGS.iter().any(|clang| {
+        succeeds(
+            Command::new(clang)
+                .args(["-O2", "-fno-builtin", "-mcpu=apple-m4"])
+                .args(["-march=armv8.7-a+sme-f64f64+sme2", "-c", source, "-o"])
+                .arg(&object),
+        )
+    });
+    compiled.then_some(object)
+}
+
+fn succeeds(command: &mut Command) -> bool {
+    command.output().is_ok_and(|o| o.status.success())
 }

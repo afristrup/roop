@@ -1,6 +1,6 @@
 use crate::{
     CodegenError, Dir, FnGen, gen_place, match_gemm, matrix_dims, mem_load, mem_store,
-    parallel_prologue,
+    parallel_prologue, signed_factor,
 };
 use roop_syntax::{Block, Expr, Place};
 
@@ -36,14 +36,7 @@ pub fn gen_gemm(
     let loop_state = parallel_prologue(g, entry, step, until, dir)?;
     let alpha = place(g, gemm.alpha)?;
     let alpha = mem_load(g, &alpha)?;
-    let factor = match dir {
-        Dir::Forward => alpha.reg,
-        Dir::Backward => {
-            let negated = format!("%{}", g.fresh("t"));
-            g.emit(&format!("{negated} = fneg double {}", alpha.reg));
-            negated
-        }
-    };
+    let factor = signed_factor(g, &alpha.reg, dir);
     g.emit(&format!(
         "call void @roop_dgemm(ptr {}, ptr {}, ptr {}, double {factor}, i64 {}, i64 {}, i64 {})",
         c.addr, a.addr, b.addr, gemm.rows, gemm.cols, gemm.inner
