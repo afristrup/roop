@@ -124,5 +124,10 @@ pub extern world fn roop_fs_copy<N, M>(
 // Shows what the program has written. After this it cannot be taken back.
 pub extern fn roop_commit();
 
+// Lets go of the world's history for good: what was kept, the input read, the
+// clock readings and the changes to files. Nothing before it can be run backward
+// after this, which is what a long-running program does once per request.
+pub extern fn roop_forget();
+
 // Shows what the program has written, and ends it with this status.
 pub extern fn roop_exit(code: &i64);

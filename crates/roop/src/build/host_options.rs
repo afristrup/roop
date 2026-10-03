@@ -24,6 +24,7 @@ pub fn host_options(config: &Config) -> Options {
     let cpu = config.parallel.cpu.clone().or_else(detect_cpu);
     Options {
         no_entry: false,
+        history_limit: config.world.history_limit,
         triple: cfg!(all(target_os = "macos", target_arch = "aarch64"))
             .then(|| "arm64-apple-macosx".into()),
         cpu,

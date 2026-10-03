@@ -10,4 +10,7 @@ pub struct Options {
     pub parallel: ParallelOptions,
     /// A C `main` is linked in, so none is made for the roop `main`.
     pub no_entry: bool,
+    /// The most bytes the history of kept values may hold, set by the program's
+    /// entry point. Unlimited when absent.
+    pub history_limit: Option<u64>,
 }

@@ -318,6 +318,28 @@ error. Labels are only names for `auto`; they change nothing else. Write `keep` 
 somewhere else, or `ancilla` when you want the checker to prove the ancilla is
 undone, which is the stronger guarantee and costs no history.
 
+**What the history costs.** A kept value is not erased, it is moved: the world
+holds it until the process ends or the program calls `std::process::forget`. So
+a reversible `main` is reversible in the logical sense, and the physical cost of
+erasing information (Landauer's) is paid at the end of the process or at
+`forget`, not by `keep`. The history grows with every `keep`, so a program that
+runs for long needs a bound, and there are two. `history_limit` in `Roop.toml`
+is the most bytes the history may hold; a `keep` that would pass it stops the
+program with status 70 and says why, so a leak is a crash you see and not a slow
+death. It is unlimited when absent.
+
+```toml
+[world]
+history_limit = 67108864   # 64 MiB
+```
+
+`forget` is the other: it is `irrev`, and it lets go of the history, the input
+read so far, the clock readings and the journal of file changes for good. A
+server calls it once per request, which makes the unbounded stack a bounded one
+per request. Nothing before a `forget` can be run backward afterwards, and
+asking to is a runtime error. Where the history is not needed, prefer a plain
+`ancilla` that the checker proves is undone: it costs no history at all.
+
 The history is a stack, so a function is run backward by exactly reversing it,
 and the checker refuses an `uncall f` when the `call f` before it, in the same
 block, has something between it and the `uncall` that kept values of its own: the
@@ -469,7 +491,10 @@ part, clearing the buffers between samples, in an `irrev` function.
 A test checks the gradients against central finite differences on a double
 precision copy of the network (they agree to about 1%, which is the 4096 grid)
 and that the input comes back bit for bit. Another trains XOR to a 50x lower
-loss. Lean proves the forward pass exactly reversible, layer by layer.
+loss. Lean proves the forward pass and the backward pass exactly reversible, layer
+by layer and through the loop over layers (`layer_back` and `backward`, checked at
+width 2): each call's own lemma settles it, so a function of eleven calls takes
+seconds, not a case split of every outcome.
 
 This is a research library, not a framework. It has one layer type, one loss and
 a fixed activation, because roop has no function arguments to build a graph

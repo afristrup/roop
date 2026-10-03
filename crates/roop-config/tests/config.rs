@@ -39,3 +39,13 @@ fn the_repository_config_loads() {
     let config = load_config(std::path::Path::new(&root)).unwrap();
     assert_eq!(config.modules["std"], "std");
 }
+
+#[test]
+fn the_history_limit_is_unlimited_unless_set() {
+    assert_eq!(
+        parse_config("Roop.toml", "").unwrap().world.history_limit,
+        None
+    );
+    let config = parse_config("Roop.toml", "[world]\nhistory_limit = 1048576\n").unwrap();
+    assert_eq!(config.world.history_limit, Some(1_048_576));
+}

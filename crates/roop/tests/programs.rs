@@ -587,3 +587,50 @@ fn the_example_programs_need_no_irrev() {
         );
     }
 }
+
+const KEEPER: &str = "use std::process::forget;
+
+fn main() {
+    ancilla n: i64 = 0;
+    from n == 0 {
+        auto ancilla big: [u8; 400] = 0;
+        big[399] += 1;
+    } loop { n += 1; } until n == 50;
+    keep n;
+}
+";
+
+fn limited(name: &str, limit: Option<u64>, source: &str) -> Output {
+    let world = limit.map_or(String::new(), |l| format!("[world]\nhistory_limit = {l}\n"));
+    let dir = project(name, &format!("{}{world}", config()), source);
+    run_in(&dir, "prog.roop", &[], "")
+}
+
+#[test]
+fn the_history_is_unlimited_unless_roop_toml_says_otherwise() {
+    let out = limited("history-free", None, KEEPER);
+    assert!(out.status.success(), "{}", stderr(&out));
+}
+
+#[test]
+fn a_keep_over_the_history_limit_stops_the_program() {
+    let out = limited("history-limit", Some(2000), KEEPER);
+    assert_eq!(out.status.code(), Some(70), "{}", stderr(&out));
+    assert!(
+        stderr(&out).contains("history of kept values"),
+        "{}",
+        stderr(&out)
+    );
+}
+
+#[test]
+fn forgetting_each_round_keeps_the_history_under_the_limit() {
+    let source = KEEPER
+        .replace("big[399] += 1;\n    }", "big[399] += 1;\n    }")
+        .replace(
+            "big[399] += 1;",
+            "big[399] += 1;\n        irrev { call forget(); }",
+        );
+    let out = limited("history-forget", Some(2000), &source);
+    assert!(out.status.success(), "{}", stderr(&out));
+}

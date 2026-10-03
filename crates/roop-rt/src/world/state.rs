@@ -18,6 +18,13 @@ pub struct Kept {
     pub bytes: Vec<u8>,
 }
 
+impl Kept {
+    /// What the entry costs against the history limit: its bytes and its size.
+    pub fn cost(&self) -> usize {
+        self.bytes.len() + 2 * std::mem::size_of::<usize>()
+    }
+}
+
 /// Output the program has written and the world has not shown yet.
 pub struct Chunk {
     pub fd: i64,
@@ -67,6 +74,8 @@ pub struct World {
     pub clock_consumed: Vec<i64>,
     pub journal: Vec<Entry>,
     pub kept: Vec<Kept>,
+    /// The bytes the kept values hold, counted against the history limit.
+    pub kept_bytes: usize,
 }
 
 static WORLD: Mutex<World> = Mutex::new(World {
@@ -77,6 +86,7 @@ static WORLD: Mutex<World> = Mutex::new(World {
     clock_consumed: Vec::new(),
     journal: Vec::new(),
     kept: Vec::new(),
+    kept_bytes: 0,
 });
 
 /// The world, locked for the length of one operation.

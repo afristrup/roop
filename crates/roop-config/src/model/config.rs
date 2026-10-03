@@ -1,4 +1,4 @@
-use crate::{FormatConfig, ParallelConfig};
+use crate::{FormatConfig, ParallelConfig, WorldConfig};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -10,6 +10,7 @@ pub struct Config {
     pub modules: BTreeMap<String, String>,
     pub parallel: ParallelConfig,
     pub format: FormatConfig,
+    pub world: WorldConfig,
     /// The directory holding `Roop.toml`; module paths are relative to it.
     #[serde(skip)]
     pub root: PathBuf,
