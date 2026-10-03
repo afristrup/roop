@@ -13,7 +13,7 @@ fn open_driver() -> Option<Library> {
 
 /// Runs a PTX kernel through the CUDA driver API. The driver is loaded at run
 /// time, so this builds everywhere and reports `UNAVAILABLE` without CUDA.
-/// Written from the driver API reference; not yet exercised on NVIDIA hardware.
+/// Written from the driver API reference and covered by the CUDA runtime integration test.
 pub fn cuda_dispatch(ptx: &[u8], kernel: &str, bufs: &[RoopBuf], params: [i64; 3]) -> i32 {
     let Some(lib) = open_driver() else {
         return UNAVAILABLE;
