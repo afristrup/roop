@@ -182,3 +182,22 @@ fn a_loop_too_small_to_pay_for_threads_runs_serially_by_default() {
     let out = support::compiled(src, &forced);
     assert!(out.host.contains("call void @roop_parallel_for"));
 }
+
+#[test]
+fn a_streaming_loop_switches_to_threads_between_32k_and_512k_elements() {
+    let axpy = |n: usize| {
+        format!(
+            "fn f(y: &mut [f64; {n}], x: &[f64; {n}], k: &f64, i: &mut i64) {{
+                #[parallel] from i == 0 {{ y[i] += k * x[i]; }} loop {{ i += 1; }} until i == {};
+            }}",
+            n - 1
+        )
+    };
+    let threaded = |n: usize| {
+        support::compiled(&axpy(n), &Options::default())
+            .host
+            .contains("call void @roop_parallel_for")
+    };
+    assert!(!threaded(32 * 1024), "32K elements run serially");
+    assert!(threaded(512 * 1024), "512K elements run on threads");
+}

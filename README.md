@@ -84,7 +84,7 @@ in `editors/`.
 - Lean checks, for every reversible function, that it never fails on an
   unrestored ancilla and that `f_inv` undoes `f`. It also proves loops terminate
   and `#[parallel]` loops commute. `weave`'s forward and backward passes are
-  proved this way, at width 2.
+  proved this way, for a width of 4 and three layers; 8 also passes.
 - `try` gets only `f_inv_f`, not the reverse. Sessions are checked as
   specifications, not matched against the task code. Floating point carries no
   round-trip claim, and GPU floating point can differ between runtimes.

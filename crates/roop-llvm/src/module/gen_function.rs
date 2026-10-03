@@ -31,7 +31,15 @@ pub fn gen_function(
     for param in params {
         let arg = format!("%arg_{}", param.name);
         let llty = llvm_type(ctx, &param.ty)?;
-        signature.push(format!("{llty} {arg}"));
+        // The checker refuses a call whose arguments overlap where one is
+        // written, so a reference parameter is the only way in to what it
+        // points at, as with a Rust reference.
+        let qualifier = if matches!(param.ty, Type::Ref { .. }) {
+            " noalias"
+        } else {
+            ""
+        };
+        signature.push(format!("{llty}{qualifier} {arg}"));
         let slot = match &param.ty {
             Type::Ref { inner, .. } => Slot {
                 addr: arg,

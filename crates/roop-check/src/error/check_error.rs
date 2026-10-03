@@ -39,6 +39,11 @@ pub enum CheckError {
     ParallelNotLoop {
         span: Span,
     },
+    CallAliasing {
+        callee: String,
+        var: String,
+        span: Span,
+    },
     UncallAfterKeep {
         callee: String,
         span: Span,
@@ -166,6 +171,11 @@ impl fmt::Display for CheckError {
             Self::BorrowIndexModified { var, span } => write!(
                 f,
                 "`{var}` selects a borrowed place and is modified in the borrow at {}..{}",
+                span.start, span.end
+            ),
+            Self::CallAliasing { callee, var, span } => write!(
+                f,
+                "`{var}` is given to `{callee}` to change, and also appears in another argument of the same call, at {}..{}",
                 span.start, span.end
             ),
             Self::UncallAfterKeep { callee, span } => write!(

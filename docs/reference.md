@@ -9,6 +9,15 @@ Every `fn`, `struct` and `enum` is reversible: updates are invertible
 branches and loops carry exit assertions. Each function compiles to `f` and
 its inverse `f_inv`.
 
+An update may not read the place it writes (`x += x` is not injective), and a
+call may not give a place to a `&mut` parameter while another argument overlaps
+it: `call g(a, a)` or `call g(v[i], v[j])` is refused, since `g` would change what
+it reads under its own update and `uncall g` could not put it back. Elements of an
+array whose indices provably differ, such as `v[0]` and `v[1]`, do not overlap.
+This is also what lets the compiler treat every reference parameter as the only
+way to reach what it points at, as Rust does, which makes loops over them
+vectorize.
+
 `irrev` is the escape hatch, like `unsafe` in Rust. An `irrev fn`, or an
 `irrev { ... }` block, lifts those rules and allows destroying values (`x = e`,
 `x %= e`) and a `try` that forgets its outcome. Prefer the next
@@ -494,7 +503,7 @@ precision copy of the network (they agree to about 1%, which is the 4096 grid)
 and that the input comes back bit for bit. Another trains XOR to a 50x lower
 loss. Lean proves the forward pass and the backward pass exactly reversible, layer
 by layer and through the loop over layers (`layer_back` and `backward`, checked at
-width 2): each call's own lemma settles it, so a function of eleven calls takes
+widths 2, 4 and 8 with up to three layers): each call's own lemma settles it, so a function of eleven calls takes
 seconds, not a case split of every outcome.
 
 This is a research library, not a framework. It has one layer type, one loss and
