@@ -3,6 +3,7 @@
 
 use std::io::*;
 use std::process::*;
+use std::text::clear;
 
 irrev fn main(status: &mut i64) {
     ancilla argc: i64 = 0;
@@ -15,7 +16,10 @@ irrev fn main(status: &mut i64) {
             call arg(k, word, len);
             call print_buf(word, len);
             if k < argc - 1 { call print(" "); } fi k < argc - 1;
-        } loop { k += 1; } until k == argc - 1;
+        } loop {
+            k += 1;
+            call clear(word, len);
+        } until k == argc - 1;
     } fi argc >= 2;
     call print("\n");
 }

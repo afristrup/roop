@@ -1,0 +1,25 @@
+// A program that takes back what it did. Output is pending until it is
+// committed, and the inverse of a print takes it back, so when the `try` below
+// fails, the two lines `announce` wrote are undone by running it backward, and
+// only the handler's line is shown. Nothing was ever on the screen to remove.
+//
+// A failed `try` undoes the work that was done, the way a database rolls back a
+// transaction; here the work is output, and with std::fs it is files.
+
+use std::io::*;
+
+fn announce() {
+    call println("step one");
+    call println("step two");
+}
+
+irrev fn main() {
+    ancilla failed: bool = false;
+    try {
+        call announce();
+        expect false;
+        call println("never reached");
+    } catch_rollback {
+        call println("rolled back: nothing from announce was shown");
+    } -> failed;
+}

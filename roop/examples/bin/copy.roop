@@ -8,15 +8,16 @@ irrev fn main(status: &mut i64) {
     ancilla argc: i64 = 0;
     ancilla source: [u8; 512] = 0;
     ancilla target: [u8; 512] = 0;
-    ancilla n: i64 = 0;
+    ancilla source_len: i64 = 0;
+    ancilla target_len: i64 = 0;
     ancilla failed: i64 = 0;
     call arg_count(argc);
     if argc != 3 {
         call eprintln("usage: copy <from> <to>");
         status = 2;
     } else {
-        call arg(1, source, n);
-        call arg(2, target, n);
+        call arg(1, source, source_len);
+        call arg(2, target, target_len);
         call copy_file(source, target, failed);
         if failed != 0 {
             call eprintln("copy: failed");

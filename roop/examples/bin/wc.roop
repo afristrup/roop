@@ -1,6 +1,6 @@
 // Counts the lines, words and bytes of its standard input. The counting is
 // reversible code, and the output is built in a buffer with std::text and
-// handed over once, with `flush`.
+// written once, with `print_buf`.
 
 use std::io::*;
 use std::text::*;
@@ -20,7 +20,11 @@ irrev fn main() {
             bytes += len + 1;
             call count_words(line, len, words);
         } fi eof == 0;
-    } loop { first = 0; } until eof == 1;
+    } loop {
+        first = 0;
+        call clear(line, len);
+        eof = 0;
+    } until eof == 1;
     ancilla out: [u8; 64] = 0;
     ancilla n: i64 = 0;
     call put_int(out, n, lines);
@@ -29,7 +33,7 @@ irrev fn main() {
     call put(out, n, " ");
     call put_int(out, n, bytes);
     call put(out, n, "\n");
-    call flush(out, n);
+    call print_buf(out, n);
 }
 
 // words gets the number of words in the first len bytes of line: places where

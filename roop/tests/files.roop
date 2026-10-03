@@ -1,0 +1,112 @@
+// A file operation keeps what it replaced, and the backward run of every test
+// puts it back. The files are made by the tests themselves, in the directory the
+// tests run in, and that is the last of them once the tests are done: the
+// backward run removes what the forward run made.
+
+use std::fs::*;
+use std::text::*;
+
+// Two files to work on: one with eight bytes and one with five.
+fn seed(first: &mut i64, second: &mut i64) {
+    ancilla text: [u8; 8] = 0;
+    ancilla len: i64 = 0;
+    call put(text, len, "eight!!!");
+    call write_file("roop-world-keep.tmp", text, len, first);
+    uncall put(text, len, "eight!!!");
+    ancilla other: [u8; 8] = 0;
+    ancilla other_len: i64 = 0;
+    call put(other, other_len, "OTHER");
+    call write_file("roop-world-other.tmp", other, other_len, second);
+    uncall put(other, other_len, "OTHER");
+}
+
+test a_write_makes_a_file_that_is_taken_away_again {
+    text: [u8; 8], len: i64, wrote: i64, there: i64;
+    call put(text, len, "data");
+    call write_file("roop-world-new.tmp", text, len, wrote);
+    call exists("roop-world-new.tmp", there);
+    expect wrote == 0 && there == 1;
+}
+
+test a_write_over_a_file_leaves_the_old_one_when_taken_back {
+    s1: i64,
+        s2: i64,
+        text: [u8; 8],
+        len: i64,
+        wrote: i64,
+        back: [u8; 8],
+        back_len: i64,
+        read_ok: i64;
+    call seed(s1, s2);
+    call put(text, len, "new");
+    call write_file("roop-world-keep.tmp", text, len, wrote);
+    call read_file("roop-world-keep.tmp", back, back_len, read_ok);
+    expect back_len == 3 && back[0] == b'n';
+}
+
+test an_append_is_cut_off_again {
+    s1: i64, s2: i64, text: [u8; 8], len: i64, appended: i64, bytes: i64;
+    call seed(s1, s2);
+    call put(text, len, "more");
+    call append_file("roop-world-keep.tmp", text, len, appended);
+    call size("roop-world-keep.tmp", bytes);
+    expect appended == 0 && bytes == 12;
+}
+
+test a_removed_file_comes_back {
+    s1: i64, s2: i64, removed: i64, there: i64;
+    call seed(s1, s2);
+    call remove("roop-world-keep.tmp", removed);
+    call exists("roop-world-keep.tmp", there);
+    expect removed == 0 && there == 0;
+}
+
+test a_rename_is_moved_back {
+    s1: i64, s2: i64, moved: i64, old_there: i64, new_there: i64;
+    call seed(s1, s2);
+    call rename("roop-world-keep.tmp", "roop-world-renamed.tmp", moved);
+    call exists("roop-world-keep.tmp", old_there);
+    call exists("roop-world-renamed.tmp", new_there);
+    expect moved == 0 && old_there == 0 && new_there == 1;
+}
+
+test a_rename_over_a_file_gives_that_file_back {
+    s1: i64, s2: i64, moved: i64, back: [u8; 16], back_len: i64, read_ok: i64;
+    call seed(s1, s2);
+    call rename("roop-world-keep.tmp", "roop-world-other.tmp", moved);
+    call read_file("roop-world-other.tmp", back, back_len, read_ok);
+    expect moved == 0 && back_len == 8;
+}
+
+test directories_made_are_removed_again {
+    made: i64, there: i64;
+    call make_dir("roop-world-dir.tmp/inner/deeper", made);
+    call is_dir("roop-world-dir.tmp/inner/deeper", there);
+    expect made == 0 && there == 1;
+}
+
+test a_copy_over_a_file_is_undone {
+    s1: i64, s2: i64, copied: i64, back: [u8; 16], back_len: i64, read_ok: i64;
+    call seed(s1, s2);
+    call copy_file("roop-world-keep.tmp", "roop-world-other.tmp", copied);
+    call read_file("roop-world-other.tmp", back, back_len, read_ok);
+    expect copied == 0 && back_len == 8;
+}
+
+test a_failed_write_changes_nothing {
+    text: [u8; 4], len: i64, wrote: i64;
+    call put(text, len, "x");
+    call write_file("roop-world-no-such-dir.tmp/file", text, len, wrote);
+    expect wrote < 0;
+}
+
+test the_files_of_a_failed_try_come_back {
+    failed: bool, there: i64, text: [u8; 4], len: i64, wrote: i64;
+    call put(text, len, "x");
+    try {
+        call write_file("roop-world-from-try.tmp", text, len, wrote);
+        expect false;
+    } catch_rollback {} -> failed;
+    call exists("roop-world-from-try.tmp", there);
+    expect failed && there == 0;
+}

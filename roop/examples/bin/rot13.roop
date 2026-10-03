@@ -3,7 +3,7 @@
 // twice, or backward, gives the text back.
 
 use std::io::*;
-use std::text::put;
+use std::text::*;
 
 irrev fn main() {
     ancilla line: [u8; 4096] = 0;
@@ -17,7 +17,11 @@ irrev fn main() {
             call print_buf(line, len);
             call print("\n");
         } fi eof == 0;
-    } loop { first = 0; } until eof == 1;
+    } loop {
+        first = 0;
+        call clear(line, len);
+        eof = 0;
+    } until eof == 1;
 }
 
 pub fn rot13<N>(text: &mut [u8; N]) {

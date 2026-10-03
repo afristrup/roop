@@ -137,3 +137,11 @@ pub irrev fn parse_int<N>(s: &[u8; N], len: &i64, value: &mut i64, ok: &mut i64)
     } loop { k += 1; } until k == N - 1;
     if negative == 1 { value = 0 - value; } fi negative == 1;
 }
+
+// Empties a text, so a buffer can be used again. Irreversible: the bytes are
+// lost, so reversible code does not do this, it runs its appends backward.
+pub irrev fn clear<N>(buf: &mut [u8; N], len: &mut i64) {
+    ancilla i: i64 = 0;
+    from i == 0 { buf[i] = 0; } loop { i += 1; } until i == N - 1;
+    len = 0;
+}

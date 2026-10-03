@@ -16,7 +16,7 @@ fn entry_symbol(name: &str) -> String {
 
 /// The C `main`: records the arguments for the runtime, runs `roop_main`, and
 /// returns the status it leaves.
-fn main_shim(params: usize) -> String {
+fn main_shim(params: usize, declare_commit: bool) -> String {
     let (arg, passed) = if params == 0 {
         ("", "")
     } else {
@@ -35,8 +35,13 @@ fn main_shim(params: usize) -> String {
     } else {
         "  %s = load i64, ptr %status\n  %code = trunc i64 %s to i32\n".to_string()
     };
+    let declare = if declare_commit {
+        "declare void @roop_commit()\n\n"
+    } else {
+        ""
+    };
     format!(
-        "define i32 @main(i32 %argc, ptr %argv) {{\nentry:\n  call void @roop_set_args(i32 %argc, ptr %argv)\n{arg}  call void @roop_main({passed})\n{load}  ret i32 {ret}\n}}\n\n"
+        "{declare}define i32 @main(i32 %argc, ptr %argv) {{\nentry:\n  call void @roop_set_args(i32 %argc, ptr %argv)\n{arg}  call void @roop_main({passed})\n{load}  call void @roop_commit()\n  ret i32 {ret}\n}}\n\n"
     )
 }
 
@@ -148,7 +153,11 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
             _ => None,
         })
     {
-        host.push_str(&main_shim(main.params.len()));
+        let declared = program
+            .items
+            .iter()
+            .any(|item| matches!(item, Item::Fn(f) if f.external && f.name == "roop_commit"));
+        host.push_str(&main_shim(main.params.len(), !declared));
     }
     let pick = |dialect: Dialect| -> Vec<&Kernel> {
         kernels.iter().filter(|k| k.dialect == dialect).collect()

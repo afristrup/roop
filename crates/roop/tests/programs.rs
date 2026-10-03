@@ -192,7 +192,7 @@ fn ls_lists_a_directory_in_order() {
 }
 
 #[test]
-fn files_can_be_written_read_appended_listed_renamed_and_removed() {
+fn files_can_be_written_read_appended_renamed_and_removed() {
     let dir = scratch("fs");
     let src = "
 use std::fs::*;
@@ -205,51 +205,61 @@ irrev fn main(status: &mut i64) {
     ancilla path_len: i64 = 0;
     ancilla other: [u8; 512] = 0;
     ancilla other_len: i64 = 0;
-    ancilla found: i64 = 0;
+    ancilla before: i64 = 0;
+    ancilla wrote: i64 = 0;
+    ancilla appended: i64 = 0;
     ancilla bytes: i64 = 0;
-    ancilla failed: i64 = 0;
     ancilla text: [u8; 64] = 0;
     ancilla len: i64 = 0;
     ancilla back: [u8; 64] = 0;
     ancilla back_len: i64 = 0;
+    ancilla read_ok: i64 = 0;
+    ancilla moved: i64 = 0;
+    ancilla old_gone: i64 = 0;
+    ancilla new_here: i64 = 0;
+    ancilla removed: i64 = 0;
+    ancilla still: i64 = 0;
+    ancilla again: [u8; 8] = 0;
+    ancilla again_len: i64 = 0;
+    ancilla again_status: i64 = 0;
     ancilla out: [u8; 256] = 0;
     ancilla n: i64 = 0;
     call arg(1, path, path_len);
     call arg(2, other, other_len);
 
-    call exists(path, found);
-    call put_int(out, n, found);
+    call exists(path, before);
+    call put_int(out, n, before);
     call put(out, n, \" before\\n\");
 
     call put(text, len, \"hello\");
-    call write_file(path, text, len, failed);
-    call put_int(out, n, failed);
+    call write_file(path, text, len, wrote);
+    call put_int(out, n, wrote);
     call put(out, n, \" write\\n\");
 
-    call append_file(path, \" there\", 6, failed);
+    call append_file(path, \" there\", 6, appended);
     call size(path, bytes);
     call put_int(out, n, bytes);
     call put(out, n, \" bytes\\n\");
 
-    call read_file(path, back, back_len, failed);
+    call read_file(path, back, back_len, read_ok);
     call put_n(out, n, back, back_len);
     call put(out, n, \"\\n\");
 
-    call rename(path, other, failed);
-    call exists(path, found);
-    call put_int(out, n, found);
-    call exists(other, found);
-    call put_int(out, n, found);
+    call rename(path, other, moved);
+    call exists(path, old_gone);
+    call exists(other, new_here);
+    call put_int(out, n, old_gone);
+    call put_int(out, n, new_here);
     call put(out, n, \" renamed\\n\");
 
-    call remove(other, failed);
-    call exists(other, found);
-    call put_int(out, n, found);
-    call read_file(other, back, back_len, failed);
+    call remove(other, removed);
+    call exists(other, still);
+    call put_int(out, n, still);
+    call read_file(other, again, again_len, again_status);
     call put(out, n, \" gone \");
-    call put_int(out, n, failed);
+    call put_int(out, n, again_status);
     call put(out, n, \"\\n\");
-    call flush(out, n);
+    call print_buf(out, n);
 }
 ";
     let project_dir = project("fs-ops", &config(), src);
@@ -270,7 +280,7 @@ irrev fn main(status: &mut i64) {
 }
 
 #[test]
-fn directories_are_made_listed_and_removed() {
+fn directories_are_made_and_removed() {
     let dir = scratch("dirs");
     let src = "
 use std::fs::*;
@@ -281,19 +291,21 @@ use std::text::*;
 irrev fn main(status: &mut i64) {
     ancilla path: [u8; 512] = 0;
     ancilla n: i64 = 0;
-    ancilla found: i64 = 0;
-    ancilla failed: i64 = 0;
+    ancilla made: i64 = 0;
+    ancilla is_made: i64 = 0;
+    ancilla gone: i64 = 0;
+    ancilla is_gone: i64 = 0;
     ancilla out: [u8; 64] = 0;
     ancilla o: i64 = 0;
     call arg(1, path, n);
-    call make_dir(path, failed);
-    call is_dir(path, found);
-    call put_int(out, o, found);
-    call remove_dir(path, failed);
-    call is_dir(path, found);
-    call put_int(out, o, found);
+    call make_dir(path, made);
+    call is_dir(path, is_made);
+    call put_int(out, o, is_made);
+    call remove_dir(path, gone);
+    call is_dir(path, is_gone);
+    call put_int(out, o, is_gone);
     call put(out, o, \"\\n\");
-    call flush(out, o);
+    call print_buf(out, o);
 }
 ";
     let project_dir = project("fs-dirs", &config(), src);
@@ -318,15 +330,17 @@ use std::text::*;
 irrev fn main(status: &mut i64) {
     ancilla value: [u8; 32] = 0;
     ancilla len: i64 = 0;
+    ancilla unset: [u8; 32] = 0;
+    ancilla unset_len: i64 = 0;
     ancilla ms: i64 = 0;
     ancilla out: [u8; 64] = 0;
     ancilla n: i64 = 0;
     call getenv(\"ROOP_TEST_VARIABLE\", value, len);
     call print_buf(value, len);
-    call getenv(\"ROOP_TEST_UNSET_VARIABLE\", value, len);
-    call put_int(out, n, len);
+    call getenv(\"ROOP_TEST_UNSET_VARIABLE\", unset, unset_len);
+    call put_int(out, n, unset_len);
     call put(out, n, \"\\n\");
-    call flush(out, n);
+    call print_buf(out, n);
     call now_ms(ms);
     if ms > 1600000000000 { call print(\"clock ok\\n\"); } fi ms > 1600000000000;
 }
@@ -343,7 +357,7 @@ irrev fn main(status: &mut i64) {
 }
 
 #[test]
-fn exit_ends_the_program_at_once() {
+fn exit_shows_what_is_pending_and_ends_the_program() {
     let src = "
 use std::io::*;
 use std::process::*;
@@ -361,28 +375,31 @@ irrev fn main() {
 }
 
 #[test]
-fn reading_a_line_past_the_end_sets_eof() {
+fn reading_a_line_past_the_end_gives_status_one() {
     let src = "
 use std::io::*;
 use std::text::*;
 
 irrev fn main() {
-    ancilla line: [u8; 8] = 0;
-    ancilla len: i64 = 0;
-    ancilla eof: i64 = 0;
+    ancilla first: [u8; 8] = 0;
+    ancilla first_len: i64 = 0;
+    ancilla first_status: i64 = 0;
+    ancilla second: [u8; 8] = 0;
+    ancilla second_len: i64 = 0;
+    ancilla second_status: i64 = 0;
     ancilla out: [u8; 32] = 0;
     ancilla n: i64 = 0;
-    call read_line(line, len, eof);
-    call put_int(out, n, len);
+    call read_line(first, first_len, first_status);
+    call read_line(second, second_len, second_status);
+    call put_int(out, n, first_len);
     call put(out, n, \" \");
-    call put_int(out, n, eof);
+    call put_int(out, n, first_status);
     call put(out, n, \" \");
-    call read_line(line, len, eof);
-    call put_int(out, n, len);
+    call put_int(out, n, second_len);
     call put(out, n, \" \");
-    call put_int(out, n, eof);
+    call put_int(out, n, second_status);
     call put(out, n, \"\\n\");
-    call flush(out, n);
+    call print_buf(out, n);
 }
 ";
     let dir = project("eof", &config(), src);
@@ -394,13 +411,12 @@ irrev fn main() {
 fn a_long_line_is_cut_to_the_buffer() {
     let src = "
 use std::io::*;
-use std::text::*;
 
 irrev fn main() {
     ancilla line: [u8; 4] = 0;
     ancilla len: i64 = 0;
-    ancilla eof: i64 = 0;
-    call read_line(line, len, eof);
+    ancilla status: i64 = 0;
+    call read_line(line, len, status);
     call print_buf(line, len);
     call print(\"\\n\");
 }
@@ -408,6 +424,144 @@ irrev fn main() {
     let dir = project("longline", &config(), src);
     let out = run_in(&dir, "prog.roop", &[], "abcdefgh\n");
     assert_eq!(stdout(&out), "abcd\n", "{}", stderr(&out));
+}
+
+#[test]
+fn a_failed_try_shows_nothing_of_what_it_wrote() {
+    let out = example("undo", &[], "");
+    assert_eq!(
+        stdout(&out),
+        "rolled back: nothing from announce was shown\n",
+        "{}",
+        stderr(&out)
+    );
+}
+
+#[test]
+fn output_is_shown_when_the_program_ends() {
+    let src = "use std::io::*;\nirrev fn main() { call print(\"a\"); call print(\"b\\n\"); }";
+    let dir = project("commit-at-end", &config(), src);
+    let out = run_in(&dir, "prog.roop", &[], "");
+    assert_eq!(stdout(&out), "ab\n");
+}
+
+#[test]
+fn a_prompt_is_shown_before_the_program_waits_for_the_answer() {
+    let src = "
+use std::io::*;
+
+irrev fn main() {
+    ancilla line: [u8; 16] = 0;
+    ancilla len: i64 = 0;
+    ancilla status: i64 = 0;
+    call print(\"name? \");
+    call read_line(line, len, status);
+    call print(\"hello, \");
+    call print_buf(line, len);
+    call print(\"\\n\");
+}
+";
+    let dir = project("prompt", &config(), src);
+    let mut child = Command::new(env!("CARGO_BIN_EXE_roop"))
+        .current_dir(&dir)
+        .env("ROOP_RT_LIB", support::runtime_lib())
+        .arg("run")
+        .arg("prog.roop")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut shown = [0u8; 6];
+    std::io::Read::read_exact(child.stdout.as_mut().unwrap(), &mut shown).unwrap();
+    assert_eq!(&shown, b"name? ");
+    child.stdin.take().unwrap().write_all(b"Ada\n").unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "hello, Ada\n");
+}
+
+#[test]
+fn a_line_that_is_read_back_is_read_again() {
+    let src = "
+use std::io::*;
+
+irrev fn main() {
+    ancilla first: [u8; 16] = 0;
+    ancilla first_len: i64 = 0;
+    ancilla first_status: i64 = 0;
+    ancilla again: [u8; 16] = 0;
+    ancilla again_len: i64 = 0;
+    ancilla again_status: i64 = 0;
+    call read_line(first, first_len, first_status);
+    uncall read_line(first, first_len, first_status);
+    call read_line(again, again_len, again_status);
+    call print_buf(again, again_len);
+    call print(\"\\n\");
+}
+";
+    let dir = project("unread", &config(), src);
+    let out = run_in(&dir, "prog.roop", &[], "same line\nnext\n");
+    assert_eq!(stdout(&out), "same line\n", "{}", stderr(&out));
+}
+
+#[test]
+fn output_that_was_shown_cannot_be_taken_back() {
+    let src = "
+use std::io::*;
+
+irrev fn main() {
+    call print(\"shown\\n\");
+    call commit();
+    uncall print(\"shown\\n\");
+}
+";
+    let dir = project("too-late", &config(), src);
+    let out = run_in(&dir, "prog.roop", &[], "");
+    assert_eq!(stdout(&out), "shown\n");
+    assert_eq!(out.status.code(), Some(70));
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("already shown"),
+        "{}",
+        stderr(&out)
+    );
+}
+
+#[test]
+fn a_result_goes_into_a_place_that_is_zero() {
+    let src = "
+use std::io::*;
+
+irrev fn main() {
+    ancilla line: [u8; 4] = 0;
+    ancilla len: i64 = 0;
+    ancilla status: i64 = 0;
+    call read_line(line, len, status);
+    call read_line(line, len, status);
+}
+";
+    let dir = project("not-zero", &config(), src);
+    let out = run_in(&dir, "prog.roop", &[], "a\nb\n");
+    assert_eq!(out.status.code(), Some(70));
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("must be zero"),
+        "{}",
+        stderr(&out)
+    );
+}
+
+#[test]
+fn the_world_tests_leave_the_disk_as_they_found_it() {
+    let out = roop(
+        &library(),
+        &["test", "tests/files.roop", "tests/world.roop"],
+    );
+    assert!(out.status.success(), "{}{}", stdout(&out), stderr(&out));
+    let leftovers: Vec<_> = std::fs::read_dir(library())
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+        .collect();
+    assert!(leftovers.is_empty(), "{leftovers:?}");
 }
 
 #[test]

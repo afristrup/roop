@@ -1,154 +1,85 @@
-// Files and directories. Everything here is irrev, since a file that was
-// written or removed cannot be restored. A path is an array of bytes that ends
-// at its first zero byte, so a string literal works, and so does a buffer that
-// was read from an argument or built with std::text.
+// Files and directories, and they are reversible. A function that changes a
+// file keeps what it replaced, and running it backward puts that back, after
+// checking that the file is as the function left it: if someone else changed it
+// in between, the runtime stops rather than lose their change. So a program
+// that writes, renames and removes files can be taken back, and a `try` that
+// fails leaves the disk as it found it. Only `std::io::commit` and the end of
+// the program make output real; the files are changed at once, but the journal
+// that undoes them is kept for as long as the program runs.
 //
-// A function that can fail sets `status` to 0 on success and otherwise to
-// minus the error code of the operating system, such as -2 for a file that does
-// not exist.
+// A path is an array of bytes that ends at its first zero byte, so a string
+// literal works, and so does a buffer that was read from an argument or built
+// with std::text. A function that can fail sets `status` to 0 on success and
+// otherwise to minus the error code of the operating system, such as -2 for a
+// file that does not exist. Results go into places that are zero.
 
-use super::io::read_all;
 use super::sys::*;
 
 // Sets found to 1 when the path exists, otherwise 0.
-pub irrev fn exists<N>(path: &[u8; N], found: &mut i64) {
-    call roop_exists(path, N, found);
+pub fn exists<N>(path: &[u8; N], found: &mut i64) {
+    call roop_fs_exists(path, N, found);
 }
 
-pub irrev fn is_dir<N>(path: &[u8; N], found: &mut i64) {
-    call roop_is_dir(path, N, found);
+pub fn is_dir<N>(path: &[u8; N], found: &mut i64) {
+    call roop_fs_is_dir(path, N, found);
 }
 
 // The size of a file in bytes, or a negative error.
-pub irrev fn size<N>(path: &[u8; N], bytes: &mut i64) {
-    call roop_file_size(path, N, bytes);
-}
-
-pub irrev fn remove<N>(path: &[u8; N], status: &mut i64) {
-    call roop_remove(path, N, status);
-}
-
-// Removes an empty directory.
-pub irrev fn remove_dir<N>(path: &[u8; N], status: &mut i64) {
-    call roop_remove_dir(path, N, status);
-}
-
-// Makes a directory, and the ones above it that are missing.
-pub irrev fn make_dir<N>(path: &[u8; N], status: &mut i64) {
-    call roop_mkdir(path, N, status);
-}
-
-pub irrev fn rename<N, M>(source: &[u8; N], target: &[u8; M], status: &mut i64) {
-    call roop_rename(source, N, target, M, status);
-}
-
-// The names in a directory, in order, each followed by a newline, as many as
-// fit in buf. len is the number of bytes, and status says if it could be read.
-pub irrev fn list_dir<N, M>(
-    path: &[u8; N],
-    buf: &mut [u8; M],
-    len: &mut i64,
-    status: &mut i64,
-) {
-    ancilla got: i64 = 0;
-    call roop_list_dir(path, N, buf, M, got);
-    if got < 0 {
-        status = got;
-        len = 0;
-    } else {
-        status = 0;
-        len = got;
-    } fi got < 0;
+pub fn size<N>(path: &[u8; N], bytes: &mut i64) {
+    call roop_fs_size(path, N, bytes);
 }
 
 // Reads the whole file, as much as fits in buf, which must be zero. len is the
 // number of bytes.
-pub irrev fn read_file<N, M>(
+pub fn read_file<N, M>(
     path: &[u8; N],
     buf: &mut [u8; M],
     len: &mut i64,
     status: &mut i64,
 ) {
-    ancilla fd: i64 = 0;
-    call roop_open(path, N, 0, fd);
-    if fd < 0 {
-        status = fd;
-    } else {
-        call read_all(fd, buf, len);
-        call roop_close(fd);
-        status = 0;
-    } fi fd < 0;
+    call roop_fs_read(path, N, buf, M, len, status);
+}
+
+// The names in a directory, in order, each followed by a newline, as many as
+// fit in buf, which must be zero. len is the number of bytes.
+pub fn list_dir<N, M>(
+    path: &[u8; N],
+    buf: &mut [u8; M],
+    len: &mut i64,
+    status: &mut i64,
+) {
+    call roop_fs_list(path, N, buf, M, len, status);
 }
 
 // Writes the first len bytes of buf to the file, making it or replacing it.
-pub irrev fn write_file<N, M>(
-    path: &[u8; N],
-    buf: &[u8; M],
-    len: &i64,
-    status: &mut i64,
-) {
-    ancilla fd: i64 = 0;
-    ancilla written: i64 = 0;
-    call roop_open(path, N, 1, fd);
-    if fd < 0 {
-        status = fd;
-    } else {
-        call roop_write(fd, buf, len, written);
-        call roop_close(fd);
-        if written < 0 { status = written; } else { status = 0; } fi written < 0;
-    } fi fd < 0;
+pub fn write_file<N, M>(path: &[u8; N], buf: &[u8; M], len: &i64, status: &mut i64) {
+    call roop_fs_write(path, N, buf, len, status);
 }
 
 // The same, added at the end of the file.
-pub irrev fn append_file<N, M>(
-    path: &[u8; N],
-    buf: &[u8; M],
-    len: &i64,
-    status: &mut i64,
-) {
-    ancilla fd: i64 = 0;
-    ancilla written: i64 = 0;
-    call roop_open(path, N, 2, fd);
-    if fd < 0 {
-        status = fd;
-    } else {
-        call roop_write(fd, buf, len, written);
-        call roop_close(fd);
-        if written < 0 { status = written; } else { status = 0; } fi written < 0;
-    } fi fd < 0;
+pub fn append_file<N, M>(path: &[u8; N], buf: &[u8; M], len: &i64, status: &mut i64) {
+    call roop_fs_append(path, N, buf, len, status);
 }
 
-// Copies a file in chunks of 4096 bytes.
-pub irrev fn copy_file<N, M>(source: &[u8; N], target: &[u8; M], status: &mut i64) {
-    ancilla src: i64 = 0;
-    ancilla dst: i64 = 0;
-    call roop_open(source, N, 0, src);
-    call roop_open(target, M, 1, dst);
-    if src < 0 {
-        status = src;
-    } else {
-        if dst < 0 {
-            status = dst;
-        } else {
-            call copy_chunks(src, dst, status);
-        } fi dst < 0;
-        call roop_close(dst);
-    } fi src < 0;
-    call roop_close(src);
+pub fn remove<N>(path: &[u8; N], status: &mut i64) {
+    call roop_fs_remove(path, N, status);
 }
 
-irrev fn copy_chunks(src: &i64, dst: &i64, status: &mut i64) {
-    ancilla chunk: [u8; 4096] = 0;
-    ancilla got: i64 = 0;
-    ancilla written: i64 = 0;
-    ancilla first: i64 = 1;
-    status = 0;
-    from first == 1 {
-        call roop_read(src, chunk, 0, 4096, got);
-        if got > 0 {
-            call roop_write(dst, chunk, got, written);
-        } else {
-            status = got;
-        } fi got > 0;
-    } loop { first = 0; } until got <= 0;
+// Removes an empty directory.
+pub fn remove_dir<N>(path: &[u8; N], status: &mut i64) {
+    call roop_fs_remove_dir(path, N, status);
+}
+
+// Makes a directory, and the ones above it that are missing.
+pub fn make_dir<N>(path: &[u8; N], status: &mut i64) {
+    call roop_fs_mkdir(path, N, status);
+}
+
+pub fn rename<N, M>(source: &[u8; N], target: &[u8; M], status: &mut i64) {
+    call roop_fs_rename(source, N, target, M, status);
+}
+
+// Copies a file over another, whatever its size.
+pub fn copy_file<N, M>(source: &[u8; N], target: &[u8; M], status: &mut i64) {
+    call roop_fs_copy(source, N, target, M, status);
 }

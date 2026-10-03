@@ -1,74 +1,57 @@
-// What the runtime provides. Every function here is implemented in Rust in
-// roop-rt, takes its arguments by reference like any roop function, and is
-// irreversible. Programs use the modules built on these, io, fs and process.
+// What the runtime provides. Every function here is implemented in Rust, in
+// roop-rt, and takes its arguments by reference like any roop function.
+//
+// Those declared `extern world fn` change the world outside the program, and are
+// reversible all the same: the runtime provides each one's inverse, `name_inv`,
+// which `uncall` runs. The world is made so that it can be taken back:
+//
+//   - output is pending, in order, until `roop_commit`, and its inverse takes
+//     the last of it back;
+//   - input is read from a tape that remembers: the inverse of a read puts the
+//     line back, so the next read gets it again, as a replay of the run would;
+//   - a file operation keeps what it replaced, and its inverse restores it,
+//     after checking that nobody else changed the file in between.
+//
+// A result is written into a place that is zero, like a `pop`, since the old
+// value would be lost, and the runtime refuses a place that is not. What the
+// program shows or learns for good is `roop_commit` and `roop_exit`, which are
+// irreversible, and so is reading the real standard input, which commits first.
 //
 // A path or a name is an array of bytes that ends at its first zero byte, or at
 // the end of the array, so a string literal and a zero-padded buffer both work.
 // A count or a status that is negative is the failure, minus the error code of
 // the operating system.
 
-// Writes the first len bytes of buf to the file with descriptor fd.
-pub extern fn roop_write<N>(fd: &i64, buf: &[u8; N], len: &i64, written: &mut i64);
+// Writes the first len bytes of buf to the file with descriptor fd (1 is
+// standard output and 2 is standard error), to be shown at the next commit.
+pub extern world fn roop_out<N>(fd: &i64, buf: &[u8; N], len: &i64);
 
-// Reads up to cap bytes into buf, from byte offset on; got is 0 at the end of
-// the file.
-pub extern fn roop_read<N>(
-    fd: &i64,
-    buf: &mut [u8; N],
-    offset: &i64,
-    cap: &i64,
-    got: &mut i64,
-);
+// How many bytes of output are written and not shown yet.
+pub extern world fn roop_pending(len: &mut i64);
 
-// Reads a line of standard input without its newline; status is 1 at the end.
-pub extern fn roop_read_line<N>(
+// Reads a line of standard input into buf, without its newline, cut to cap
+// bytes. got is the number of bytes, and status is 0, 1 at the end of the input,
+// or a negative error.
+pub extern world fn roop_in_line<N>(
     buf: &mut [u8; N],
     cap: &i64,
     got: &mut i64,
     status: &mut i64,
 );
 
-// Mode 0 reads, 1 writes and truncates, 2 appends, 3 reads and writes.
-pub extern fn roop_open<N>(path: &[u8; N], len: &i64, mode: &i64, fd: &mut i64);
+// Milliseconds since 1970.
+pub extern world fn roop_clock(ms: &mut i64);
 
-pub extern fn roop_close(fd: &i64);
+pub extern world fn roop_arg_count(count: &mut i64);
 
-pub extern fn roop_exists<N>(path: &[u8; N], len: &i64, out: &mut i64);
-
-pub extern fn roop_is_dir<N>(path: &[u8; N], len: &i64, out: &mut i64);
-
-pub extern fn roop_file_size<N>(path: &[u8; N], len: &i64, out: &mut i64);
-
-pub extern fn roop_remove<N>(path: &[u8; N], len: &i64, status: &mut i64);
-
-pub extern fn roop_remove_dir<N>(path: &[u8; N], len: &i64, status: &mut i64);
-
-pub extern fn roop_mkdir<N>(path: &[u8; N], len: &i64, status: &mut i64);
-
-pub extern fn roop_rename<N, M>(
-    source: &[u8; N],
-    source_len: &i64,
-    target: &[u8; M],
-    target_len: &i64,
-    status: &mut i64,
-);
-
-// The names in a directory, each followed by a newline.
-pub extern fn roop_list_dir<N, M>(
-    path: &[u8; N],
-    len: &i64,
-    buf: &mut [u8; M],
+pub extern world fn roop_arg<N>(
+    index: &i64,
+    buf: &mut [u8; N],
     cap: &i64,
-    got: &mut i64,
+    len: &mut i64,
 );
 
-pub extern fn roop_exit(code: &i64);
-
-pub extern fn roop_arg_count(count: &mut i64);
-
-pub extern fn roop_arg<N>(index: &i64, buf: &mut [u8; N], cap: &i64, len: &mut i64);
-
-pub extern fn roop_getenv<N, M>(
+pub extern world fn roop_getenv<N, M>(
     name: &[u8; N],
     name_len: &i64,
     buf: &mut [u8; M],
@@ -76,4 +59,70 @@ pub extern fn roop_getenv<N, M>(
     len: &mut i64,
 );
 
-pub extern fn roop_now_ms(ms: &mut i64);
+pub extern world fn roop_fs_exists<N>(path: &[u8; N], len: &i64, out: &mut i64);
+
+pub extern world fn roop_fs_is_dir<N>(path: &[u8; N], len: &i64, out: &mut i64);
+
+pub extern world fn roop_fs_size<N>(path: &[u8; N], len: &i64, out: &mut i64);
+
+pub extern world fn roop_fs_read<N, M>(
+    path: &[u8; N],
+    len: &i64,
+    buf: &mut [u8; M],
+    cap: &i64,
+    got: &mut i64,
+    status: &mut i64,
+);
+
+pub extern world fn roop_fs_list<N, M>(
+    path: &[u8; N],
+    len: &i64,
+    buf: &mut [u8; M],
+    cap: &i64,
+    got: &mut i64,
+    status: &mut i64,
+);
+
+pub extern world fn roop_fs_write<N, M>(
+    path: &[u8; N],
+    len: &i64,
+    buf: &[u8; M],
+    blen: &i64,
+    status: &mut i64,
+);
+
+pub extern world fn roop_fs_append<N, M>(
+    path: &[u8; N],
+    len: &i64,
+    buf: &[u8; M],
+    blen: &i64,
+    status: &mut i64,
+);
+
+pub extern world fn roop_fs_remove<N>(path: &[u8; N], len: &i64, status: &mut i64);
+
+pub extern world fn roop_fs_remove_dir<N>(path: &[u8; N], len: &i64, status: &mut i64);
+
+pub extern world fn roop_fs_mkdir<N>(path: &[u8; N], len: &i64, status: &mut i64);
+
+pub extern world fn roop_fs_rename<N, M>(
+    source: &[u8; N],
+    source_len: &i64,
+    target: &[u8; M],
+    target_len: &i64,
+    status: &mut i64,
+);
+
+pub extern world fn roop_fs_copy<N, M>(
+    source: &[u8; N],
+    source_len: &i64,
+    target: &[u8; M],
+    target_len: &i64,
+    status: &mut i64,
+);
+
+// Shows what the program has written. After this it cannot be taken back.
+pub extern fn roop_commit();
+
+// Shows what the program has written, and ends it with this status.
+pub extern fn roop_exit(code: &i64);

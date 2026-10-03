@@ -9,8 +9,8 @@ use roop_syntax::{Block, StmtKind};
 /// the safety ones: borrows, parallel loops and concurrent tasks.
 pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
     for stmt in &block.stmts {
-        check_parallel(stmt)?;
         check_no_world(stmt, scope.world_fns)?;
+        check_parallel(stmt)?;
         let outside = || CheckError::IrreversibleOutsideIrrev { span: stmt.span };
         match &stmt.kind {
             StmtKind::Update { target, value, .. } => {

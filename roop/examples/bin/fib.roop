@@ -42,5 +42,5 @@ irrev fn print_fib(index: &i64) {
     number -= a;
     call put_int(out, len, number);
     call put(out, len, "\n");
-    call flush(out, len);
+    call print_buf(out, len);
 }

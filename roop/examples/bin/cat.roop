@@ -4,6 +4,7 @@
 use std::fs::read_file;
 use std::io::*;
 use std::process::*;
+use std::text::clear;
 
 irrev fn main(status: &mut i64) {
     ancilla argc: i64 = 0;
@@ -26,7 +27,11 @@ irrev fn copy_stdin() {
             call print_buf(line, len);
             call print("\n");
         } fi eof == 0;
-    } loop { first = 0; } until eof == 1;
+    } loop {
+        first = 0;
+        call clear(line, len);
+        eof = 0;
+    } until eof == 1;
 }
 
 irrev fn copy_files(argc: &i64, status: &mut i64) {
@@ -40,12 +45,17 @@ irrev fn copy_files(argc: &i64, status: &mut i64) {
         call arg(k, path, path_len);
         call read_file(path, text, len, failed);
         if failed == 0 {
-            call flush(text, len);
+            call print_buf(text, len);
         } else {
             call eprint("cat: cannot read ");
             call eprint_buf(path, path_len);
             call eprint("\n");
             status = 1;
         } fi failed == 0;
-    } loop { k += 1; } until k == argc - 1;
+    } loop {
+        k += 1;
+        call clear(path, path_len);
+        call clear(text, len);
+        failed = 0;
+    } until k == argc - 1;
 }

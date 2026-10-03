@@ -15,10 +15,14 @@ pub fn try_variants(ctx: &Ctx) -> BTreeSet<(String, bool)> {
         }
     };
     for def in ctx.fns.values() {
-        if ctx.irreversible.contains(def.name.as_str()) {
-            continue;
-        }
-        for backward in [false, true] {
+        // An irreversible function has no backward run, but its forward run may
+        // still contain a `try`.
+        let directions: &[bool] = if ctx.irreversible.contains(def.name.as_str()) {
+            &[false]
+        } else {
+            &[false, true]
+        };
+        for &backward in directions {
             for (callee, is_uncall) in calls_in(&def.body, true) {
                 want(&callee, is_uncall, backward, &mut work);
             }
