@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use support::{compile, project, roop, text};
 
-const MODELS: [&str; 3] = [
+const MODELS: [&str; 4] = [
+    "attention_and_mlp",
     "mlp_then_leapfrog",
     "smooth_activations",
     "two_blocks_no_bias",

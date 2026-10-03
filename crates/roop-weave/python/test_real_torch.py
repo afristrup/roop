@@ -11,6 +11,7 @@ from torch import nn
 
 from torch_mirror import mirror
 from torch_to_weave import Unsupported, export
+from weave_modules import LinearAttention
 
 
 def models():
@@ -22,6 +23,9 @@ def models():
         "smooth_activations": nn.Sequential(
             nn.Linear(4, 3), nn.GELU(), nn.Linear(3, 4), nn.Linear(4, 5), nn.SiLU(),
             nn.Linear(4, 2), nn.Sigmoid(), nn.Linear(2, 4),
+        ),
+        "attention_and_mlp": nn.Sequential(
+            LinearAttention(2, 2), nn.Linear(4, 3), nn.Tanh(), nn.Linear(3, 4), LinearAttention(2, 2),
         ),
         "two_blocks_no_bias": nn.Sequential(
             nn.Linear(4, 5, bias=False), nn.Softsign(), nn.Linear(5, 4, bias=False),
@@ -62,6 +66,23 @@ class RealTorch(unittest.TestCase):
         spec = export(Net().eval())
         self.assertEqual([l["kind"] for l in spec["layers"]], ["mlp", "leapfrog"])
         self.assertEqual([l["activation"] for l in spec["layers"]], ["relu", "tanh"])
+
+    def test_attention_is_a_block_and_a_traced_module_may_hold_it(self):
+        class Net(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.attn, self.up, self.down = LinearAttention(2, 2), nn.Linear(4, 3), nn.Linear(3, 4)
+
+            def forward(self, x):
+                return self.down(torch.relu(self.up(self.attn(x))))
+
+        spec = export(Net())
+        self.assertEqual([l["kind"] for l in spec["layers"]], ["attention", "mlp"])
+        self.assertEqual(spec["width"], 4)
+
+    def test_attention_must_fill_the_state(self):
+        with self.assertRaisesRegex(Unsupported, "reads 6 numbers"):
+            export(nn.Sequential(nn.Linear(4, 3), nn.ReLU(), nn.Linear(3, 4), LinearAttention(3, 2)))
 
     def test_a_residual_connection_is_refused_because_the_graph_branches(self):
         class Residual(nn.Module):

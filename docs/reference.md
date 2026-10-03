@@ -526,6 +526,11 @@ q += F(p)        p += G(q)        F(x) = W2 f(W1 x + b1) + b2
 `Linear, activation, Linear` fits. `weave::mlp` adds one half, and `weave::mlp_back`
 runs it backward with the gradients of all four parameters.
 
+**The attention block** is the second half-step, over a state read as `S` rows of `D`
+numbers: `y += (Q K^T) V` with `Q`, `K` and `V` the rows times a weight. It has no
+softmax, since that needs an exponential, so it is the attention weave can run
+backward. Its adjoints are einsums as well (`weave::attn`, `attn_vjp`, `attn_back`).
+
 ```rust
 use weave::step;
 
@@ -565,7 +570,8 @@ model, instead of calling the stack of `weave::forward`:
 ```json
 { "name": "net", "width": 4, "outputs": 1, "step": 0.25, "layers": [
   { "kind": "mlp", "activation": "tanh", "w1": [[...]], "b1": [...], "w2": [[...]], "b2": [...] },
-  { "kind": "leapfrog", "activation": "relu", "weight": [[...]], "bias": [...] } ] }
+  { "kind": "leapfrog", "activation": "relu", "weight": [[...]], "bias": [...] },
+  { "kind": "attention", "seq": 2, "wq": [[...]], "wk": [[...]], "wv": [[...]] } ] }
 ```
 
 ```
@@ -592,8 +598,9 @@ python3 torch_to_weave.py pkg.module:factory --outputs 1 -o model.json
 ```
 
 Most torch layers lose information, so it reads the model as blocks that do not.
-`Linear(N, M), act, Linear(M, N)` is a perceptron block, and `Linear(N, M), act`
-alone is a leapfrog layer whose weight is tied to its transpose. The activations
+`Linear(N, M), act, Linear(M, N)` is a perceptron block, `Linear(N, M), act`
+alone is a leapfrog layer whose weight is tied to its transpose, and
+`LinearAttention(seq, dim)`, from `weave_modules.py`, is an attention block. The activations
 are `Identity`, `ReLU`, `Tanh`, `Softsign`, `Sigmoid`, `SiLU` and `GELU`; any other layer is refused, naming
 it, since turning it into something else would not be the model. The compiled
 network is the network of those blocks run on `(q, p)` with the input in `q` and

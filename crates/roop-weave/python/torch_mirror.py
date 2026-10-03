@@ -70,16 +70,24 @@ def perceptron(layer, x):
     return layer["w2"] @ hidden + layer["b2"]
 
 
+def attention(layer, x):
+    seq = layer["seq"]
+    rows = x.reshape(seq, -1)
+    q, k, v = rows @ layer["wq"].T, rows @ layer["wk"].T, rows @ layer["wv"].T
+    return ((q @ k.T) @ v).reshape(-1)
+
+
 def mirror(spec):
     """The loss of the sample and the gradient of every tensor, in the order of
     the layers' tensors: w, b for a leapfrog layer and w1, b1, w2, b2 for a
     perceptron."""
     width, h = spec["width"], float(snap(spec["step"]))
     keys = {"leapfrog": [("w", "weight"), ("b", "bias")],
-            "mlp": [("w1", "w1"), ("b1", "b1"), ("w2", "w2"), ("b2", "b2")]}
+            "mlp": [("w1", "w1"), ("b1", "b1"), ("w2", "w2"), ("b2", "b2")],
+            "attention": [("wq", "wq"), ("wk", "wk"), ("wv", "wv")]}
     layers, leaves = [], []
     for raw in spec["layers"]:
-        layer = {"kind": raw["kind"], "activation": raw["activation"]}
+        layer = {"kind": raw["kind"], "activation": raw.get("activation"), "seq": raw.get("seq")}
         for ours, theirs in keys[raw["kind"]]:
             layer[ours] = leaf(raw[theirs])
             leaves.append(layer[ours])
@@ -91,12 +99,13 @@ def mirror(spec):
     for layer in layers:
         if layer["kind"] == "leapfrog":
             q, p = leapfrog(layer, h, q, p)
-        elif into_q:
-            q = q + perceptron(layer, p)
-            into_q = False
         else:
-            p = p + perceptron(layer, q)
-            into_q = True
+            half = attention if layer["kind"] == "attention" else perceptron
+            if into_q:
+                q = q + half(layer, p)
+            else:
+                p = p + half(layer, q)
+            into_q = not into_q
     loss = 0.5 * ((q[: spec["outputs"]] - snap(t)) ** 2).sum()
     loss.backward()
     grads = [torch.zeros_like(l) if l.grad is None else l.grad for l in leaves]

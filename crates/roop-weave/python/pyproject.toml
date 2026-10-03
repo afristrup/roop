@@ -6,7 +6,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
-torch = ["torch"]
+torch = ["torch", "numpy"]
 
 [tool.uv]
 package = false

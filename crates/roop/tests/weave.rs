@@ -387,3 +387,31 @@ fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
     }
     assert!(report.contains("Lean accepted the file"), "{report}");
 }
+
+#[test]
+fn lean_proves_the_attention_block_and_its_backward_step() {
+    let src = "
+use weave::attn;
+use weave::attn_back;
+
+fn fwd(y: &mut [i64; 4], wq: &[[i64; 2]; 2], wk: &[[i64; 2]; 2], wv: &[[i64; 2]; 2], x: &[i64; 4]) {
+    call attn<2, 2, 4>(y, wq, wk, wv, x);
+}
+fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
+        gwq: &mut [[i64; 2]; 2], gwk: &mut [[i64; 2]; 2], gwv: &mut [[i64; 2]; 2],
+        wq: &[[i64; 2]; 2], wk: &[[i64; 2]; 2], wv: &[[i64; 2]; 2], x: &[i64; 4]) {
+    call attn_back<2, 2, 4>(y, ay, ax, gwq, gwk, gwv, wq, wk, wv, x);
+}
+";
+    let dir = project("weave-lean-attn", &config(), src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    for name in [
+        "weave__attention__attn__2_2_4",
+        "weave__attention__attn_back__2_2_4",
+    ] {
+        assert!(report.contains(name), "{name} missing: {report}");
+    }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}

@@ -5,6 +5,8 @@ read as a network of reversible blocks, found in an nn.Sequential:
 
     Linear(N, M), act, Linear(M, N)   an "mlp" block: one half of the state takes
                                       in a perceptron of the other (RevNet, NICE)
+    LinearAttention(seq, dim)         an "attention" block, a half of a coupling like
+                                      the perceptron, from weave_modules.py
     Linear(N, M), act                 a "leapfrog" layer: a step of the dynamics
                                       whose force is W^T act(W q + b), with the
                                       weight tied to its transpose
@@ -42,7 +44,7 @@ class Unsupported(Exception):
 def flatten(module):
     """The leaf modules of a model, in order."""
     children = list(module.children())
-    if not children:
+    if not children or kind(module) == "LinearAttention":
         return [module]
     return [leaf for child in children for leaf in flatten(child)]
 
@@ -67,9 +69,13 @@ def traced_chain(model):
     tracing it. The graph must be a chain: each layer takes the one before."""
     import torch.fx
 
+    class Tracer(torch.fx.Tracer):
+        def is_leaf_module(self, module, name):
+            return kind(module) == "LinearAttention" or super().is_leaf_module(module, name)
+
     modules = dict(model.named_modules())
     leaves, previous = [], None
-    for node in torch.fx.symbolic_trace(model).graph.nodes:
+    for node in Tracer().trace(model).nodes:
         if node.op == "placeholder":
             previous = node
         elif node.op == "output":
@@ -116,9 +122,26 @@ def activation_of(module, position):
     return name
 
 
+def attention_block(module, i, width):
+    if module.seq * module.dim != width:
+        raise Unsupported(
+            f"layer {i}: LinearAttention reads {module.seq * module.dim} numbers, "
+            f"but the state is {width} wide"
+        )
+    return {
+        "kind": "attention",
+        "seq": module.seq,
+        "wq": numbers(module.wq.weight),
+        "wk": numbers(module.wk.weight),
+        "wv": numbers(module.wv.weight),
+    }
+
+
 def block_at(leaves, i, width):
     """The block that starts at leaves[i], and how many leaves it takes."""
     first = leaves[i]
+    if kind(first) == "LinearAttention":
+        return attention_block(first, i, width), 1
     if not is_linear(first):
         raise Unsupported(f"layer {i}: {kind(first)} must follow a Linear")
     if first.in_features != width:
@@ -154,10 +177,11 @@ def block_at(leaves, i, width):
 def export(model, outputs=None, step=0.25, name="model"):
     """The roop-weave model for a torch module, as a dict."""
     leaves = flatten(model) if kind(model) == "Sequential" else traced_chain(model)
-    linears = [m for m in leaves if is_linear(m)]
-    if not linears:
+    heads = [m for m in leaves if is_linear(m) or kind(m) == "LinearAttention"]
+    if not heads:
         raise Unsupported("the model has no Linear layer")
-    width = linears[0].in_features
+    first = heads[0]
+    width = first.seq * first.dim if kind(first) == "LinearAttention" else first.in_features
     layers, i = [], 0
     while i < len(leaves):
         block, taken = block_at(leaves, i, width)
