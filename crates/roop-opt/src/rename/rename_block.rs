@@ -10,6 +10,7 @@ pub fn rename_block(block: &Block, from: &str, to: &str) -> Block {
             .iter()
             .map(|s| rename_stmt(s, from, to))
             .collect(),
+        span: block.span,
     }
 }
 

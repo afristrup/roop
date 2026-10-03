@@ -8,5 +8,8 @@ pub fn block<'a, I: TokenInput<'a>>(
     stmt.repeated()
         .collect()
         .delimited_by(just(Token::LBrace), just(Token::RBrace))
-        .map(|stmts| Block { stmts })
+        .map_with(|stmts, e| Block {
+            stmts,
+            span: e.span(),
+        })
 }

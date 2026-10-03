@@ -9,6 +9,7 @@ pub enum CliError {
     Generics(roop_opt::GenericError),
     Check(roop_check::CheckError),
     Codegen(roop_llvm::CodegenError),
+    Format(String, roop_fmt::FmtError),
     Tool(String),
 }
 
@@ -22,6 +23,7 @@ impl fmt::Display for CliError {
             Self::Generics(e) => write!(f, "{e}"),
             Self::Check(e) => write!(f, "{e}"),
             Self::Codegen(e) => write!(f, "{e}"),
+            Self::Format(file, e) => write!(f, "{file}: {e}"),
             Self::Tool(text) => write!(f, "{text}"),
         }
     }

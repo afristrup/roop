@@ -1,4 +1,4 @@
-use crate::{BuildArgs, CliError, Command, Emit, USAGE, parse_lean_args};
+use crate::{BuildArgs, CliError, Command, Emit, USAGE, parse_fmt_args, parse_lean_args};
 use std::path::PathBuf;
 
 pub fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, CliError> {
@@ -7,6 +7,7 @@ pub fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, CliErro
     match args.next().as_deref() {
         Some("build") => {}
         Some("lean") => return parse_lean_args(args).map(Command::Lean),
+        Some("fmt") => return parse_fmt_args(args).map(Command::Fmt),
         _ => return Err(usage()),
     }
     let (mut input, mut output, mut emit, mut link) = (None, None, None, Vec::new());

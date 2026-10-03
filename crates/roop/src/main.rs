@@ -16,6 +16,7 @@ fn run() -> Result<(), CliError> {
     match parse_args(std::env::args().skip(1))? {
         Command::Build(args) => build(&args),
         Command::Lean(args) => run_lean(&args),
+        Command::Fmt(args) => run_fmt(&args),
     }
 }
 

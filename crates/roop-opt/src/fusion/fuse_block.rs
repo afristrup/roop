@@ -27,5 +27,8 @@ pub fn fuse_block(block: &Block) -> Block {
         }
         i += 1;
     }
-    Block { stmts: out }
+    Block {
+        stmts: out,
+        span: block.span,
+    }
 }

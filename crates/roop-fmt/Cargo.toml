@@ -1,0 +1,8 @@
+[package]
+name = "roop-fmt"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+roop-syntax = { path = "../roop-syntax" }
+roop-config = { path = "../roop-config" }

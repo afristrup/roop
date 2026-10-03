@@ -316,6 +316,7 @@ version = "0.1.0"
 dependencies = [
  "roop-check",
  "roop-config",
+ "roop-fmt",
  "roop-lean",
  "roop-llvm",
  "roop-modules",
@@ -336,6 +337,14 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "toml",
+]
+
+[[package]]
+name = "roop-fmt"
+version = "0.1.0"
+dependencies = [
+ "roop-config",
+ "roop-syntax",
 ]
 
 [[package]]

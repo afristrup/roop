@@ -389,3 +389,33 @@ targets = ["cpu", "metal", "nvptx"]
 Metal kernels are emitted as AIR and built with Apple's `metal` tools; NVPTX
 kernels go through LLVM's PTX backend and need a CUDA driver at run time. The
 CUDA launcher has not yet run on NVIDIA hardware.
+
+## Formatting
+
+`roop fmt` rewrites `.roop` files in place, like `cargo fmt`. With no path it
+formats every file of the project, found from the nearest `Roop.toml`.
+
+```
+roop fmt                    # the whole project
+roop fmt std/blas           # a directory or a file
+roop fmt --check            # list what would change, change nothing, fail if any
+roop fmt --width 80         # override the line width
+roop fmt --stdin < f.roop   # filter text
+```
+
+```toml
+[format]
+max_width = 88
+indent = 4
+```
+
+The formatter prints the program from its syntax tree, so the layout never
+depends on how the file was written. Calls, parameter lists and long
+expressions wrap at the width, one item to a line with a trailing comma. A block
+of one simple statement stays on the line of its header when it fits, and an
+empty `else` or `loop` is left out. Comments stay where they are: above a
+statement, beside it, or last in its block, and blank lines between statements
+are kept. A comment inside a statement header or a declaration, such as between
+the arguments of a call, would have to move, so the formatter refuses the file
+and names the line. After formatting it parses the result again and fails if
+the program differs.
