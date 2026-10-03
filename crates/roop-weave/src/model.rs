@@ -1,4 +1,4 @@
-use crate::{Layer, Tensor, quantize};
+use crate::{Layer, LossKind, Optimizer, Tensor, quantize};
 
 /// A network of reversible layers on a state (q, p) of `width` numbers each.
 /// It reads its input into q, with p zero, and its output is the first
@@ -10,6 +10,8 @@ pub struct Model {
     pub outputs: usize,
     pub step: f64,
     pub layers: Vec<Layer>,
+    pub loss: LossKind,
+    pub optimizer: Optimizer,
 }
 
 impl Model {
@@ -29,6 +31,14 @@ impl Model {
     pub fn gradients(&self) -> Vec<Tensor> {
         let named = |t: &&Tensor| t.zeros_like(format!("g{}", t.name));
         self.tensors().iter().map(named).collect()
+    }
+
+    /// The tensors the optimizer keeps for each parameter, in order.
+    pub fn optimizer_state(&self) -> Vec<Tensor> {
+        self.tensors()
+            .iter()
+            .flat_map(|t| self.optimizer.state(t))
+            .collect()
     }
 
     /// For each layer, whether it is a half step that adds into q. Perceptrons and

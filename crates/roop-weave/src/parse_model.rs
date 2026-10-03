@@ -1,4 +1,4 @@
-use crate::{Activation, Layer, Model, Tensor, WeaveError};
+use crate::{Activation, Layer, LossKind, Model, Optimizer, Tensor, WeaveError};
 use serde_json::Value;
 
 fn field<'a>(
@@ -171,6 +171,45 @@ fn parse_layer(index: usize, layer: &Value, width: usize) -> Result<Layer, Weave
     }
 }
 
+fn parse_loss(root: &Value) -> Result<LossKind, WeaveError> {
+    let Some(value) = root.get("loss") else {
+        return Ok(LossKind::Mse);
+    };
+    let name = value.as_str().unwrap_or("");
+    LossKind::parse(name).ok_or_else(|| WeaveError::Loss(name.into()))
+}
+
+fn rate(optimizer: &Value, key: &str, default: f64) -> Result<f64, WeaveError> {
+    let bad = || WeaveError::Field {
+        path: format!("optimizer.{key}"),
+        expected: "a number between 0 and 1",
+    };
+    match optimizer.get(key) {
+        None => Ok(default),
+        Some(v) => v
+            .as_f64()
+            .filter(|x| (0.0..1.0).contains(x))
+            .ok_or_else(bad),
+    }
+}
+
+fn parse_optimizer(root: &Value) -> Result<Optimizer, WeaveError> {
+    let Some(value) = root.get("optimizer") else {
+        return Ok(Optimizer::Sgd);
+    };
+    match value.get("kind").and_then(Value::as_str).unwrap_or("") {
+        "sgd" => Ok(Optimizer::Sgd),
+        "momentum" => Ok(Optimizer::Momentum {
+            beta: rate(value, "beta", 0.9)?,
+        }),
+        "adam" => Ok(Optimizer::Adam {
+            beta1: rate(value, "beta1", 0.9)?,
+            beta2: rate(value, "beta2", 0.999)?,
+        }),
+        other => Err(WeaveError::Optimizer(other.into())),
+    }
+}
+
 /// Reads a model from its JSON, and checks every shape so that nothing wrong
 /// reaches the code that is written from it.
 pub fn parse_model(text: &str) -> Result<Model, WeaveError> {
@@ -214,5 +253,7 @@ pub fn parse_model(text: &str) -> Result<Model, WeaveError> {
         outputs,
         step,
         layers,
+        loss: parse_loss(&root)?,
+        optimizer: parse_optimizer(&root)?,
     })
 }

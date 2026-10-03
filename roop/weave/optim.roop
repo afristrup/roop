@@ -3,7 +3,19 @@
 // training step and not to the reversible gradient. Numbers are Q12 except the
 // second moment of Adam, which is Q24 so that a small squared gradient is not lost.
 
-use std::math::isqrt;
+// r gets the largest number whose square is at most n, for n that is not negative.
+irrev fn isqrt(r: &mut i64, n: &i64) {
+    ancilla lo: i64 = 0;
+    ancilla hi: i64 = 3037000499;
+    ancilla mid: i64 = 0 {
+        ancilla first: i64 = 1;
+        from first == 1 {
+            mid = (lo + hi + 1) / 2;
+            if mid * mid <= n { lo = mid; } else { hi = mid - 1; } fi mid * mid <= n;
+        } loop { first = 0; } until lo >= hi;
+    }
+    r = lo;
+}
 
 // m = beta * m + g, then w -= lr * m
 pub irrev fn momentum_vec<M>(

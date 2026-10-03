@@ -85,3 +85,24 @@ fn lean_proves_a_compiled_model_exactly_reversible() {
     }
     assert!(report.contains("Lean accepted the file"), "{report}");
 }
+
+fn check_loss(name: &str, loss: &str, outputs: usize) {
+    let dir = project(name);
+    let layers = vec![
+        mlp("tanh", 3, 4, 2),
+        mlp("relu", 3, 4, 5),
+        mlp("tanh", 3, 4, 7),
+    ];
+    let mut spec = model(name, 4, outputs, layers);
+    spec["loss"] = loss.into();
+    compile(&dir, &spec, &["--tests"]);
+    let out = roop(&dir, &["test", "prog.roop"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(text(&out).contains("1 passed, 0 failed"), "{}", text(&out));
+}
+
+#[test]
+fn the_cross_entropy_seeds_are_the_gradients_of_the_cross_entropy() {
+    check_loss("ce_sigmoid", "sigmoid", 3);
+    check_loss("ce_softmax", "softmax", 3);
+}

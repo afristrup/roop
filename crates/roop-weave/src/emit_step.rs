@@ -1,16 +1,5 @@
 use crate::{Model, Tensor, decl, names, param_list};
 
-fn update(weight: &Tensor) -> String {
-    match weight.dims.as_slice() {
-        [rows, cols] => format!(
-            "    call sgd_mat<{cols}, {rows}>({0}, g{0}, lr);\n",
-            weight.name
-        ),
-        [len] => format!("    call sgd_vec<{len}>({0}, g{0}, lr);\n", weight.name),
-        _ => unreachable!("parameters are vectors or matrices"),
-    }
-}
-
 fn clear(weight: &Tensor) -> String {
     match weight.dims.as_slice() {
         [rows, cols] => format!("    call clear_mat<{cols}, {rows}>(g{});\n", weight.name),
@@ -19,7 +8,7 @@ fn clear(weight: &Tensor) -> String {
     }
 }
 
-/// `<name>_step<B>`: one step of gradient descent on a batch of B samples. The
+/// `<name>_step<B>`: one step of the optimizer on a batch of B samples. The
 /// gradient is reversible; the clearing of buffers between samples is not.
 pub fn emit_step(model: &Model) -> String {
     let (n, k, name) = (model.width, model.outputs, &model.name);
@@ -27,6 +16,8 @@ pub fn emit_step(model: &Model) -> String {
     params.extend(model.tensors().into_iter().map(|t| decl(t, true)));
     let grads = model.gradients();
     params.extend(grads.iter().map(|g| decl(g, true)));
+    let state = model.optimizer_state();
+    params.extend(state.iter().map(|s| decl(s, true)));
     params.extend(
         ["q", "p", "aq", "ap"]
             .iter()
@@ -37,7 +28,11 @@ pub fn emit_step(model: &Model) -> String {
     params.push("lr: &i64".into());
     let weights = names(&model.tensors()).join(", ");
     let gradients = names(&grads).join(", ");
-    let updates: String = model.tensors().into_iter().map(update).collect();
+    let updates: String = model
+        .tensors()
+        .into_iter()
+        .map(|t| model.optimizer.update(t))
+        .collect();
     let clears: String = model.tensors().into_iter().map(clear).collect();
     format!(
         "pub irrev fn {name}_step<B>(\n{}) {{

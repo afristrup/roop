@@ -3,7 +3,6 @@
 // prediction to `total`, so that it can be watched while training. The cross
 // entropy itself needs a logarithm, which weave does not have.
 
-use std::math::imax;
 use super::act::*;
 
 // r += exp(x) for x <= 0, as (1 + x / 64) ^ 64 by six squarings, and 0 far below.
@@ -35,12 +34,17 @@ pub fn exp_neg(r: &mut i64, x: &i64) {
     } fi x < -262144;
 }
 
+// r += the larger of a and b
+fn larger(r: &mut i64, a: &i64, b: &i64) {
+    if a > b { r += a; } else { r += b; } fi a > b;
+}
+
 // mx[k] += the largest of q[0] to q[k]
 fn maxes<N, K>(mx: &mut [i64; K], q: &[i64; N]) {
     ancilla k: i64 = 0;
     mx[0] += q[0];
     from k == 0 {
-        if k < K - 1 { call imax(mx[k + 1], mx[k], q[k + 1]); } fi k < K - 1;
+        if k < K - 1 { call larger(mx[k + 1], mx[k], q[k + 1]); } fi k < K - 1;
     } loop { k += 1; } until k == K - 1;
     k -= K - 1;
 }
