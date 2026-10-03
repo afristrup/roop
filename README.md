@@ -190,6 +190,53 @@ left out because it loses information at zero.
 is a server built on them: when a better offer turns up it rolls its last step
 back with `uncall` and offers something else.
 
+## weave
+
+weave is a small neural-network library written in roop, built on one fact: a
+leapfrog step is exactly invertible, whatever force it uses. A network is a
+stack of leapfrog layers on a state `(q, p)`, and backpropagation walks the
+layers backward, rebuilding each layer's input from its output with `uncall`
+while it carries the adjoints along. Nothing is stored for the backward pass, so
+memory does not grow with depth.
+
+A layer is one step of the Hamiltonian `|p|^2 / 2 + V(q)` with
+`V(q) = sum log(1 + z^2) / 2` and `z = W q + b`:
+
+```
+p += -h/2 * W^T sigma(W q + b)      sigma(z) = z / (1 + z^2)
+q += h * p
+p += -h/2 * W^T sigma(W q + b)
+```
+
+Every line adds something to a place it does not read, so it has an exact
+inverse. Numbers are fixed point (an integer is the value times 4096), which
+makes the reversal exact to the bit and lets Lean prove it; the rounding in a
+product is the same going forward and back.
+
+```rust
+use weave::step;
+
+// One step of gradient descent on a batch of B samples through L layers of
+// width N, with K outputs.
+call step<N, L, K, B>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr);
+```
+
+`weave::grad` is the reversible core: the loss and the gradients of one sample,
+with the input rebuilt at the end. `weave::forward` is the network alone, and
+`forward_inv` is the network run backward. `weave::step` adds the one irreversible
+part, clearing the buffers between samples, in an `irrev` function.
+
+A test checks the gradients against central finite differences on a double
+precision copy of the network (they agree to about 1%, which is the 4096 grid)
+and that the input comes back bit for bit. Another trains XOR to a 50x lower
+loss. Lean proves the forward pass exactly reversible, layer by layer.
+
+This is a research library, not a framework. It has one layer type, one loss and
+a fixed activation, because roop has no function arguments to build a graph
+from, and no automatic differentiation: each layer's adjoint is written out. A
+test measures throughput: `cargo test -p roop --test weave --release --
+--ignored --nocapture`.
+
 ## Sessions
 
 A session is a protocol for a conversation that either party can roll back, from

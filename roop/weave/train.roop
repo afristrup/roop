@@ -1,0 +1,55 @@
+// Training. The gradient is computed reversibly; what is left over afterwards,
+// the adjoints of the input and the used-up gradients, is cleared in an `irrev`
+// function, which is the one place information is thrown away on purpose.
+
+use super::kernels::*;
+use super::net::*;
+
+pub irrev fn clear<N>(v: &mut [i64; N]) {
+    ancilla i: i64 = 0 {
+        from i == 0 { v[i] = 0; } loop { i += 1; } until i == N - 1;
+        i -= N - 1;
+    }
+}
+
+pub irrev fn clear_grads<N, L>(gw: &mut [[[i64; N]; N]; L], gb: &mut [[i64; N]; L]) {
+    ancilla l: i64 = 0 {
+        from l == 0 {
+            ancilla j: i64 = 0 {
+                from j == 0 {
+                    gb[l][j] = 0;
+                    ancilla i: i64 = 0 {
+                        from i == 0 { gw[l][j][i] = 0; } loop { i += 1; } until i == N - 1;
+                        i -= N - 1;
+                    }
+                } loop { j += 1; } until j == N - 1;
+                j -= N - 1;
+            }
+        } loop { l += 1; } until l == L - 1;
+        l -= L - 1;
+    }
+}
+
+// One step of gradient descent on a batch of B samples. `total` collects the
+// loss, and the buffers q, p, aq, ap and the gradients start at zero and are
+// left at zero.
+pub irrev fn step<N, L, K, B>(
+    total: &mut i64,
+    ws: &mut [[[i64; N]; N]; L], bs: &mut [[i64; N]; L],
+    gw: &mut [[[i64; N]; N]; L], gb: &mut [[i64; N]; L],
+    q: &mut [i64; N], p: &mut [i64; N], aq: &mut [i64; N], ap: &mut [i64; N],
+    xs: &[[i64; N]; B], ts: &[[i64; K]; B], h: &i64, lr: &i64,
+) {
+    ancilla n: i64 = 0 {
+        from n == 0 {
+            call add_vec<N>(q, xs[n]);
+            call grad<N, L, K>(total, q, p, aq, ap, gw, gb, ws, bs, h, ts[n]);
+            uncall add_vec<N>(q, xs[n]);
+            call clear<N>(aq);
+            call clear<N>(ap);
+        } loop { n += 1; } until n == B - 1;
+        n -= B - 1;
+    }
+    call sgd<N, L>(ws, bs, gw, gb, lr);
+    call clear_grads<N, L>(gw, gb);
+}
