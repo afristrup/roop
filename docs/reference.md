@@ -976,7 +976,11 @@ it and compares the weights. `clear_ancillas = false` turns it off.
 
 Metal kernels are emitted as AIR and built with Apple's `metal` tools; NVPTX
 kernels go through LLVM's PTX backend and need a CUDA driver at run time. The
-CUDA launcher has not yet run on NVIDIA hardware.
+CUDA launcher has been verified on an NVIDIA GeForce RTX 4090 with driver 595.91.07
+by `cargo test -p roop-rt --test cuda -- --nocapture`, which verifies PTX launch
+and writable-buffer copyback. The compiler path is covered by
+`cargo test -p roop-llvm --test parallel_nvptx`. CUDA performance benchmarks are
+not included yet.
 
 ## Formatting
 
