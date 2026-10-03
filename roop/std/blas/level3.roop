@@ -91,15 +91,15 @@ pub fn dgemm<M, N, K>(
     ancilla i: i64 = 0;
     #[parallel]
     from i == 0 {
-        ancilla j: i64 = 0;
-        from j == 0 {
-            ancilla l: i64 = 0;
-            from l == 0 {
+        ancilla l: i64 = 0;
+        from l == 0 {
+            ancilla j: i64 = 0;
+            from j == 0 {
                 c[i][j] += alpha * a[i][l] * b[l][j];
-            } loop { l += 1; } until l == K - 1;
-            l -= K - 1;
-        } loop { j += 1; } until j == N - 1;
-        j -= N - 1;
+            } loop { j += 1; } until j == N - 1;
+            j -= N - 1;
+        } loop { l += 1; } until l == K - 1;
+        l -= K - 1;
     } loop { i += 1; } until i == M - 1;
     i -= M - 1;
 }

@@ -19,6 +19,9 @@ pub struct ParallelConfig {
     pub targets: Vec<String>,
     /// LLVM CPU model, e.g. `apple-m4`. Detected on macOS when absent.
     pub cpu: Option<String>,
+    /// When false, matrix products are loops even where the CPU has the SME
+    /// matrix unit.
+    pub sme: bool,
 }
 
 impl Default for ParallelConfig {
@@ -27,6 +30,7 @@ impl Default for ParallelConfig {
             auto: yes(),
             targets: all_targets(),
             cpu: None,
+            sme: yes(),
         }
     }
 }

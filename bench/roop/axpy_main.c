@@ -28,8 +28,8 @@ int main(void) {
         y[i] = 1.0;
     }
     int reps = @REPS@;
-    static double times[2048];
-    for (int k = 0; k < INNER; k++) axpy(y, x, &alpha);
+    static double times[4096];
+    for (double t = now(); now() - t < 0.1;) axpy(y, x, &alpha);
     for (int r = 0; r < reps; r++) {
         double t0 = now();
         for (int k = 0; k < INNER; k++) axpy(y, x, &alpha);
