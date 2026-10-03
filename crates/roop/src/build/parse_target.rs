@@ -4,7 +4,7 @@ pub fn parse_target(name: &str) -> Option<Target> {
     match name {
         "cpu" => Some(Target::Cpu),
         "metal" => Some(Target::Metal),
-        "nvptx" => Some(Target::Nvptx),
+        "cuda" => Some(Target::Cuda),
         _ => None,
     }
 }

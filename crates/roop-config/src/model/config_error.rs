@@ -15,7 +15,7 @@ impl fmt::Display for ConfigError {
             Self::UnknownTarget(name) => {
                 write!(
                     f,
-                    "unknown parallel target `{name}` (expected cpu, metal or nvptx)"
+                    "unknown parallel target `{name}` (expected cpu, metal or cuda)"
                 )
             }
         }

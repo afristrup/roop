@@ -32,7 +32,7 @@ pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError
                 }
                 match target {
                     Target::Cpu => gen_parallel_cpu(g, entry, body, step, until, dir),
-                    Target::Nvptx => {
+                    Target::Cuda => {
                         gen_parallel_gpu(g, Dialect::Nvptx, entry, body, step, until, dir)
                     }
                     Target::Metal => {

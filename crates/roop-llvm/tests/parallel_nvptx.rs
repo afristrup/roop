@@ -42,7 +42,7 @@ fn lower_to_ptx(ir: &str) -> Option<String> {
 #[test]
 fn nvptx_loop_lowers_to_a_ptx_entry_point() {
     let src = "fn axpy(a: &mut [f64; 64], b: &[f64; 64], i: &mut i64, k: &f64) {
-        #[parallel(nvptx)] from i == 0 { a[i] += b[i] * k; } loop { i += 1; } until i == 63;
+        #[parallel(cuda)] from i == 0 { a[i] += b[i] * k; } loop { i += 1; } until i == 63;
     }";
     let out = support::compiled(src, &Options::default());
     let device = out.ptx.expect("a PTX module");
@@ -66,7 +66,7 @@ fn apple_gpu_rejects_double_precision_but_cuda_accepts_it() {
         err.to_string(),
         "unsupported in code generation: f64 on the Apple GPU"
     );
-    let cuda = parse(&body.replace("TARGET", "nvptx")).unwrap();
+    let cuda = parse(&body.replace("TARGET", "cuda")).unwrap();
     assert!(compile_all(&cuda, &Options::default()).is_ok());
 }
 

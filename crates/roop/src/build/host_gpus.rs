@@ -5,7 +5,7 @@ pub fn host_gpus() -> Vec<Target> {
     if cfg!(target_os = "macos") {
         vec![Target::Metal]
     } else if crate::find_tool("nvidia-smi").is_some() {
-        vec![Target::Nvptx]
+        vec![Target::Cuda]
     } else {
         Vec::new()
     }

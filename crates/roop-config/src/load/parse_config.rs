@@ -1,6 +1,6 @@
 use crate::{Config, ConfigError};
 
-const TARGETS: [&str; 3] = ["cpu", "metal", "nvptx"];
+const TARGETS: [&str; 3] = ["cpu", "metal", "cuda"];
 
 /// Parses `Roop.toml` text. `origin` names the file in error messages.
 pub fn parse_config(origin: &str, text: &str) -> Result<Config, ConfigError> {

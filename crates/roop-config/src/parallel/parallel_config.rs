@@ -5,7 +5,7 @@ fn yes() -> bool {
 }
 
 fn all_targets() -> Vec<String> {
-    ["cpu", "metal", "nvptx"].map(String::from).to_vec()
+    ["cpu", "metal", "cuda"].map(String::from).to_vec()
 }
 
 /// The `[parallel]` table of `Roop.toml`.

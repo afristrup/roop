@@ -15,7 +15,7 @@ pub struct ParallelOptions {
 impl Default for ParallelOptions {
     fn default() -> Self {
         ParallelOptions {
-            allowed: vec![Target::Cpu, Target::Metal, Target::Nvptx],
+            allowed: vec![Target::Cpu, Target::Metal, Target::Cuda],
             auto_gpus: Vec::new(),
             cost: CostModel::default(),
         }

@@ -37,7 +37,7 @@ pub fn gen_parallel_auto(
     }
     let gpu = options.auto_gpus.iter().copied().find(|t| match t {
         Target::Metal => !features.has_call && !uses_f64,
-        Target::Nvptx => !features.has_call,
+        Target::Cuda => !features.has_call,
         Target::Cpu => false,
     });
     let choice = match gpu {

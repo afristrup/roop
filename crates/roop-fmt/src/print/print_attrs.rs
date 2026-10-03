@@ -12,7 +12,7 @@ pub fn print_attrs(attrs: &[Attr]) -> Vec<Doc> {
                 Attr::Parallel { target: Some(t) } => {
                     let name = match t {
                         Target::Cpu => "cpu",
-                        Target::Nvptx => "nvptx",
+                        Target::Cuda => "cuda",
                         Target::Metal => "metal",
                     };
                     format!("#[parallel({name})]")

@@ -4,7 +4,7 @@ use roop_config::{ConfigError, load_config, parse_config};
 fn defaults_enable_every_target_and_auto_selection() {
     let config = parse_config("Roop.toml", "").unwrap();
     assert!(config.parallel.auto);
-    assert_eq!(config.parallel.targets, ["cpu", "metal", "nvptx"]);
+    assert_eq!(config.parallel.targets, ["cpu", "metal", "cuda"]);
     assert_eq!(config.parallel.cpu, None);
 }
 

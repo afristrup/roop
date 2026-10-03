@@ -111,7 +111,7 @@ fn double_precision_loops_never_go_to_the_apple_gpu() {
     }";
     let out = support::compiled(src, &options(&[Target::Metal], gpu_always()));
     assert!(out.air.is_none());
-    let cuda = support::compiled(src, &options(&[Target::Nvptx], gpu_always()));
+    let cuda = support::compiled(src, &options(&[Target::Cuda], gpu_always()));
     assert!(cuda.ptx.is_some());
 }
 
@@ -121,7 +121,7 @@ fn loops_with_calls_stay_on_the_cpu() {
         fn f(a: &mut [i64; 8], i: &mut i64) {
             #[parallel] from i == 0 { call g(a[i]); } loop { i += 1; } until i == 7;
         }";
-    let out = support::compiled(src, &options(&[Target::Metal, Target::Nvptx], gpu_always()));
+    let out = support::compiled(src, &options(&[Target::Metal, Target::Cuda], gpu_always()));
     assert!(out.air.is_none() && out.ptx.is_none());
 }
 
