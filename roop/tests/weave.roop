@@ -189,3 +189,81 @@ test fold_and_unfold_are_the_same_numbers_in_two_shapes {
     call unfold<2, 3, 6>(z, m);
     expect z[4] == 7;
 }
+
+test softmax_of_equal_scores_is_uniform {
+    aq: [i64; 2], total: i64, q: [i64; 2], t: [i64; 2];
+    t[0] += 4096;
+    call seed_softmax<2, 2>(aq, total, q, t);
+    expect aq[0] == 0 - 2048 && aq[1] == 2048;
+}
+
+test softmax_of_a_clear_winner_is_close_to_one {
+    aq: [i64; 3], total: i64, q: [i64; 3], t: [i64; 3];
+    q[1] += 20480;
+    t[1] += 4096;
+    call seed_softmax<3, 3>(aq, total, q, t);
+    expect aq[1] > 0 - 60
+        && aq[1] <= 0
+        && aq[0] >= 0
+        && aq[0] < 60
+        && aq[2] >= 0
+        && aq[2] < 60;
+}
+
+test softmax_of_one_third_is_exact_enough {
+    aq: [i64; 3], total: i64, q: [i64; 3], t: [i64; 3];
+    call seed_softmax<3, 3>(aq, total, q, t);
+    expect aq[0] > 1360 && aq[0] < 1370 && aq[1] == aq[0] && aq[2] == aq[0];
+}
+
+test sigmoid_loss_seeds_the_prediction_minus_the_target {
+    aq: [i64; 2], total: i64, q: [i64; 2], t: [i64; 2];
+    t[0] += 4096;
+    call seed_sigmoid<2, 2>(aq, total, q, t);
+    expect aq[0] == 0 - 2048 && aq[1] == 2048;
+}
+
+// One channel of 3 numbers, kernel 3 with weights (1, 2, 3) and bias 1:
+// y[t] = 1 + w0 x[t-1] + w1 x[t] + w2 x[t+1] for x = (1, 0, 2) is (1, 1+3*2+... ) as below.
+test conv_of_a_short_signal_with_zero_padding {
+    y: [i64; 3], x: [i64; 3], w: [[i64; 3]; 1], b: [i64; 1];
+    w[0][0] += 4096;
+    w[0][1] += 8192;
+    w[0][2] += 12288;
+    b[0] += 4096;
+    x[0] += 4096;
+    x[2] += 8192;
+    call conv<1, 3, 3, 3, 3>(y, w, b, x);
+    expect y[0] == 4096 + 8192 * 0 + 4096 * 2 + 0
+        && y[1] == 4096 + 4096 * 1 + 12288 * 2;
+    expect y[2] == 4096 + 4096 * 0 + 8192 * 2;
+}
+
+test rsqrt_of_one_is_one_and_of_four_is_a_half {
+    r: i64, one: i64, four: i64, s: i64, t: i64;
+    one += 4096;
+    four += 16384;
+    call rsqrt(s, one);
+    call rsqrt(t, four);
+    expect s > 4080 && s < 4112 && t > 2030 && t < 2066;
+    call rsqrt(r, one);
+    expect r == s;
+}
+
+test rsqrt_converges_for_a_small_mean_square {
+    r: i64, x: i64;
+    x += 41;
+    call rsqrt(r, x);
+    expect r > 38000 && r < 42000;
+}
+
+test rmsnorm_of_a_vector_is_scaled_by_the_root_mean_square {
+    n: [i64; 2], z: [i64; 2], g: [i64; 2], eps: i64;
+    z[0] += 12288;
+    z[1] -= 4096;
+    g[0] += 4096;
+    g[1] += 4096;
+    eps += 4;
+    call rmsnorm<2>(n, z, g, eps);
+    expect n[0] > 5480 && n[0] < 5510 && n[1] > 0 - 1845 && n[1] < 0 - 1820;
+}

@@ -26,6 +26,8 @@ pub enum WeaveError {
         width: usize,
     },
     Name(String),
+    Loss(String),
+    Optimizer(String),
 }
 
 impl fmt::Display for WeaveError {
@@ -51,6 +53,10 @@ impl fmt::Display for WeaveError {
             Self::NoLayers => write!(f, "the model has no layers"),
             Self::Outputs { outputs, width } => {
                 write!(f, "{outputs} outputs from a state of width {width}")
+            }
+            Self::Loss(name) => write!(f, "no loss `{name}`; weave has mse, sigmoid and softmax"),
+            Self::Optimizer(name) => {
+                write!(f, "no optimizer `{name}`; weave has sgd, momentum and adam")
             }
             Self::Name(name) => write!(f, "`{name}` is not a name for roop functions"),
         }

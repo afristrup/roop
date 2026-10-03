@@ -3,12 +3,15 @@ mod support;
 use roop_weave::{gradients, loss, parse_model, sample};
 use std::path::PathBuf;
 use std::process::Command;
-use support::{compile, project, roop, text};
+use support::{compile, project, roop, roop_binary, runtime_library, text};
 
-const MODELS: [&str; 4] = [
+const MODELS: [&str; 7] = [
     "attention_and_mlp",
+    "conv_blocks",
     "mlp_then_leapfrog",
+    "sigmoid_head",
     "smooth_activations",
+    "softmax_head",
     "two_blocks_no_bias",
 ];
 
@@ -20,6 +23,8 @@ fn export_with_torch(out: &std::path::Path) -> bool {
         .args(["run", "--extra", "torch", "python", "-m", "unittest", "-q"])
         .current_dir(python)
         .env("WEAVE_TORCH_OUT", out)
+        .env("WEAVE_ROOP", roop_binary())
+        .env("ROOP_RT_LIB", runtime_library())
         .output();
     let Ok(run) = run else {
         eprintln!("uv is not installed, so torch is not tested");

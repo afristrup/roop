@@ -415,3 +415,26 @@ fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
     }
     assert!(report.contains("Lean accepted the file"), "{report}");
 }
+
+#[test]
+fn lean_proves_the_convolution_block_and_its_backward_step() {
+    let src = "
+use weave::conv;
+use weave::conv_back;
+
+fn fwd(y: &mut [i64; 4], w: &[[i64; 6]; 2], b: &[i64; 2], x: &[i64; 4]) {
+    call conv<2, 3, 2, 4, 6>(y, w, b, x);
+}
+fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
+        gw: &mut [[i64; 6]; 2], gb: &mut [i64; 2],
+        w: &[[i64; 6]; 2], b: &[i64; 2], x: &[i64; 4]) {
+    call conv_back<2, 3, 2, 4, 6>(y, ay, ax, gw, gb, w, b, x);
+}
+";
+    let dir = project("weave-lean-conv", &config(), src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(report.contains("weave__conv__conv__2_3_2_4_6"), "{report}");
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}

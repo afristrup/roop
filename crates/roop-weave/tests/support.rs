@@ -37,16 +37,25 @@ pub fn project(name: &str) -> PathBuf {
     dir
 }
 
-pub fn roop(dir: &Path, args: &[&str]) -> Output {
+pub fn roop_binary() -> PathBuf {
     static BUILD: std::sync::Once = std::sync::Once::new();
     BUILD.call_once(|| {
         build("roop");
         build("roop-rt");
     });
-    Command::new(target().join("debug/roop"))
+    target().join("debug/roop")
+}
+
+pub fn runtime_library() -> PathBuf {
+    roop_binary();
+    target().join("debug/libroop_rt.a")
+}
+
+pub fn roop(dir: &Path, args: &[&str]) -> Output {
+    Command::new(roop_binary())
         .current_dir(dir)
         .args(args)
-        .env("ROOP_RT_LIB", target().join("debug/libroop_rt.a"))
+        .env("ROOP_RT_LIB", runtime_library())
         .output()
         .unwrap()
 }
@@ -97,6 +106,14 @@ pub fn mlp(act: &str, hidden: usize, width: usize, seed: usize) -> Value {
     })
 }
 
+/// A perceptron whose hidden layer is normalized by its root mean square.
+pub fn mlp_norm(act: &str, hidden: usize, width: usize, seed: usize) -> Value {
+    let mut layer = mlp(act, hidden, width, seed);
+    let gain: Vec<f64> = (0..hidden).map(|j| 0.8 + 0.1 * (j % 3) as f64).collect();
+    layer["norm"] = json!({ "eps": 0.01, "gain": gain });
+    layer
+}
+
 pub fn attention(seq: usize, dim: usize, seed: usize) -> Value {
     json!({
         "kind": "attention",
@@ -104,6 +121,16 @@ pub fn attention(seq: usize, dim: usize, seed: usize) -> Value {
         "wq": weights(dim, dim, seed),
         "wk": weights(dim, dim, seed + 1),
         "wv": weights(dim, dim, seed + 2),
+    })
+}
+
+pub fn conv(channels: usize, kernel: usize, seed: usize) -> Value {
+    json!({
+        "kind": "conv",
+        "channels": channels,
+        "kernel": kernel,
+        "weight": weights(channels, channels * kernel, seed),
+        "bias": biases(channels, seed),
     })
 }
 

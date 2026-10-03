@@ -9,20 +9,32 @@ import unittest
 import torch
 from torch import nn
 
-from torch_mirror import mirror
+from torch_mirror import evaluate, mirror
+from weave_train import train
 from torch_to_weave import Unsupported, export
 from weave_modules import LinearAttention
+
+
+LOSSES = {"softmax_head": "softmax", "sigmoid_head": "sigmoid"}
 
 
 def models():
     torch.manual_seed(0)
     return {
+        "softmax_head": nn.Sequential(
+            nn.Linear(4, 3), nn.ReLU(), nn.Linear(3, 4), nn.Linear(4, 3), nn.Tanh(), nn.Linear(3, 4),
+        ),
+        "sigmoid_head": nn.Sequential(nn.Linear(4, 3), nn.Tanh(), nn.Linear(3, 4)),
         "mlp_then_leapfrog": nn.Sequential(
             nn.Linear(4, 3), nn.ReLU(), nn.Linear(3, 4), nn.Linear(4, 4), nn.Tanh()
         ),
         "smooth_activations": nn.Sequential(
             nn.Linear(4, 3), nn.GELU(), nn.Linear(3, 4), nn.Linear(4, 5), nn.SiLU(),
             nn.Linear(4, 2), nn.Sigmoid(), nn.Linear(2, 4),
+        ),
+        "conv_blocks": nn.Sequential(
+            nn.Linear(6, 4), nn.Tanh(), nn.Linear(4, 6),
+            nn.Conv1d(2, 2, 3, padding=1), nn.Conv1d(3, 3, 3, padding="same", bias=False),
         ),
         "attention_and_mlp": nn.Sequential(
             LinearAttention(2, 2), nn.Linear(4, 3), nn.Tanh(), nn.Linear(3, 4), LinearAttention(2, 2),
@@ -51,8 +63,8 @@ class RealTorch(unittest.TestCase):
     def test_a_layer_weave_cannot_run_backward_is_refused(self):
         with self.assertRaisesRegex(Unsupported, "Softplus is not reversible"):
             export(nn.Sequential(nn.Linear(4, 4), nn.Softplus()))
-        with self.assertRaisesRegex(Unsupported, "Conv1d must follow a Linear"):
-            export(nn.Sequential(nn.Linear(4, 4), nn.ReLU(), nn.Conv1d(1, 1, 1)))
+        with self.assertRaisesRegex(Unsupported, "BatchNorm1d must follow a Linear"):
+            export(nn.Sequential(nn.Linear(4, 4), nn.ReLU(), nn.BatchNorm1d(4)))
 
     def test_a_custom_module_is_traced_and_its_functions_are_activations(self):
         class Net(nn.Module):
@@ -84,6 +96,40 @@ class RealTorch(unittest.TestCase):
         with self.assertRaisesRegex(Unsupported, "reads 6 numbers"):
             export(nn.Sequential(nn.Linear(4, 3), nn.ReLU(), nn.Linear(3, 4), LinearAttention(3, 2)))
 
+    def test_training_through_weave_puts_the_trained_weights_back(self):
+        torch.manual_seed(1)
+        net = nn.Sequential(
+            nn.Linear(4, 6), nn.Tanh(), nn.Linear(6, 4),
+            nn.Linear(4, 6), nn.Tanh(), nn.Linear(6, 4),
+            nn.Linear(4, 6), nn.Tanh(), nn.Linear(6, 4),
+        )
+        xs = [[1, 1, 1, 0], [1, -1, 1, 0], [-1, 1, 1, 0], [-1, -1, 1, 0]]
+        ts = [[-0.5], [0.5], [0.5], [-0.5]]
+        before = net[0].weight.detach().clone()
+        roop = os.environ.get("WEAVE_ROOP", "roop")
+        losses = train(net, xs, ts, epochs=1500, rate=0.05, roop=roop)
+        self.assertLess(losses[-1], losses[0] / 5)
+        self.assertFalse(torch.equal(before, net[0].weight))
+        # The weights that came back reproduce the loss weave reported.
+        again = evaluate(export(net.eval(), outputs=1), xs, ts)
+        self.assertAlmostEqual(again, losses[-1], delta=0.02 + 0.1 * losses[-1])
+
+    def test_conv1d_is_a_block_when_it_keeps_the_length_and_the_channels(self):
+        spec = export(nn.Sequential(nn.Linear(6, 4), nn.ReLU(), nn.Linear(4, 6), nn.Conv1d(2, 2, 3, padding=1)))
+        conv = spec["layers"][-1]
+        self.assertEqual((conv["kind"], conv["channels"], conv["kernel"]), ("conv", 2, 3))
+        self.assertEqual((len(conv["weight"]), len(conv["weight"][0])), (2, 6))
+        for bad in [nn.Conv1d(2, 3, 3, padding=1), nn.Conv1d(2, 2, 3), nn.Conv1d(2, 2, 3, stride=2, padding=1),
+                    nn.Conv1d(2, 2, 2, padding=1), nn.Conv1d(2, 2, 3, padding=1, groups=2)]:
+            with self.assertRaises(Unsupported):
+                export(nn.Sequential(nn.Linear(6, 4), nn.ReLU(), nn.Linear(4, 6), bad))
+
+    def test_a_conv_first_needs_the_width(self):
+        net = nn.Sequential(nn.Conv1d(2, 2, 3, padding=1))
+        with self.assertRaisesRegex(Unsupported, "pass width"):
+            export(net)
+        self.assertEqual(export(net, width=6)["width"], 6)
+
     def test_a_residual_connection_is_refused_because_the_graph_branches(self):
         class Residual(nn.Module):
             def __init__(self):
@@ -99,7 +145,8 @@ class RealTorch(unittest.TestCase):
     def test_export_for_each_model_and_its_autograd_gradients(self):
         out = os.environ.get("WEAVE_TORCH_OUT")
         for name, net in models().items():
-            spec = export(net.eval(), outputs=2, name=name)
+            spec = export(net.eval(), outputs=3 if name in LOSSES else 2, name=name,
+                          loss=LOSSES.get(name, "mse"))
             loss, grads = mirror(spec)
             self.assertTrue(all(torch.isfinite(torch.tensor(g)).all() for g in grads))
             if out:

@@ -1,4 +1,4 @@
-use crate::{Model, decl, forward, gradients, loss, names, quantize, sample};
+use crate::{LossKind, Model, decl, forward, gradients, loss, names, quantize, sample};
 
 /// `a - e` for a number a and an integer e, as roop writes it.
 fn difference(a: &str, e: i64) -> String {
@@ -62,7 +62,9 @@ pub fn emit_tests(model: &Model) -> String {
     }
     body +=
         &format!("    call {name}_grad(total, q, p, aq, ap, {gradient_names}, {weights}, t);\n");
-    body += &near("total", quantize(total), quantize(0.02 + 0.02 * total));
+    if model.loss == LossKind::Mse {
+        body += &near("total", quantize(total), quantize(0.02 + 0.02 * total));
+    }
     let gradient_tolerance = quantize(0.05 * scale + 0.005);
     for (tensor, grad) in model.gradients().iter().zip(&grads) {
         for (flat, g) in grad.iter().enumerate() {

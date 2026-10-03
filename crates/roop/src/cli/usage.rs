@@ -5,6 +5,7 @@ pub const USAGE: &str =
        roop test [<path>...] [--filter <text>] [--timeout <seconds>] [--lean]
        roop fmt [<path>...] [--check] [--width <columns>] [--stdin]
        roop weave <model.json> [-o <output.roop>] [--tests] [--batch <samples>]
+                  [--driver <main.c>]
        roop lsp
 
   build        compile to LLVM IR, an object, or an executable
@@ -35,6 +36,7 @@ pub const USAGE: &str =
                crates/roop-weave/python/torch_to_weave.py) to weave code
     --tests      add a test that checks the code against a reference in doubles
     --batch N    add `<name>_train`, a training step of N samples that C can call
+    --driver F   write a C program that trains the model on data files (needs --batch)
 
   lsp          language server on stdin and stdout: syntax and check errors as
                diagnostics, formatting, and an outline of the file

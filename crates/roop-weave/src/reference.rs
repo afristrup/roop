@@ -29,11 +29,20 @@ fn mlp(layer: &Layer, y: &mut [f64], x: &[f64]) {
         b1,
         w2,
         b2,
+        norm,
     } = layer
     else {
         unreachable!("an mlp layer")
     };
-    let a: Vec<f64> = affine(w1, b1, x).into_iter().map(|z| act.eval(z)).collect();
+    let mut z = affine(w1, b1, x);
+    if let Some(norm) = norm {
+        let mean = z.iter().map(|z| z * z).sum::<f64>() / z.len() as f64;
+        let scale = 1.0 / (mean + norm.eps).sqrt();
+        z.iter_mut()
+            .zip(&norm.gain.data)
+            .for_each(|(z, g)| *z *= scale * g);
+    }
+    let a: Vec<f64> = z.into_iter().map(|z| act.eval(z)).collect();
     y.iter_mut()
         .zip(affine(w2, b2, &a))
         .for_each(|(y, f)| *y += f);
@@ -63,6 +72,35 @@ fn attention(layer: &Layer, y: &mut [f64], x: &[f64]) {
     }
 }
 
+/// y += conv(x) for x read as `channels` rows, with zeros beyond the ends.
+fn conv(layer: &Layer, y: &mut [f64], x: &[f64]) {
+    let Layer::Conv {
+        channels,
+        kernel,
+        w,
+        b,
+    } = layer
+    else {
+        unreachable!("a conv layer")
+    };
+    let length = x.len() / channels;
+    let pad = (kernel / 2) as isize;
+    for c in 0..*channels {
+        for t in 0..length {
+            let mut sum = b.data[c];
+            for source in 0..*channels {
+                for k in 0..*kernel {
+                    let at = t as isize + k as isize - pad;
+                    if (0..length as isize).contains(&at) {
+                        sum += w.at(c, source * kernel + k) * x[source * length + at as usize];
+                    }
+                }
+            }
+            y[c * length + t] += sum;
+        }
+    }
+}
+
 /// The output of the network, the first `outputs` numbers of q after every
 /// layer, in doubles, for an input in q and zero in p.
 pub fn forward(model: &Model, input: &[f64]) -> Vec<f64> {
@@ -75,6 +113,8 @@ pub fn forward(model: &Model, input: &[f64]) -> Vec<f64> {
             (Layer::Mlp { .. }, false) => mlp(layer, &mut p, &q.clone()),
             (Layer::Attention { .. }, true) => attention(layer, &mut q, &p.clone()),
             (Layer::Attention { .. }, false) => attention(layer, &mut p, &q.clone()),
+            (Layer::Conv { .. }, true) => conv(layer, &mut q, &p.clone()),
+            (Layer::Conv { .. }, false) => conv(layer, &mut p, &q.clone()),
         }
     }
     q.truncate(model.outputs);

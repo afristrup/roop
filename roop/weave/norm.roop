@@ -1,0 +1,118 @@
+// RMS normalization of a hidden layer in Q12: n = g * z / sqrt(mean(z^2) + eps).
+//
+// There is no square root that adds into a zero place, so 1 / sqrt(s) is found by
+// Newton's method, y = y (3 - s y^2) / 2, as a chain of 21 cells where each cell
+// takes its value from the one before and nothing is overwritten. It starts from
+// 1/4 and converges for s up to 48; a larger s fails the exit assertion and traps.
+
+// ss += the sum of z^2
+fn sum_squares<M>(ss: &mut i64, z: &[i64; M]) {
+    ancilla j: i64 = 0;
+    from j == 0 { ss += z[j] * z[j] / 4096; } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
+}
+
+// s += mean(z^2) + eps
+pub fn mean_square<M>(s: &mut i64, z: &[i64; M], eps: &i64) {
+    ancilla ss: i64 = 0;
+    call sum_squares<M>(ss, z);
+    s += ss / M + eps;
+    uncall sum_squares<M>(ss, z);
+}
+
+// e[0] gets 1/4 and each next cell one Newton step from the one before
+fn newton<K>(e: &mut [i64; K], s: &i64) {
+    ancilla k: i64 = 0;
+    e[0] += 1024;
+    from k == 0 {
+        if k < K - 1 {
+            e[k + 1] += e[k] * (12288 - s * (e[k] * e[k] / 4096) / 4096) / 8192;
+        } fi k < K - 1;
+    } loop { k += 1; } until k == K - 1;
+    k -= K - 1;
+}
+
+// r += 1 / sqrt(s)
+pub fn rsqrt(r: &mut i64, s: &i64) {
+    if s <= 196608 {
+        ancilla e: [i64; 21] = 0;
+        call newton<21>(e, s);
+        r += e[20];
+        uncall newton<21>(e, s);
+    } fi s <= 196608;
+}
+
+// n += g * z / sqrt(mean(z^2) + eps)
+pub fn rmsnorm<M>(n: &mut [i64; M], z: &[i64; M], g: &[i64; M], eps: &i64) {
+    ancilla s: i64 = 0;
+    ancilla r: i64 = 0;
+    ancilla j: i64 = 0;
+    call mean_square<M>(s, z, eps);
+    call rsqrt(r, s);
+    from j == 0 {
+        n[j] += z[j] * r / 4096 * g[j] / 4096;
+    } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
+    uncall rsqrt(r, s);
+    uncall mean_square<M>(s, z, eps);
+}
+
+// gu[j] += g[j] * u[j]
+fn gain_times<M>(gu: &mut [i64; M], g: &[i64; M], u: &[i64; M]) {
+    ancilla j: i64 = 0;
+    from j == 0 { gu[j] += g[j] * u[j] / 4096; } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
+}
+
+// c += the sum of gu * z
+fn weighted_sum<M>(c: &mut i64, gu: &[i64; M], z: &[i64; M]) {
+    ancilla j: i64 = 0;
+    from j == 0 { c += gu[j] * z[j] / 4096; } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
+}
+
+// dz += gu r - z k and dg += u z r
+fn spread<M>(
+    dz: &mut [i64; M],
+    dg: &mut [i64; M],
+    gu: &[i64; M],
+    u: &[i64; M],
+    z: &[i64; M],
+    r: &i64,
+    k: &i64,
+) {
+    ancilla j: i64 = 0;
+    from j == 0 {
+        dz[j] += gu[j] * r / 4096 - z[j] * k / 4096;
+        dg[j] += u[j] * z[j] / 4096 * r / 4096;
+    } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
+}
+
+// With u the adjoint of what `rmsnorm` added to, adds the adjoint of z to dz and the
+// gradient of the gain to dg:  dz = r g u - r^3 z (sum g u z) / M,  dg = u z r.
+pub fn rmsnorm_vjp<M>(
+    dz: &mut [i64; M],
+    dg: &mut [i64; M],
+    u: &[i64; M],
+    z: &[i64; M],
+    g: &[i64; M],
+    eps: &i64,
+) {
+    ancilla s: i64 = 0;
+    ancilla r: i64 = 0;
+    ancilla gu: [i64; M] = 0;
+    ancilla c: i64 = 0;
+    ancilla k: i64 = 0;
+    call mean_square<M>(s, z, eps);
+    call rsqrt(r, s);
+    call gain_times<M>(gu, g, u);
+    call weighted_sum<M>(c, gu, z);
+    k += r * r / 4096 * r / 4096 * c / 4096 / M;
+    call spread<M>(dz, dg, gu, u, z, r, k);
+    k -= r * r / 4096 * r / 4096 * c / 4096 / M;
+    uncall weighted_sum<M>(c, gu, z);
+    uncall gain_times<M>(gu, g, u);
+    uncall rsqrt(r, s);
+    uncall mean_square<M>(s, z, eps);
+}

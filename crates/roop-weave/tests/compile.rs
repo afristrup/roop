@@ -1,6 +1,6 @@
 mod support;
 
-use support::{attention, compile, leapfrog, mlp, model, project, roop, text};
+use support::{attention, compile, conv, leapfrog, mlp, mlp_norm, model, project, roop, text};
 
 fn check(name: &str, layers: Vec<serde_json::Value>, width: usize, outputs: usize) {
     let dir = project(name);
@@ -84,4 +84,64 @@ fn lean_proves_a_compiled_model_exactly_reversible() {
         assert!(report.contains(name), "{name} missing: {report}");
     }
     assert!(report.contains("Lean accepted the file"), "{report}");
+}
+
+fn check_loss(name: &str, loss: &str, outputs: usize) {
+    let dir = project(name);
+    let layers = vec![
+        mlp("tanh", 3, 4, 2),
+        mlp("relu", 3, 4, 5),
+        mlp("tanh", 3, 4, 7),
+    ];
+    let mut spec = model(name, 4, outputs, layers);
+    spec["loss"] = loss.into();
+    compile(&dir, &spec, &["--tests"]);
+    let out = roop(&dir, &["test", "prog.roop"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(text(&out).contains("1 passed, 0 failed"), "{}", text(&out));
+}
+
+#[test]
+fn the_cross_entropy_seeds_are_the_gradients_of_the_cross_entropy() {
+    check_loss("ce_sigmoid", "sigmoid", 3);
+    check_loss("ce_softmax", "softmax", 3);
+}
+
+#[test]
+fn convolution_blocks_agree_with_the_reference() {
+    check("conv_alone", vec![conv(2, 3, 1), conv(2, 3, 4)], 6, 2);
+    check("conv_wide_kernel", vec![conv(2, 5, 2), conv(2, 1, 3)], 6, 2);
+    check("conv_one_channel", vec![conv(1, 3, 5), conv(1, 3, 6)], 5, 2);
+}
+
+#[test]
+fn convolution_mixed_with_the_other_blocks_agrees_with_the_reference() {
+    let layers = vec![
+        conv(2, 3, 1),
+        mlp("silu", 3, 6, 2),
+        attention(3, 2, 3),
+        leapfrog("tanh", 4, 6, 4),
+        conv(3, 3, 5),
+    ];
+    check("conv_mixed", layers, 6, 3);
+}
+
+#[test]
+fn a_normalized_perceptron_of_each_activation_agrees_with_the_reference() {
+    for act in ["identity", "relu", "tanh", "gelu"] {
+        let layers = vec![mlp_norm(act, 4, 4, 2), mlp_norm(act, 3, 4, 5)];
+        check(&format!("norm_{act}"), layers, 4, 2);
+    }
+}
+
+#[test]
+fn a_normalized_perceptron_mixed_with_the_other_blocks_agrees_with_the_reference() {
+    let layers = vec![
+        mlp_norm("silu", 5, 6, 1),
+        conv(2, 3, 2),
+        mlp("tanh", 3, 6, 3),
+        mlp_norm("relu", 4, 6, 4),
+        attention(3, 2, 5),
+    ];
+    check("norm_mixed", layers, 6, 3);
 }

@@ -16,6 +16,54 @@ pub fn layer_call(layer: &Layer, into_q: bool, width: usize, step: f64, back: bo
             "call layer_back<{width}, {m}>(q, p, aq, ap, g{0}, g{1}, {0}, {1}, {h}, {kind});",
             w.name, b.name
         ),
+        (
+            Layer::Mlp {
+                w1,
+                b1,
+                w2,
+                b2,
+                norm: Some(norm),
+                ..
+            },
+            false,
+        ) => {
+            let (y, x) = if into_q { ("q", "p") } else { ("p", "q") };
+            format!(
+                "call mlp_norm<{width}, {m}>({y}, {}, {}, {}, {}, {}, {x}, {kind}, {});",
+                w1.name,
+                b1.name,
+                norm.gain.name,
+                w2.name,
+                b2.name,
+                quantize(norm.eps)
+            )
+        }
+        (
+            Layer::Mlp {
+                w1,
+                b1,
+                w2,
+                b2,
+                norm: Some(norm),
+                ..
+            },
+            true,
+        ) => {
+            let (y, ay, ax, x) = if into_q {
+                ("q", "aq", "ap", "p")
+            } else {
+                ("p", "ap", "aq", "q")
+            };
+            let (g, e) = (&norm.gain.name, quantize(norm.eps));
+            format!(
+                "call mlp_norm_back<{width}, {m}>({y}, {ay}, {ax}, g{0}, g{1}, g{g2}, g{2}, g{3}, {0}, {1}, {g}, {2}, {3}, {x}, {kind}, {e});",
+                w1.name,
+                b1.name,
+                w2.name,
+                b2.name,
+                g2 = g
+            )
+        }
         (Layer::Mlp { w1, b1, w2, b2, .. }, false) => {
             let (y, x) = if into_q { ("q", "p") } else { ("p", "q") };
             format!(
@@ -40,6 +88,31 @@ pub fn layer_call(layer: &Layer, into_q: bool, width: usize, step: f64, back: bo
                 "call attn_back<{seq}, {m}, {width}>({y}, {ay}, {ax}, g{0}, g{1}, g{2}, {0}, {1}, {2}, {x});",
                 wq.name, wk.name, wv.name
             )
+        }
+        (
+            Layer::Conv {
+                channels,
+                kernel,
+                w,
+                b,
+            },
+            back,
+        ) => {
+            let length = width / channels;
+            let ck = channels * kernel;
+            let generics = format!("{channels}, {kernel}, {length}, {width}, {ck}");
+            let (y, ay, ax, x) = if into_q {
+                ("q", "aq", "ap", "p")
+            } else {
+                ("p", "ap", "aq", "q")
+            };
+            match back {
+                false => format!("call conv<{generics}>({y}, {}, {}, {x});", w.name, b.name),
+                true => format!(
+                    "call conv_back<{generics}>({y}, {ay}, {ax}, g{0}, g{1}, {0}, {1}, {x});",
+                    w.name, b.name
+                ),
+            }
         }
         (Layer::Mlp { w1, b1, w2, b2, .. }, true) => {
             let (y, ay, ax, x) = if into_q {

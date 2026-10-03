@@ -8,6 +8,8 @@ pub fn emit_train(model: &Model, batch: usize) -> String {
     params.extend(model.tensors().into_iter().map(|t| decl(t, true)));
     let grads = model.gradients();
     params.extend(grads.iter().map(|g| decl(g, true)));
+    let state = model.optimizer_state();
+    params.extend(state.iter().map(|s| decl(s, true)));
     params.extend(
         ["q", "p", "aq", "ap"]
             .iter()
@@ -16,7 +18,7 @@ pub fn emit_train(model: &Model, batch: usize) -> String {
     params.push(format!("xs: &[[i64; {n}]; {batch}]"));
     params.push(format!("ts: &[[i64; {k}]; {batch}]"));
     params.push("lr: &i64".into());
-    let all: Vec<String> = [names(&model.tensors()), names(&grads)].concat();
+    let all: Vec<String> = [names(&model.tensors()), names(&grads), names(&state)].concat();
     format!(
         "pub irrev fn {name}_train(\n{}) {{\n    call {name}_step<{batch}>(total, {}, q, p, aq, ap, xs, ts, lr);\n}}\n",
         param_list(&params),
