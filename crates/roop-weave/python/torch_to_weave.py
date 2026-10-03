@@ -38,6 +38,40 @@ def flatten(module):
     return [leaf for child in children for leaf in flatten(child)]
 
 
+def activation_named(name):
+    """A stand-in for an activation module, for one called as a function."""
+    return type(name, (), {"children": lambda self: iter(())})()
+
+
+FUNCTIONS = {"relu": "ReLU", "tanh": "Tanh", "softsign": "Softsign"}
+
+
+def traced_chain(model):
+    """The layers of a model that is not an nn.Sequential, in order, found by
+    tracing it. The graph must be a chain: each layer takes the one before."""
+    import torch.fx
+
+    modules = dict(model.named_modules())
+    leaves, previous = [], None
+    for node in torch.fx.symbolic_trace(model).graph.nodes:
+        if node.op == "placeholder":
+            previous = node
+        elif node.op == "output":
+            if node.args[0] is not previous:
+                raise Unsupported("the output is not the last layer")
+        elif node.args[:1] != (previous,) or len(node.all_input_nodes) != 1:
+            raise Unsupported(f"{node.name}: the graph branches, and weave runs a chain")
+        elif node.op == "call_module":
+            leaves.append(modules[node.target])
+            previous = node
+        elif node.op == "call_function" and getattr(node.target, "__name__", "") in FUNCTIONS:
+            leaves.append(activation_named(FUNCTIONS[node.target.__name__]))
+            previous = node
+        else:
+            raise Unsupported(f"{node.name}: {node.target} is not a layer weave can run backward")
+    return leaves
+
+
 def kind(module):
     return type(module).__name__
 
@@ -103,7 +137,7 @@ def block_at(leaves, i, width):
 
 def export(model, outputs=None, step=0.25, name="model"):
     """The roop-weave model for a torch module, as a dict."""
-    leaves = flatten(model)
+    leaves = flatten(model) if kind(model) == "Sequential" else traced_chain(model)
     linears = [m for m in leaves if is_linear(m)]
     if not linears:
         raise Unsupported("the model has no Linear layer")

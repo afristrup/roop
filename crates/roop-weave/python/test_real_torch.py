@@ -46,6 +46,31 @@ class RealTorch(unittest.TestCase):
         with self.assertRaisesRegex(Unsupported, "Conv1d must follow a Linear"):
             export(nn.Sequential(nn.Linear(4, 4), nn.ReLU(), nn.Conv1d(1, 1, 1)))
 
+    def test_a_custom_module_is_traced_and_its_functions_are_activations(self):
+        class Net(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.up, self.down, self.tied = nn.Linear(4, 3), nn.Linear(3, 4), nn.Linear(4, 4)
+
+            def forward(self, x):
+                return torch.tanh(self.tied(self.down(torch.relu(self.up(x)))))
+
+        spec = export(Net().eval())
+        self.assertEqual([l["kind"] for l in spec["layers"]], ["mlp", "leapfrog"])
+        self.assertEqual([l["activation"] for l in spec["layers"]], ["relu", "tanh"])
+
+    def test_a_residual_connection_is_refused_because_the_graph_branches(self):
+        class Residual(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.f = nn.Linear(4, 4)
+
+            def forward(self, x):
+                return x + torch.relu(self.f(x))
+
+        with self.assertRaisesRegex(Unsupported, "branches"):
+            export(Residual())
+
     def test_export_for_each_model_and_its_autograd_gradients(self):
         out = os.environ.get("WEAVE_TORCH_OUT")
         for name, net in models().items():
