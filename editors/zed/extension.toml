@@ -8,7 +8,7 @@ repository = "https://github.com/afristrup/roop"
 
 [grammars.roop]
 repository = "https://github.com/afristrup/roop"
-rev = "f594701aa45833bfeb20aa534a4326066a968add"
+rev = "86c944c1a3278425b89591eed398ac79d265ebe5"
 path = "editors/tree-sitter-roop"
 
 # A language server needs one more step: a small Rust extension that starts
