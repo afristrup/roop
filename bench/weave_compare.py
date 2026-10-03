@@ -17,6 +17,7 @@ ROOT = HERE.parent
 ROOP = ROOT / "target" / "release" / "roop"
 RT = ROOT / "target" / "release" / "libroop_rt.a"
 WEAVE = ROOT / "roop" / "weave"
+EINSUM = ROOT / "roop" / "einsum"
 N, K = 64, 4
 BATCH = 256
 DEPTHS = [8, 32, 128, 512, 1024]
@@ -25,8 +26,8 @@ PROGRAM = """use weave::grad;
 
 fn one(total: &mut i64, q: &mut [i64; {N}], p: &mut [i64; {N}], aq: &mut [i64; {N}], ap: &mut [i64; {N}],
        gw: &mut [[[i64; {N}]; {N}]; {L}], gb: &mut [[i64; {N}]; {L}],
-       ws: &[[[i64; {N}]; {N}]; {L}], bs: &[[i64; {N}]; {L}], h: &i64, t: &[i64; {K}]) {{
-    call grad<{N}, {L}, {K}>(total, q, p, aq, ap, gw, gb, ws, bs, h, t);
+       ws: &[[[i64; {N}]; {N}]; {L}], bs: &[[i64; {N}]; {L}], h: &i64, kind: &i64, t: &[i64; {K}]) {{
+    call grad<{N}, {N}, {L}, {K}>(total, q, p, aq, ap, gw, gb, ws, bs, h, kind, t);
 }}
 """
 
@@ -40,7 +41,7 @@ DRIVER = """#include <stdint.h>
 static int64_t ws[L][N][N], bs[L][N], gw[L][N][N], gb[L][N];
 static int64_t xs[B][N], ts[B][K], q[N], p[N], aq[N], ap[N];
 void one(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
-         int64_t*, int64_t*, int64_t*, int64_t*);
+         int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
 static int64_t fold(const int64_t *v, long n) {{
     int64_t a = 0;
     for (long i = 0; i < n; i++) a = (int64_t)((uint64_t)a * 31u + (uint64_t)v[i]);
@@ -56,10 +57,10 @@ int main(void) {{
         for (int i = 0; i < N; i++) xs[s][i] = ((s * 3 + i) % 7 - 3) * 512;
         for (int k = 0; k < K; k++) ts[s][k] = ((s + k) % 3 - 1) * 512;
     }}
-    int64_t h = 1024, total = 0;
+    int64_t h = 1024, kind = 1, total = 0;
     for (int s = 0; s < B; s++) {{
         memcpy(q, xs[s], sizeof q);
-        one(&total, q, p, aq, ap, (int64_t*)gw, (int64_t*)gb, (int64_t*)ws, (int64_t*)bs, &h, ts[s]);
+        one(&total, q, p, aq, ap, (int64_t*)gw, (int64_t*)gb, (int64_t*)ws, (int64_t*)bs, &h, &kind, ts[s]);
         memset(q, 0, sizeof q); memset(p, 0, sizeof p); memset(aq, 0, sizeof aq); memset(ap, 0, sizeof ap);
     }}
     printf("total %lld gw %lld gb %lld\\n", (long long)total, (long long)fold((int64_t*)gw, (long)L * N * N), (long long)fold((int64_t*)gb, (long)L * N));
@@ -76,7 +77,7 @@ def timed(cmd, cwd=None):
 
 def roop(depth):
     work = pathlib.Path(tempfile.mkdtemp(prefix="roop-weave-cmp-"))
-    (work / "Roop.toml").write_text(f'[modules]\nweave = "{WEAVE}"\n')
+    (work / "Roop.toml").write_text(f'[modules]\nweave = "{WEAVE}"\neinsum = "{EINSUM}"\n')
     (work / "prog.roop").write_text(PROGRAM.format(N=N, L=depth, K=K))
     (work / "main.c").write_text(DRIVER.format(N=N, L=depth, B=BATCH, K=K))
     subprocess.run([str(ROOP), "build", "prog.roop", "--link", "main.c", "-o", "prog"], cwd=work, check=True,
