@@ -17,6 +17,14 @@ pub enum Layer {
         w2: Tensor,
         b2: Tensor,
     },
+    /// Half of a coupling: one half of the state takes in linear attention over
+    /// the other, read as `seq` rows.
+    Attention {
+        seq: usize,
+        wq: Tensor,
+        wk: Tensor,
+        wv: Tensor,
+    },
 }
 
 impl Layer {
@@ -24,6 +32,7 @@ impl Layer {
         match self {
             Self::Leapfrog { w, b, .. } => vec![w, b],
             Self::Mlp { w1, b1, w2, b2, .. } => vec![w1, b1, w2, b2],
+            Self::Attention { wq, wk, wv, .. } => vec![wq, wk, wv],
         }
     }
 
@@ -31,20 +40,29 @@ impl Layer {
         match self {
             Self::Leapfrog { w, b, .. } => vec![w, b],
             Self::Mlp { w1, b1, w2, b2, .. } => vec![w1, b1, w2, b2],
+            Self::Attention { wq, wk, wv, .. } => vec![wq, wk, wv],
         }
     }
 
-    pub fn activation(&self) -> Activation {
+    /// The pointwise function, for the layers that have one.
+    pub fn activation(&self) -> Option<Activation> {
         match self {
-            Self::Leapfrog { act, .. } | Self::Mlp { act, .. } => *act,
+            Self::Leapfrog { act, .. } | Self::Mlp { act, .. } => Some(*act),
+            Self::Attention { .. } => None,
         }
     }
 
-    /// The width of the hidden layer.
+    /// Whether the layer is one half of a coupling, so that they alternate.
+    pub fn is_half_step(&self) -> bool {
+        matches!(self, Self::Mlp { .. } | Self::Attention { .. })
+    }
+
+    /// The width of the hidden layer, or of a row for attention.
     pub fn hidden(&self) -> usize {
         match self {
             Self::Leapfrog { w, .. } => w.dims[0],
             Self::Mlp { w1, .. } => w1.dims[0],
+            Self::Attention { wq, .. } => wq.dims[0],
         }
     }
 }

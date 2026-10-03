@@ -1,6 +1,6 @@
 mod support;
 
-use support::{compile, leapfrog, mlp, model, project, roop, text};
+use support::{attention, compile, leapfrog, mlp, model, project, roop, text};
 
 fn check(name: &str, layers: Vec<serde_json::Value>, width: usize, outputs: usize) {
     let dir = project(name);
@@ -42,4 +42,32 @@ fn layers_of_different_widths_and_kinds_agree_with_the_reference() {
         leapfrog("cauchy", 5, 4, 3),
     ];
     check("mixed", layers, 4, 2);
+}
+
+#[test]
+fn attention_blocks_agree_with_the_reference() {
+    check(
+        "attn_alone",
+        vec![attention(2, 2, 1), attention(2, 2, 4)],
+        4,
+        2,
+    );
+    check(
+        "attn_longer",
+        vec![attention(3, 2, 2), attention(3, 2, 5)],
+        6,
+        3,
+    );
+}
+
+#[test]
+fn attention_mixed_with_perceptrons_and_leapfrog_agrees_with_the_reference() {
+    let layers = vec![
+        attention(2, 2, 1),
+        mlp("gelu", 3, 4, 2),
+        leapfrog("tanh", 3, 4, 3),
+        attention(2, 2, 4),
+        mlp("softsign", 2, 4, 5),
+    ];
+    check("attn_mixed", layers, 4, 2);
 }

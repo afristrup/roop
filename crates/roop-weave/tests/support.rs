@@ -97,6 +97,16 @@ pub fn mlp(act: &str, hidden: usize, width: usize, seed: usize) -> Value {
     })
 }
 
+pub fn attention(seq: usize, dim: usize, seed: usize) -> Value {
+    json!({
+        "kind": "attention",
+        "seq": seq,
+        "wq": weights(dim, dim, seed),
+        "wk": weights(dim, dim, seed + 1),
+        "wv": weights(dim, dim, seed + 2),
+    })
+}
+
 pub fn model(name: &str, width: usize, outputs: usize, layers: Vec<Value>) -> Value {
     json!({ "name": name, "width": width, "outputs": outputs, "step": 0.25, "layers": layers })
 }
