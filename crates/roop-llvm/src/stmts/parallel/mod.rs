@@ -11,6 +11,7 @@ mod outline_block;
 mod parallel_attr;
 mod parallel_loop;
 mod parallel_prologue;
+mod q12;
 mod signed_factor;
 
 pub use auto::*;
@@ -26,4 +27,5 @@ pub use outline_block::*;
 pub use parallel_attr::*;
 pub use parallel_loop::*;
 pub use parallel_prologue::*;
+pub use q12::*;
 pub use signed_factor::*;

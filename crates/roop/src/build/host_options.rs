@@ -29,6 +29,7 @@ pub fn host_options(config: &Config) -> Options {
             .then(|| "arm64-apple-macosx".into()),
         cpu,
         sme: config.parallel.sme && detect_sme(),
+        q12: config.parallel.q12 && cfg!(all(target_os = "macos", target_arch = "aarch64")),
         parallel: ParallelOptions {
             allowed,
             auto_gpus,

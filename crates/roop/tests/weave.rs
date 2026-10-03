@@ -232,6 +232,15 @@ fn training_on_xor_drives_the_loss_down_without_storing_activations() {
 
 const BENCH_PROGRAM: &str = "
 use weave::step;
+use weave::step_batch;
+
+irrev fn train_batch(total: &mut i64, ws: &mut [[[i64; 64]; 64]; 8], bs: &mut [[i64; 64]; 8],
+                     gw: &mut [[[i64; 64]; 64]; 8], gb: &mut [[i64; 64]; 8],
+                     q: &mut [[i64; 64]; 32], p: &mut [[i64; 64]; 32],
+                     aq: &mut [[i64; 64]; 32], ap: &mut [[i64; 64]; 32],
+                     xs: &[[i64; 64]; 32], ts: &[[i64; 4]; 32], h: &i64, lr: &i64, kind: &i64) {
+    call step_batch<64, 64, 8, 4, 32>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr, kind);
+}
 
 irrev fn train(total: &mut i64, ws: &mut [[[i64; 64]; 64]; 8], bs: &mut [[i64; 64]; 8],
                gw: &mut [[[i64; 64]; 64]; 8], gb: &mut [[i64; 64]; 8],
@@ -252,31 +261,60 @@ const BENCH_DRIVER: &str = r#"
 #define B 32
 static int64_t ws[L][N][N], bs[L][N], gw[L][N][N], gb[L][N];
 static int64_t xs[B][N], ts[B][4], q[N], p[N], aq[N], ap[N];
+static int64_t qb[B][N], pb[B][N], aqb[B][N], apb[B][N];
 
 void train(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
            int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
 
-int main(void) {
+void train_batch(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
+                 int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+
+static void reset(void) {
+    memset(gw, 0, sizeof gw);
+    memset(gb, 0, sizeof gb);
     for (int l = 0; l < L; l++)
         for (int j = 0; j < N; j++) {
             bs[l][j] = (j % 5 - 2) * 64;
             for (int i = 0; i < N; i++) ws[l][j][i] = ((l * 5 + j * 7 + i * 3) % 9 - 4) * 64;
         }
+}
+
+static double now(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec + t.tv_nsec / 1e9;
+}
+
+#define ROUNDS 9
+#define STEPS 10
+
+int main(void) {
     for (int n = 0; n < B; n++) {
         for (int i = 0; i < N; i++) xs[n][i] = ((n * 3 + i) % 7 - 3) * 512;
         for (int k = 0; k < 4; k++) ts[n][k] = ((n + k) % 3 - 1) * 512;
     }
     int64_t H = 1024, LR = 64, kind = 1, total = 0;
-    struct timespec a, b;
-    clock_gettime(CLOCK_MONOTONIC, &a);
-    int steps = 50;
-    for (int s = 0; s < steps; s++)
-        train(&total, (int64_t*)ws, (int64_t*)bs, (int64_t*)gw, (int64_t*)gb, q, p, aq, ap,
-              (int64_t*)xs, (int64_t*)ts, &H, &LR, &kind);
-    clock_gettime(CLOCK_MONOTONIC, &b);
-    double secs = (b.tv_sec - a.tv_sec) + (b.tv_nsec - a.tv_nsec) / 1e9;
+    double best_one = 1e9, best_batch = 1e9;
+    for (int round = 0; round < ROUNDS; round++) {
+        reset();
+        double t = now();
+        for (int s = 0; s < STEPS; s++)
+            train(&total, (int64_t*)ws, (int64_t*)bs, (int64_t*)gw, (int64_t*)gb, q, p, aq, ap,
+                  (int64_t*)xs, (int64_t*)ts, &H, &LR, &kind);
+        t = (now() - t) / STEPS;
+        if (round > 0 && t < best_one) best_one = t;
+        reset();
+        t = now();
+        for (int s = 0; s < STEPS; s++)
+            train_batch(&total, (int64_t*)ws, (int64_t*)bs, (int64_t*)gw, (int64_t*)gb, (int64_t*)qb,
+                        (int64_t*)pb, (int64_t*)aqb, (int64_t*)apb, (int64_t*)xs, (int64_t*)ts, &H, &LR, &kind);
+        t = (now() - t) / STEPS;
+        if (round > 0 && t < best_batch) best_batch = t;
+    }
     fprintf(stderr, "weave: %d layers of width %d, %d samples a step: %.1f samples/s, %.2f ms a step\n",
-            L, N, B, steps * B / secs, 1000 * secs / steps);
+            L, N, B, B / best_one, 1000 * best_one);
+    fprintf(stderr, "weave batched: %d layers of width %d, %d samples a step: %.1f samples/s, %.2f ms a step\n",
+            L, N, B, B / best_batch, 1000 * best_batch);
     return 0;
 }
 "#;

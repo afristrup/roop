@@ -16,47 +16,47 @@ use weave::mlp_back;
 use weave::mlp_back_batch;
 use weave::mlp_batch;
 
-fn one(total: &mut i64, q: &mut [i64; 8], p: &mut [i64; 8], aq: &mut [i64; 8], ap: &mut [i64; 8],
-       gw: &mut [[[i64; 8]; 6]; 3], gb: &mut [[i64; 6]; 3],
-       ws: &[[[i64; 8]; 6]; 3], bs: &[[i64; 6]; 3], h: &i64, kind: &i64, t: &[i64; 2]) {
-    call grad<8, 6, 3, 2>(total, q, p, aq, ap, gw, gb, ws, bs, h, kind, t);
+fn one(total: &mut i64, q: &mut [i64; @N@], p: &mut [i64; @N@], aq: &mut [i64; @N@], ap: &mut [i64; @N@],
+       gw: &mut [[[i64; @N@]; @M@]; @L@], gb: &mut [[i64; @M@]; @L@],
+       ws: &[[[i64; @N@]; @M@]; @L@], bs: &[[i64; @M@]; @L@], h: &i64, kind: &i64, t: &[i64; @K@]) {
+    call grad<@N@, @M@, @L@, @K@>(total, q, p, aq, ap, gw, gb, ws, bs, h, kind, t);
 }
 
-fn batch(total: &mut i64, q: &mut [[i64; 8]; 5], p: &mut [[i64; 8]; 5],
-         aq: &mut [[i64; 8]; 5], ap: &mut [[i64; 8]; 5],
-         gw: &mut [[[i64; 8]; 6]; 3], gb: &mut [[i64; 6]; 3],
-         ws: &[[[i64; 8]; 6]; 3], bs: &[[i64; 6]; 3], h: &i64, kind: &i64, t: &[[i64; 2]; 5]) {
-    call grad_batch<8, 6, 3, 2, 5>(total, q, p, aq, ap, gw, gb, ws, bs, h, kind, t);
+fn batch(total: &mut i64, q: &mut [[i64; @N@]; @B@], p: &mut [[i64; @N@]; @B@],
+         aq: &mut [[i64; @N@]; @B@], ap: &mut [[i64; @N@]; @B@],
+         gw: &mut [[[i64; @N@]; @M@]; @L@], gb: &mut [[i64; @M@]; @L@],
+         ws: &[[[i64; @N@]; @M@]; @L@], bs: &[[i64; @M@]; @L@], h: &i64, kind: &i64, t: &[[i64; @K@]; @B@]) {
+    call grad_batch<@N@, @M@, @L@, @K@, @B@>(total, q, p, aq, ap, gw, gb, ws, bs, h, kind, t);
 }
 
-fn mlp_one(y: &mut [i64; 8], ay: &[i64; 8], ax: &mut [i64; 8],
-           gw1: &mut [[i64; 8]; 6], gb1: &mut [i64; 6], gw2: &mut [[i64; 6]; 8], gb2: &mut [i64; 8],
-           w1: &[[i64; 8]; 6], b1: &[i64; 6], w2: &[[i64; 6]; 8], b2: &[i64; 8],
-           x: &[i64; 8], kind: &i64) {
-    call mlp<8, 6>(y, w1, b1, w2, b2, x, kind);
-    call mlp_back<8, 6>(y, ay, ax, gw1, gb1, gw2, gb2, w1, b1, w2, b2, x, kind);
+fn mlp_one(y: &mut [i64; @N@], ay: &[i64; @N@], ax: &mut [i64; @N@],
+           gw1: &mut [[i64; @N@]; @M@], gb1: &mut [i64; @M@], gw2: &mut [[i64; @M@]; @N@], gb2: &mut [i64; @N@],
+           w1: &[[i64; @N@]; @M@], b1: &[i64; @M@], w2: &[[i64; @M@]; @N@], b2: &[i64; @N@],
+           x: &[i64; @N@], kind: &i64) {
+    call mlp<@N@, @M@>(y, w1, b1, w2, b2, x, kind);
+    call mlp_back<@N@, @M@>(y, ay, ax, gw1, gb1, gw2, gb2, w1, b1, w2, b2, x, kind);
 }
 
-fn mlp_all(y: &mut [[i64; 8]; 5], ay: &[[i64; 8]; 5], ax: &mut [[i64; 8]; 5],
-           gw1: &mut [[i64; 8]; 6], gb1: &mut [i64; 6], gw2: &mut [[i64; 6]; 8], gb2: &mut [i64; 8],
-           w1: &[[i64; 8]; 6], b1: &[i64; 6], w2: &[[i64; 6]; 8], b2: &[i64; 8],
-           x: &[[i64; 8]; 5], kind: &i64) {
-    call mlp_batch<8, 6, 5>(y, w1, b1, w2, b2, x, kind);
-    call mlp_back_batch<8, 6, 5>(y, ay, ax, gw1, gb1, gw2, gb2, w1, b1, w2, b2, x, kind);
+fn mlp_all(y: &mut [[i64; @N@]; @B@], ay: &[[i64; @N@]; @B@], ax: &mut [[i64; @N@]; @B@],
+           gw1: &mut [[i64; @N@]; @M@], gb1: &mut [i64; @M@], gw2: &mut [[i64; @M@]; @N@], gb2: &mut [i64; @N@],
+           w1: &[[i64; @N@]; @M@], b1: &[i64; @M@], w2: &[[i64; @M@]; @N@], b2: &[i64; @N@],
+           x: &[[i64; @N@]; @B@], kind: &i64) {
+    call mlp_batch<@N@, @M@, @B@>(y, w1, b1, w2, b2, x, kind);
+    call mlp_back_batch<@N@, @M@, @B@>(y, ay, ax, gw1, gb1, gw2, gb2, w1, b1, w2, b2, x, kind);
 }
 
-fn attn_one(y: &mut [i64; 8], ay: &[i64; 8], ax: &mut [i64; 8],
-            gwq: &mut [[i64; 2]; 2], gwk: &mut [[i64; 2]; 2], gwv: &mut [[i64; 2]; 2],
-            wq: &[[i64; 2]; 2], wk: &[[i64; 2]; 2], wv: &[[i64; 2]; 2], x: &[i64; 8]) {
-    call attn<4, 2, 8>(y, wq, wk, wv, x);
-    call attn_back<4, 2, 8>(y, ay, ax, gwq, gwk, gwv, wq, wk, wv, x);
+fn attn_one(y: &mut [i64; @N@], ay: &[i64; @N@], ax: &mut [i64; @N@],
+            gwq: &mut [[i64; @D@]; @D@], gwk: &mut [[i64; @D@]; @D@], gwv: &mut [[i64; @D@]; @D@],
+            wq: &[[i64; @D@]; @D@], wk: &[[i64; @D@]; @D@], wv: &[[i64; @D@]; @D@], x: &[i64; @N@]) {
+    call attn<@S@, @D@, @N@>(y, wq, wk, wv, x);
+    call attn_back<@S@, @D@, @N@>(y, ay, ax, gwq, gwk, gwv, wq, wk, wv, x);
 }
 
-fn attn_all(y: &mut [[i64; 8]; 5], ay: &[[i64; 8]; 5], ax: &mut [[i64; 8]; 5],
-            gwq: &mut [[i64; 2]; 2], gwk: &mut [[i64; 2]; 2], gwv: &mut [[i64; 2]; 2],
-            wq: &[[i64; 2]; 2], wk: &[[i64; 2]; 2], wv: &[[i64; 2]; 2], x: &[[i64; 8]; 5]) {
-    call attn_batch<4, 2, 8, 5>(y, wq, wk, wv, x);
-    call attn_back_batch<4, 2, 8, 5>(y, ay, ax, gwq, gwk, gwv, wq, wk, wv, x);
+fn attn_all(y: &mut [[i64; @N@]; @B@], ay: &[[i64; @N@]; @B@], ax: &mut [[i64; @N@]; @B@],
+            gwq: &mut [[i64; @D@]; @D@], gwk: &mut [[i64; @D@]; @D@], gwv: &mut [[i64; @D@]; @D@],
+            wq: &[[i64; @D@]; @D@], wk: &[[i64; @D@]; @D@], wv: &[[i64; @D@]; @D@], x: &[[i64; @N@]; @B@]) {
+    call attn_batch<@S@, @D@, @N@, @B@>(y, wq, wk, wv, x);
+    call attn_back_batch<@S@, @D@, @N@, @B@>(y, ay, ax, gwq, gwk, gwv, wq, wk, wv, x);
 }
 ";
 
@@ -65,11 +65,13 @@ const DRIVER: &str = r#"
 #include <stdio.h>
 #include <string.h>
 
-#define N 8
-#define M 6
-#define L 3
-#define K 2
-#define B 5
+#define N @N@
+#define M @M@
+#define L @L@
+#define K @K@
+#define B @B@
+#define S @S@
+#define D @D@
 
 void one(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
          int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
@@ -92,7 +94,7 @@ static int64_t rnd(int64_t range) {
 static void fill(int64_t *v, int n, int64_t range) { for (int i = 0; i < n; i++) v[i] = rnd(range); }
 
 static int64_t ws[L][M][N], bs[L][M], x[B][N], t[B][K];
-static int64_t w1[M][N], b1[M], w2[N][M], b2[N], ay[B][N], wq[2][2], wk[2][2], wv[2][2];
+static int64_t w1[M][N], b1[M], w2[N][M], b2[N], ay[B][N], wq[D][D], wk[D][D], wv[D][D];
 
 static int check_grad(int64_t kind) {
     int64_t H = 1024, total_one = 0, total_all = 0;
@@ -147,7 +149,7 @@ static int check_mlp(int64_t kind) {
 }
 
 static int check_attn(void) {
-    static int64_t ga[3][2][2], gb[3][2][2], axa[B][N], axb[B][N], ya[B][N], yb[B][N];
+    static int64_t ga[3][D][D], gb[3][D][D], axa[B][N], axb[B][N], ya[B][N], yb[B][N];
     memset(ga, 0, sizeof ga); memset(gb, 0, sizeof gb);
     memset(axa, 0, sizeof axa); memset(axb, 0, sizeof axb); memset(ya, 0, sizeof ya); memset(yb, 0, sizeof yb);
     for (int s = 0; s < B; s++)
@@ -167,7 +169,7 @@ int main(void) {
     fill((int64_t*)x, B * N, 6000); fill((int64_t*)t, B * K, 3000);
     fill((int64_t*)w1, M * N, 2000); fill(b1, M, 1000); fill((int64_t*)w2, N * M, 2000); fill(b2, N, 1000);
     fill((int64_t*)ay, B * N, 3000);
-    fill((int64_t*)wq, 4, 3000); fill((int64_t*)wk, 4, 3000); fill((int64_t*)wv, 4, 3000);
+    fill((int64_t*)wq, D * D, 3000); fill((int64_t*)wk, D * D, 3000); fill((int64_t*)wv, D * D, 3000);
     for (int64_t kind = 0; kind < 8; kind++) {
         int r = check_grad(kind);
         if (r) { fprintf(stderr, "grad kind %lld failed with %d\n", (long long)kind, r); return r; }
@@ -189,10 +191,49 @@ fn config() -> String {
     )
 }
 
-#[test]
-fn batched_gradients_equal_the_sum_of_the_per_sample_gradients_bit_for_bit() {
-    let dir = project("weave-batch", &config(), PROGRAM);
-    std::fs::write(dir.join("main.c"), DRIVER).unwrap();
+struct Sizes {
+    n: usize,
+    m: usize,
+    b: usize,
+    s: usize,
+    d: usize,
+}
+
+const SMALL: Sizes = Sizes {
+    n: 8,
+    m: 6,
+    b: 5,
+    s: 4,
+    d: 2,
+};
+
+/// Large enough that the matrix products run on the runtime's kernel.
+const LARGE: Sizes = Sizes {
+    n: 24,
+    m: 20,
+    b: 9,
+    s: 6,
+    d: 4,
+};
+
+fn compare(name: &str, sizes: Sizes) {
+    let fill = |text: &str| {
+        [
+            ("@N@", sizes.n),
+            ("@M@", sizes.m),
+            ("@L@", 3),
+            ("@K@", 2),
+            ("@B@", sizes.b),
+            ("@S@", sizes.s),
+            ("@D@", sizes.d),
+        ]
+        .iter()
+        .fold(text.to_string(), |text, (at, n)| {
+            text.replace(at, &n.to_string())
+        })
+    };
+    let dir = project(name, &config(), &fill(PROGRAM));
+    std::fs::write(dir.join("main.c"), fill(DRIVER)).unwrap();
     let out = roop(
         &dir,
         &["build", "prog.roop", "--link", "main.c", "-o", "prog"],
@@ -201,4 +242,14 @@ fn batched_gradients_equal_the_sum_of_the_per_sample_gradients_bit_for_bit() {
     let result = Command::new(dir.join("prog")).output().unwrap();
     eprint!("{}", String::from_utf8_lossy(&result.stderr));
     assert_eq!(result.status.code(), Some(0));
+}
+
+#[test]
+fn batched_gradients_equal_the_sum_of_the_per_sample_gradients_bit_for_bit() {
+    compare("weave-batch-small", SMALL);
+}
+
+#[test]
+fn the_same_holds_when_the_products_run_on_the_kernel() {
+    compare("weave-batch-large", LARGE);
 }

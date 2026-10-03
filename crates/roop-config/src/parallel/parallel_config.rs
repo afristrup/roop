@@ -22,6 +22,9 @@ pub struct ParallelConfig {
     /// When false, matrix products are loops even where the CPU has the SME
     /// matrix unit.
     pub sme: bool,
+    /// When false, products of `q12` matrices (weave's einsums) are loops and
+    /// not the runtime's integer kernel.
+    pub q12: bool,
 }
 
 impl Default for ParallelConfig {
@@ -31,6 +34,7 @@ impl Default for ParallelConfig {
             targets: all_targets(),
             cpu: None,
             sme: yes(),
+            q12: yes(),
         }
     }
 }

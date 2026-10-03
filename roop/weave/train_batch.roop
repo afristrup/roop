@@ -1,6 +1,7 @@
 // Training on a batch of samples that are processed together: the loss and the
 // gradients of all B rows at once, then one step of gradient descent.
 
+use super::net::*;
 use super::net_batch::*;
 use super::train::*;
 use super::rows::*;

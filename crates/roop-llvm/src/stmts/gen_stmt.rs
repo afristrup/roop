@@ -1,8 +1,8 @@
 use crate::{
     CodegenError, Dialect, Dir, FnGen, gen_ancilla, gen_axpy, gen_block, gen_borrow, gen_call,
     gen_chan, gen_from, gen_gemm, gen_if, gen_keep, gen_logged, gen_match, gen_overwrite,
-    gen_parallel_auto, gen_parallel_cpu, gen_parallel_gpu, gen_pop, gen_push, gen_recv, gen_send,
-    gen_swap, gen_try, gen_update, parallel_attr,
+    gen_parallel_auto, gen_parallel_cpu, gen_parallel_gpu, gen_pop, gen_push, gen_q12_matmul,
+    gen_recv, gen_send, gen_swap, gen_try, gen_update, parallel_attr,
 };
 use roop_syntax::{Stmt, StmtKind, Target};
 
@@ -26,6 +26,7 @@ pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError
             let on_cpu = matches!(parallel, Some(None | Some(Target::Cpu)));
             if on_cpu
                 && (gen_gemm(g, entry, body, step, until, dir)?
+                    || gen_q12_matmul(g, entry, body, step, until, dir)?
                     || gen_axpy(g, entry, body, step, until, dir)?)
             {
                 return Ok(());
