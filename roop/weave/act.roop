@@ -7,6 +7,9 @@
 //     2 softsign    f = z / (1 + |z|)
 //     3 relu        f = max(z, 0)
 //     4 tanh        f = z (27 + z^2) / (27 + 9 z^2) for |z| <= 3, else +-1
+//     5 sigmoid     f = 1/2 + tanh(z / 2) / 2
+//     6 silu        f = z sigmoid(z)
+//     7 gelu        f = z sigmoid(1.702 z), the usual approximation of z Phi(z)
 //
 // The tanh is a Pade approximation. Its slope, ((9 - z^2) / (3 + z^2))^2, is
 // zero at |z| = 3 where it joins the constant, so the function is smooth there.
@@ -82,8 +85,55 @@ fn tanh_slope(d: &mut i64, z: &i64) {
     } fi z > 12288;
 }
 
-// s += f(z)
-pub fn act_at(s: &mut i64, z: &i64, kind: &i64) {
+fn sigmoid_at(s: &mut i64, z: &i64) {
+    ancilla t: i64 = 0;
+    call tanh_at(t, z / 2);
+    s += 2048 + t / 2;
+    uncall tanh_at(t, z / 2);
+}
+
+fn sigmoid_slope(d: &mut i64, z: &i64) {
+    ancilla t: i64 = 0;
+    call tanh_slope(t, z / 2);
+    d += t / 4;
+    uncall tanh_slope(t, z / 2);
+}
+
+fn silu_at(s: &mut i64, z: &i64) {
+    ancilla g: i64 = 0;
+    call sigmoid_at(g, z);
+    s += z * g / 4096;
+    uncall sigmoid_at(g, z);
+}
+
+fn silu_slope(d: &mut i64, z: &i64) {
+    ancilla g: i64 = 0;
+    ancilla h: i64 = 0;
+    call sigmoid_at(g, z);
+    call sigmoid_slope(h, z);
+    d += g + z * h / 4096;
+    uncall sigmoid_slope(h, z);
+    uncall sigmoid_at(g, z);
+}
+
+fn gelu_at(s: &mut i64, z: &i64) {
+    ancilla g: i64 = 0;
+    call sigmoid_at(g, z * 6971 / 4096);
+    s += z * g / 4096;
+    uncall sigmoid_at(g, z * 6971 / 4096);
+}
+
+fn gelu_slope(d: &mut i64, z: &i64) {
+    ancilla g: i64 = 0;
+    ancilla h: i64 = 0;
+    call sigmoid_at(g, z * 6971 / 4096);
+    call sigmoid_slope(h, z * 6971 / 4096);
+    d += g + z * (h * 6971 / 4096) / 4096;
+    uncall sigmoid_slope(h, z * 6971 / 4096);
+    uncall sigmoid_at(g, z * 6971 / 4096);
+}
+
+fn act_low(s: &mut i64, z: &i64, kind: &i64) {
     if kind == 0 {
         call identity_at(s, z);
     } else {
@@ -93,18 +143,29 @@ pub fn act_at(s: &mut i64, z: &i64, kind: &i64) {
             if kind == 2 {
                 call softsign_at(s, z);
             } else {
-                if kind == 3 {
-                    call relu_at(s, z);
-                } else {
-                    call tanh_at(s, z);
-                } fi kind == 3;
+                call relu_at(s, z);
             } fi kind == 2;
         } fi kind == 1;
     } fi kind == 0;
 }
 
-// d += f'(z)
-pub fn dact_at(d: &mut i64, z: &i64, kind: &i64) {
+fn act_high(s: &mut i64, z: &i64, kind: &i64) {
+    if kind == 4 {
+        call tanh_at(s, z);
+    } else {
+        if kind == 5 {
+            call sigmoid_at(s, z);
+        } else {
+            if kind == 6 {
+                call silu_at(s, z);
+            } else {
+                call gelu_at(s, z);
+            } fi kind == 6;
+        } fi kind == 5;
+    } fi kind == 4;
+}
+
+fn slope_low(d: &mut i64, z: &i64, kind: &i64) {
     if kind == 0 {
         call identity_slope(d);
     } else {
@@ -114,14 +175,44 @@ pub fn dact_at(d: &mut i64, z: &i64, kind: &i64) {
             if kind == 2 {
                 call softsign_slope(d, z);
             } else {
-                if kind == 3 {
-                    call relu_slope(d, z);
-                } else {
-                    call tanh_slope(d, z);
-                } fi kind == 3;
+                call relu_slope(d, z);
             } fi kind == 2;
         } fi kind == 1;
     } fi kind == 0;
+}
+
+fn slope_high(d: &mut i64, z: &i64, kind: &i64) {
+    if kind == 4 {
+        call tanh_slope(d, z);
+    } else {
+        if kind == 5 {
+            call sigmoid_slope(d, z);
+        } else {
+            if kind == 6 {
+                call silu_slope(d, z);
+            } else {
+                call gelu_slope(d, z);
+            } fi kind == 6;
+        } fi kind == 5;
+    } fi kind == 4;
+}
+
+// s += f(z)
+pub fn act_at(s: &mut i64, z: &i64, kind: &i64) {
+    if kind < 4 {
+        call act_low(s, z, kind);
+    } else {
+        call act_high(s, z, kind);
+    } fi kind < 4;
+}
+
+// d += f'(z)
+pub fn dact_at(d: &mut i64, z: &i64, kind: &i64) {
+    if kind < 4 {
+        call slope_low(d, z, kind);
+    } else {
+        call slope_high(d, z, kind);
+    } fi kind < 4;
 }
 
 // s += f(z) for each element

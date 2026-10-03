@@ -17,7 +17,7 @@ things that are hard to get any other way.
   come back to zero, so a leak is a test failure.
 - **Training without storing activations.** [`weave`](docs/weave-memory.md) is a
   network of reversible layers whose backward pass recomputes by running the layers
-  backward, so its memory does not grow with depth. `roop-weave` compiles a
+  backward, so its memory does not grow with depth. `roop weave` compiles a
   model of such layers, read from a torch `nn.Sequential`, to weave code and the
   tests that check it against a reference.
 - **Parallel loops that are checked, not hoped for.** `#[parallel]` loops run on

@@ -1,0 +1,12 @@
+[project]
+name = "torch-to-weave"
+version = "0.1.0"
+description = "Exports a torch model to the JSON that roop-weave compiles"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+torch = ["torch", "numpy"]
+
+[tool.uv]
+package = false

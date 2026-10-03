@@ -99,11 +99,35 @@ fn activation(layer: &Value, path: &str) -> Result<Activation, WeaveError> {
     })
 }
 
+fn parse_attention(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveError> {
+    let path = format!("layers[{index}].");
+    let seq = count(layer, "seq")?;
+    if width % seq != 0 {
+        let found = format!("a width of {width}");
+        return Err(WeaveError::Shape {
+            name: format!("layers[{index}]"),
+            expected: format!("a width that {seq} rows divide"),
+            found,
+        });
+    }
+    let d = width / seq;
+    let weight = |key: &str| matrix(layer, &path, key, format!("{key}_{index}"), d, d);
+    Ok(Layer::Attention {
+        seq,
+        wq: weight("wq")?,
+        wk: weight("wk")?,
+        wv: weight("wv")?,
+    })
+}
+
 fn parse_layer(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveError> {
     let path = format!("layers[{index}].");
     let kind = field(layer, &path, "kind", "a layer kind")?
         .as_str()
         .unwrap_or("");
+    if kind == "attention" {
+        return parse_attention(index, layer, width);
+    }
     let act = activation(layer, &path)?;
     match kind {
         "leapfrog" => {

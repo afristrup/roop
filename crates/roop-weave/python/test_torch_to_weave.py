@@ -58,7 +58,19 @@ class Identity(Module):
     pass
 
 
+class Softplus(Module):
+    pass
+
+
 class GELU(Module):
+    pass
+
+
+class SiLU(Module):
+    pass
+
+
+class Sigmoid(Module):
     pass
 
 
@@ -99,8 +111,13 @@ class Export(unittest.TestCase):
         self.assertEqual(spec["layers"][0]["bias"], [0.0, 0.0, 0.0])
 
     def test_an_activation_weave_lacks_is_refused_by_name(self):
-        with self.assertRaisesRegex(Unsupported, "GELU is not reversible"):
-            export(Sequential(Linear(4, 4), GELU()))
+        with self.assertRaisesRegex(Unsupported, "Softplus is not reversible"):
+            export(Sequential(Linear(4, 4), Softplus()))
+
+    def test_sigmoid_silu_and_gelu_are_activations(self):
+        for act, name in [(Sigmoid, "sigmoid"), (SiLU, "silu"), (GELU, "gelu")]:
+            spec = export(Sequential(Linear(4, 4), act()))
+            self.assertEqual(spec["layers"][0]["activation"], name)
 
     def test_a_linear_with_no_activation_is_refused(self):
         with self.assertRaisesRegex(Unsupported, "no activation"):

@@ -31,13 +31,13 @@ impl Model {
         self.tensors().iter().map(named).collect()
     }
 
-    /// For each layer, whether it is a perceptron that adds into q. Perceptrons
-    /// alternate, starting with q; the entries of other layers are false.
+    /// For each layer, whether it is a half step that adds into q. Perceptrons and
+    /// attention alternate, starting with q; the entries of other layers are false.
     pub fn adds_into_q(&self) -> Vec<bool> {
         let mut seen = 0;
         let mut flags = Vec::new();
         for layer in &self.layers {
-            let is_mlp = matches!(layer, Layer::Mlp { .. });
+            let is_mlp = layer.is_half_step();
             flags.push(is_mlp && seen % 2 == 0);
             seen += is_mlp as usize;
         }

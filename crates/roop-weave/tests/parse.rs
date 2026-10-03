@@ -2,7 +2,7 @@ mod support;
 
 use roop_weave::{WeaveError, parse_model};
 use serde_json::json;
-use support::{leapfrog, mlp, model};
+use support::{attention, leapfrog, mlp, model};
 
 fn error_of(value: serde_json::Value) -> WeaveError {
     parse_model(&value.to_string()).unwrap_err()
@@ -44,15 +44,15 @@ fn a_layer_that_is_not_reversible_is_refused() {
 
 #[test]
 fn an_unknown_activation_is_refused_and_the_known_ones_named() {
-    let error = error_of(model("net", 4, 1, vec![leapfrog("gelu", 4, 4, 1)]));
+    let error = error_of(model("net", 4, 1, vec![leapfrog("softplus", 4, 4, 1)]));
     assert!(
-        error.to_string().contains("no activation `gelu`"),
+        error.to_string().contains("no activation `softplus`"),
         "{error}"
     );
     assert!(
         error
             .to_string()
-            .contains("identity, cauchy, softsign, relu and tanh")
+            .contains("identity, cauchy, softsign, relu, tanh, sigmoid, silu and gelu")
     );
 }
 
@@ -103,4 +103,13 @@ fn a_name_that_is_not_an_identifier_is_refused() {
 #[test]
 fn text_that_is_not_json_is_refused() {
     assert!(matches!(parse_model("{"), Err(WeaveError::Json(_))));
+}
+
+#[test]
+fn attention_alternates_with_perceptrons_and_needs_a_width_its_rows_divide() {
+    let layers = vec![mlp("relu", 2, 4, 1), attention(2, 2, 2)];
+    let parsed = parse_model(&model("net", 4, 1, layers).to_string()).unwrap();
+    assert_eq!(parsed.adds_into_q(), vec![true, false]);
+    let bad = error_of(model("net", 5, 1, vec![attention(2, 2, 1)]));
+    assert!(matches!(bad, WeaveError::Shape { .. }), "{bad}");
 }

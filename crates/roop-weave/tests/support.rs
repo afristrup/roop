@@ -97,19 +97,25 @@ pub fn mlp(act: &str, hidden: usize, width: usize, seed: usize) -> Value {
     })
 }
 
+pub fn attention(seq: usize, dim: usize, seed: usize) -> Value {
+    json!({
+        "kind": "attention",
+        "seq": seq,
+        "wq": weights(dim, dim, seed),
+        "wk": weights(dim, dim, seed + 1),
+        "wv": weights(dim, dim, seed + 2),
+    })
+}
+
 pub fn model(name: &str, width: usize, outputs: usize, layers: Vec<Value>) -> Value {
     json!({ "name": name, "width": width, "outputs": outputs, "step": 0.25, "layers": layers })
 }
 
-/// Compiles a model with roop-weave, with its tests, and writes it as prog.roop.
+/// Compiles a model with `roop weave`, and writes it as prog.roop.
 pub fn compile(dir: &Path, model: &Value, flags: &[&str]) {
-    let input = dir.join("model.json");
-    std::fs::write(&input, model.to_string()).unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_roop-weave"))
-        .arg(&input)
-        .args(["-o", dir.join("prog.roop").to_str().unwrap()])
-        .args(flags)
-        .output()
-        .unwrap();
+    std::fs::write(dir.join("model.json"), model.to_string()).unwrap();
+    let mut args = vec!["weave", "model.json", "-o", "prog.roop"];
+    args.extend_from_slice(flags);
+    let out = roop(dir, &args);
     assert!(out.status.success(), "{}", text(&out));
 }

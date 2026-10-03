@@ -42,7 +42,7 @@ impl fmt::Display for WeaveError {
             }
             Self::Activation { path, name } => write!(
                 f,
-                "`{path}`: no activation `{name}`; weave has identity, cauchy, softsign, relu and tanh"
+                "`{path}`: no activation `{name}`; weave has identity, cauchy, softsign, relu, tanh, sigmoid, silu and gelu"
             ),
             Self::Layer { index, kind } => write!(
                 f,

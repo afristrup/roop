@@ -6,9 +6,5 @@ version.workspace = true
 [lib]
 path = "src/lib.rs"
 
-[[bin]]
-name = "roop-weave"
-path = "src/main.rs"
-
 [dependencies]
 serde_json = "1"

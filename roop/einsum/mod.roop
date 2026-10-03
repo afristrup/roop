@@ -171,3 +171,6 @@ pub einsum fn qmatmul: q12 = "ij,jk->ik";
 
 // A matrix times the transpose of another.
 pub einsum fn qmatmul_nt: q12 = "ij,kj->ik";
+
+// The transpose of a matrix times another.
+pub einsum fn qmatmul_tn: q12 = "ji,jk->ik";

@@ -21,6 +21,7 @@ fn run() -> Result<(), CliError> {
         Command::Fmt(args) => run_fmt(&args),
         Command::Test(args) => run_test(&args),
         Command::Run(args) => run_run(&args),
+        Command::Weave(args) => run_weave(&args),
         Command::Lsp => serve(std::io::stdin().lock(), std::io::stdout().lock())
             .map_err(|e| CliError::Io("the language server".into(), e)),
     }

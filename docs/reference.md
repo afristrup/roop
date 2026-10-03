@@ -508,6 +508,9 @@ so the branch on it is undone by the same test going back:
 | 2 | softsign, `z / (1 + abs(z))` |
 | 3 | relu |
 | 4 | tanh, as the Pade approximation `z (27 + z^2) / (27 + 9 z^2)` up to 3, then 1 |
+| 5 | sigmoid, `1/2 + tanh(z / 2) / 2` |
+| 6 | silu, `z sigmoid(z)` |
+| 7 | gelu, `z sigmoid(1.702 z)`, the usual approximation |
 
 The slope of each is in `weave::dact`. The tanh is smooth where it joins 1: its
 slope `((9 - z^2) / (3 (3 + z^2)))^2` is zero there.
@@ -522,6 +525,11 @@ q += F(p)        p += G(q)        F(x) = W2 f(W1 x + b1) + b2
 `F` need not be invertible, since the half it reads is left alone, so any
 `Linear, activation, Linear` fits. `weave::mlp` adds one half, and `weave::mlp_back`
 runs it backward with the gradients of all four parameters.
+
+**The attention block** is the second half-step, over a state read as `S` rows of `D`
+numbers: `y += (Q K^T) V` with `Q`, `K` and `V` the rows times a weight. It has no
+softmax, since that needs an exponential, so it is the attention weave can run
+backward. Its adjoints are einsums as well (`weave::attn`, `attn_vjp`, `attn_back`).
 
 ```rust
 use weave::step;
@@ -553,7 +561,7 @@ arguments to build a graph from. A test measures throughput: `cargo test -p roop
 
 ### From torch
 
-`roop-weave` compiles a model of these layers to roop code. A model is JSON: the
+`roop weave` compiles a model of these layers to roop code. A model is JSON: the
 state width, the number of outputs the loss reads, the step size and the layers,
 each with its activation and its weights. A layer may have its own hidden width
 and activation, which is why the compiler writes straight-line code for the
@@ -562,39 +570,46 @@ model, instead of calling the stack of `weave::forward`:
 ```json
 { "name": "net", "width": 4, "outputs": 1, "step": 0.25, "layers": [
   { "kind": "mlp", "activation": "tanh", "w1": [[...]], "b1": [...], "w2": [[...]], "b2": [...] },
-  { "kind": "leapfrog", "activation": "relu", "weight": [[...]], "bias": [...] } ] }
+  { "kind": "leapfrog", "activation": "relu", "weight": [[...]], "bias": [...] },
+  { "kind": "attention", "seq": 2, "wq": [[...]], "wk": [[...]], "wv": [[...]] } ] }
 ```
 
 ```
-cargo run -p roop-weave -- model.json -o net.roop --tests --batch 8
+roop weave model.json -o net.roop --tests --batch 8
 roop test net.roop
 ```
 
-The output has `net_load` (the weights, rounded to 1/4096), `net_forward`,
-`net_backward`, `net_grad` (the loss of a sample and its gradients, with the input
+The output has `net_forward`, `net_backward`, `net_grad` (the loss of a sample and its gradients, with the input
 rebuilt at the end) and `net_step<B>`, which is the training step. With `--batch B`
 it also has `net_train`, a step of B samples with the length filled in, which C
-can call. With `--tests` it adds a test that runs the forward pass and the
-gradient and compares them with a reference in doubles, whose gradients are
+can call. With `--tests` it adds `net_load` (the weights, rounded to 1/4096) and a test that runs
+the forward pass and the gradient and compares them with a reference in doubles, whose gradients are
 central differences, so it checks the compiler and weave together. Like every roop
-test it also runs backward. A model that is not well formed is refused with the
+test it also runs backward. Lean proves a compiled model's forward, backward and gradient exactly reversible
+(`roop lean net.roop --check`; it does not take the loader, which is only for the test).
+A model that is not well formed is refused with the
 name of the field, or the tensor, that is wrong.
 
-`roop-weave/python/torch_to_weave.py` writes that JSON from a torch `nn.Sequential`:
+`crates/roop-weave/python/torch_to_weave.py` writes that JSON from a torch module, an
+`nn.Sequential` or a custom module that `torch.fx` can trace into a chain, with
+`torch.relu`, `torch.tanh` and `F.softsign` read as activations:
 
 ```
 python3 torch_to_weave.py pkg.module:factory --outputs 1 -o model.json
 ```
 
 Most torch layers lose information, so it reads the model as blocks that do not.
-`Linear(N, M), act, Linear(M, N)` is a perceptron block, and `Linear(N, M), act`
-alone is a leapfrog layer whose weight is tied to its transpose. The activations
-are `Identity`, `ReLU`, `Tanh` and `Softsign`; any other layer is refused, naming
+`Linear(N, M), act, Linear(M, N)` is a perceptron block, `Linear(N, M), act`
+alone is a leapfrog layer whose weight is tied to its transpose, and
+`LinearAttention(seq, dim)`, from `weave_modules.py`, is an attention block. The activations
+are `Identity`, `ReLU`, `Tanh`, `Softsign`, `Sigmoid`, `SiLU` and `GELU`; any other layer is refused, naming
 it, since turning it into something else would not be the model. The compiled
 network is the network of those blocks run on `(q, p)` with the input in `q` and
 `p` zero, so it is a reversible network trained like the torch one, and not the
-same module run unchanged. The exporter is tested against stand-ins for
-`torch.nn`; it has not been run with torch itself.
+same module run unchanged. A graph that branches, a residual connection for one, is refused. The exporter is
+tested on real torch with uv (`uv run --extra torch python -m unittest`, in that
+directory), where a mirror of the compiled network in torch finds the same
+gradients as the reference that the generated test uses.
 
 ## Sessions
 
