@@ -1,20 +1,28 @@
 use crate::{
-    CheckError, Mutability, Pending, counted_net, flatten_ancillas, inverts, stmt_reads,
-    stmt_writes,
+    CheckError, Mutability, Pending, counted_net, flatten_ancillas, inverts, settles, starts_zero,
+    stmt_reads, stmt_writes,
 };
-use roop_syntax::{Block, Span, Stmt, StmtKind};
+use roop_syntax::{Block, Expr, Span, Stmt, StmtKind};
 use std::collections::HashSet;
 
 /// Straight-line matching: every update of the ancilla must be undone by its
 /// exact inverse, in stack order, with no intervening write to anything the
-/// update read. Anything the matcher cannot prove is rejected.
+/// update read. Anything the matcher cannot prove is rejected. An ancilla that
+/// starts at zero may instead be given to the world with `keep`, which settles
+/// everything before it, in control flow or not.
 pub fn check_ancilla(
     name: &str,
+    init: &Expr,
     body: &Block,
     span: Span,
     mutability: &Mutability,
 ) -> Result<(), CheckError> {
-    let stmts = flatten_ancillas(body, name);
+    let mut stmts = flatten_ancillas(body, name);
+    if starts_zero(init)
+        && let Some(last) = stmts.iter().rposition(|s| settles(s, name, mutability))
+    {
+        stmts.drain(..=last);
+    }
     let nets: Vec<Option<Stmt>> = stmts.iter().map(|s| counted_net(s, name)).collect();
     let mut stack: Vec<Pending> = Vec::new();
     for (original, net) in stmts.iter().zip(&nets) {
@@ -71,5 +79,6 @@ fn is_straight_line(stmt: &Stmt) -> bool {
             | StmtKind::Recv { .. }
             | StmtKind::Push { .. }
             | StmtKind::Pop { .. }
+            | StmtKind::Keep(_)
     )
 }

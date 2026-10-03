@@ -17,7 +17,7 @@ fn a_loop_over_numbers_and_arrays_gets_a_termination_theorem() {
 #[test]
 fn a_loop_over_a_stack_does_not() {
     let t = support::verified(
-        "fn keep(x: &mut i64, h: &mut Stack<i64, 4>) {
+        "fn hold(x: &mut i64, h: &mut Stack<i64, 4>) {
             ancilla i: i64 = 0 {
                 from i == 0 { push h <- x; pop h -> x; } loop { i += 1; } until i == 3;
                 i -= 3;

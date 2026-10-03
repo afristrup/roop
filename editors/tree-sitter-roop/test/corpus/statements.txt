@@ -343,3 +343,24 @@ fn f(a: &mut i64, failed: &mut bool, h: &mut Stack<i64, 4>) {
           (overwrite_statement
             (identifier)
             (integer)))))))
+
+==================
+keep
+==================
+
+fn f(x: &mut i64, b: &mut [u8; 4]) {
+    keep x;
+    keep b[1];
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    (parameters
+      (parameter name: (identifier) type: (reference_type type: (primitive_type)))
+      (parameter name: (identifier) type: (reference_type type: (array_type element: (primitive_type) length: (integer)))))
+    body: (block
+      (keep_statement (identifier))
+      (keep_statement (index_expression value: (identifier) (integer))))))

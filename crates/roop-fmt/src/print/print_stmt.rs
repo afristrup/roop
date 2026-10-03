@@ -75,6 +75,9 @@ pub fn print_stmt(ctx: &Ctx, stmt: &Stmt) -> Doc {
             print_place(target),
             Doc::text(";"),
         ]),
+        StmtKind::Keep(place) => {
+            Doc::concat(vec![Doc::text("keep "), print_place(place), Doc::text(";")])
+        }
         StmtKind::Logged { history, body } => Doc::concat(vec![
             Doc::text("logged "),
             print_place(history),

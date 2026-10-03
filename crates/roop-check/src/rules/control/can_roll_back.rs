@@ -18,6 +18,7 @@ pub fn can_roll_back(block: &Block) -> bool {
         | StmtKind::Swap(..)
         | StmtKind::Send { .. }
         | StmtKind::Recv { .. }
+        | StmtKind::Keep(_)
         | StmtKind::Overwrite { .. } => false,
     })
 }

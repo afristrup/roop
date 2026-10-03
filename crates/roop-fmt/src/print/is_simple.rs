@@ -11,6 +11,7 @@ pub fn is_simple(stmt: &Stmt) -> bool {
                 | StmtKind::Overwrite { .. }
                 | StmtKind::Push { .. }
                 | StmtKind::Pop { .. }
+                | StmtKind::Keep(_)
                 | StmtKind::Send { .. }
                 | StmtKind::Recv { .. }
                 | StmtKind::Call { .. }

@@ -55,6 +55,8 @@ pub enum Token<'a> {
     Push,
     #[token("pop")]
     Pop,
+    #[token("keep")]
+    Keep,
     #[token("logged")]
     Logged,
     #[token("empty")]

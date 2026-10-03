@@ -11,6 +11,13 @@ pub enum Input {
     Failed(i64),
 }
 
+/// A value the program gave to the world with `keep`: its size, and its bytes
+/// up to the last one that is not zero, since a buffer is mostly zeros.
+pub struct Kept {
+    pub size: usize,
+    pub bytes: Vec<u8>,
+}
+
 /// Output the program has written and the world has not shown yet.
 pub struct Chunk {
     pub fd: i64,
@@ -59,6 +66,7 @@ pub struct World {
     pub clock_ahead: VecDeque<i64>,
     pub clock_consumed: Vec<i64>,
     pub journal: Vec<Entry>,
+    pub kept: Vec<Kept>,
 }
 
 static WORLD: Mutex<World> = Mutex::new(World {
@@ -68,6 +76,7 @@ static WORLD: Mutex<World> = Mutex::new(World {
     clock_ahead: VecDeque::new(),
     clock_consumed: Vec::new(),
     journal: Vec::new(),
+    kept: Vec::new(),
 });
 
 /// The world, locked for the length of one operation.

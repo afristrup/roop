@@ -1,18 +1,8 @@
 use crate::{
-    CodegenError, Compiled, Ctx, Dialect, Dir, Kernel, Options, air_module, gen_function,
-    module_header, ptx_module, try_variants, type_decls,
+    CodegenError, Compiled, Ctx, Dialect, Dir, Kernel, Options, air_module, entry_symbol,
+    gen_function, module_header, ptx_module, try_variants, type_decls,
 };
 use roop_syntax::{Item, Program};
-
-/// The program starts at `main`, so the C entry point takes that name and the
-/// roop function is called `roop_main`.
-fn entry_symbol(name: &str) -> String {
-    if name == "main" {
-        "roop_main".into()
-    } else {
-        name.into()
-    }
-}
 
 /// The C `main`: records the arguments for the runtime, runs `roop_main`, and
 /// returns the status it leaves.
@@ -67,6 +57,8 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
          declare i64 @llvm.fptosi.sat.i64.f64(double)\n\
          declare i8 @llvm.fptoui.sat.i8.f64(double)\n\
          declare void @roop_set_args(i32, ptr)\n\
+         declare void @roop_keep(ptr, i64)\n\
+         declare void @roop_unkeep(ptr, i64)\n\
          declare void @roop_parallel_for(i64, i64, i64, ptr, ptr)\n\
          declare i32 @roop_gpu_dispatch(i32, ptr, i64, ptr, ptr, i64, i64, i64, i64)\n\
          declare ptr @roop_chan_new(i64)\n\
@@ -99,7 +91,7 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
                 let has_inverse = !ctx.irreversible.contains(f.name.as_str());
                 for (symbol, dir) in [
                     (entry_symbol(&f.name), Dir::Forward),
-                    (format!("{}_inv", f.name), Dir::Backward),
+                    (format!("{}_inv", entry_symbol(&f.name)), Dir::Backward),
                 ]
                 .into_iter()
                 .filter(|(_, dir)| has_inverse || *dir == Dir::Forward)
@@ -118,7 +110,7 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
                     } else {
                         (Dir::Forward, "_try")
                     };
-                    let symbol = format!("{}{suffix}", f.name);
+                    let symbol = format!("{}{suffix}", entry_symbol(&f.name));
                     let out = gen_function(&ctx, &symbol, None, &f.params, &f.body, dir, true)?;
                     host.push_str(&out.text);
                     host.push('\n');

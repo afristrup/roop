@@ -23,6 +23,7 @@ pub fn child_blocks(stmt: &Stmt) -> Vec<&Block> {
         | StmtKind::Recv { .. }
         | StmtKind::Push { .. }
         | StmtKind::Pop { .. }
+        | StmtKind::Keep(_)
         | StmtKind::Overwrite { .. } => Vec::new(),
     }
 }

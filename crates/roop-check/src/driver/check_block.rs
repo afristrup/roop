@@ -26,7 +26,7 @@ pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
             }
             StmtKind::Swap(..) => {}
             StmtKind::Send { .. } | StmtKind::Recv { .. } => {}
-            StmtKind::Push { .. } | StmtKind::Pop { .. } => {}
+            StmtKind::Push { .. } | StmtKind::Pop { .. } | StmtKind::Keep(_) => {}
             StmtKind::Logged { body, .. } => check_block(body, scope.inside_logged())?,
             StmtKind::Call { callee, .. } => {
                 if scope.irreversible_fns.contains(callee.as_str()) && !scope.irrev {
@@ -87,9 +87,11 @@ pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
                 check_block(body, scope)?;
                 check_block(step, scope)?;
             }
-            StmtKind::Ancilla { name, body, .. } => {
+            StmtKind::Ancilla {
+                name, init, body, ..
+            } => {
                 if !scope.irrev {
-                    check_ancilla(name, body, stmt.span, scope.mutability)?;
+                    check_ancilla(name, init, body, stmt.span, scope.mutability)?;
                 }
                 check_block(body, scope)?;
             }

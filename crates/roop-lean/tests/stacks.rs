@@ -20,7 +20,7 @@ fn a_function_that_destroys_information_is_undone_by_its_history() {
         "fn scale(x: &mut i64, y: &mut i64, h: &mut Stack<i64, 4>) {
              logged h { x = y * 2; }
          }
-         fn keep(x: &mut i64, y: &mut i64, r: &mut i64) {
+         fn hold(x: &mut i64, y: &mut i64, r: &mut i64) {
              ancilla h: Stack<i64, 4> = empty {
                  call scale(x, y, h);
                  r += x;
@@ -28,7 +28,7 @@ fn a_function_that_destroys_information_is_undone_by_its_history() {
              }
          }",
     );
-    assert_eq!(t.reversible, ["scale", "keep"]);
+    assert_eq!(t.reversible, ["scale", "hold"]);
 }
 
 #[test]

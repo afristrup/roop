@@ -29,6 +29,9 @@ pub fn stmt_writes<'a>(
             out.insert(place_root(stack));
             out.insert(place_root(target));
         }
+        StmtKind::Keep(place) => {
+            out.insert(place_root(place));
+        }
         StmtKind::Logged { history, body } => {
             out.insert(place_root(history));
             block_writes(body, out, mutability);

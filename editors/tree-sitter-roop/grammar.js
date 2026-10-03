@@ -268,6 +268,7 @@ module.exports = grammar({
           $.recv_statement,
           $.push_statement,
           $.pop_statement,
+          $.keep_statement,
           $.logged_statement,
           $.irrev_statement,
           $.try_statement,
@@ -396,6 +397,8 @@ module.exports = grammar({
     push_statement: ($) => seq("push", $._place, "<-", $._place, ";"),
 
     pop_statement: ($) => seq("pop", $._place, "->", $._place, ";"),
+
+    keep_statement: ($) => seq("keep", $._place, ";"),
 
     logged_statement: ($) =>
       seq("logged", field("history", $._place), field("body", $.block)),

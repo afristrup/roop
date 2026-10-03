@@ -105,7 +105,7 @@ fn compute_copy_uncompute_cleans_the_history_up() {
     let src = "fn scale(x: &mut i64, y: &mut i64, h: &mut Stack<i64, 4>) {
                    logged h { x = y * 2; }
                }
-               fn keep(x: &mut i64, y: &mut i64, r: &mut i64) {
+               fn hold(x: &mut i64, y: &mut i64, r: &mut i64) {
                    ancilla h: Stack<i64, 4> = empty {
                        call scale(x, y, h);
                        r += x;
@@ -113,13 +113,13 @@ fn compute_copy_uncompute_cleans_the_history_up() {
                    }
                }";
     let main = r#"
-void keep(int64_t*, int64_t*, int64_t*);
-void keep_inv(int64_t*, int64_t*, int64_t*);
+void hold(int64_t*, int64_t*, int64_t*);
+void hold_inv(int64_t*, int64_t*, int64_t*);
 int main(void) {
     int64_t x = 9, y = 5, r = 0;
-    keep(&x, &y, &r);
+    hold(&x, &y, &r);
     if (x != 9 || y != 5 || r != 10) return 1;
-    keep_inv(&x, &y, &r);
+    hold_inv(&x, &y, &r);
     return (x == 9 && y == 5 && r == 0) ? 0 : 2;
 }
 "#;

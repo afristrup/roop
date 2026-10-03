@@ -122,3 +122,15 @@ fn parses_attributes_in_either_order() {
     let src = "fn f(x: &mut i64) { #[concurrent] #[parallel] { x += 1; } }";
     assert!(parse(src).is_ok());
 }
+
+#[test]
+fn keep_is_a_statement_of_one_place() {
+    let program = parse("fn f(a: &mut [i64; 2]) { keep a[1]; }").unwrap();
+    let roop_syntax::Item::Fn(f) = &program.items[0] else {
+        panic!("not a function");
+    };
+    assert!(matches!(
+        f.body.stmts[0].kind,
+        roop_syntax::StmtKind::Keep(_)
+    ));
+}

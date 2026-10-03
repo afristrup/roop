@@ -69,6 +69,7 @@ pub fn lean_stmt(
         },
         StmtKind::Push { stack, source } => lean_push(cx, env, out, stack, source, dir),
         StmtKind::Pop { stack, target } => lean_pop(cx, env, out, stack, target, dir),
+        StmtKind::Keep(_) => unsupported("keep"),
         StmtKind::Logged { history, body } => lean_logged(cx, env, out, history, body, dir),
         StmtKind::Overwrite { target, op, value } => {
             lean_overwrite(cx, env, out, target, *op, value, dir)

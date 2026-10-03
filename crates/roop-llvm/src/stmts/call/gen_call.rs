@@ -1,4 +1,4 @@
-use crate::{CodegenError, Dialect, Dir, FnGen, call_arguments};
+use crate::{CodegenError, Dialect, Dir, FnGen, call_arguments, entry_symbol};
 use roop_syntax::{Expr, FnDef};
 
 /// `call` runs `@f` forward and `uncall` runs `@f_inv`; emitting backward
@@ -12,11 +12,8 @@ pub fn gen_call(
 ) -> Result<(), CodegenError> {
     let (def, inverse) = resolve(g, callee, is_uncall, dir)?;
     let passed = call_arguments(g, &def.params, args, def.external)?;
-    let symbol = if inverse {
-        format!("{callee}_inv")
-    } else {
-        callee.into()
-    };
+    let base = entry_symbol(callee);
+    let symbol = if inverse { format!("{base}_inv") } else { base };
     g.emit(&format!("call void @{symbol}({})", passed.join(", ")));
     Ok(())
 }

@@ -633,6 +633,10 @@
           "named": true
         },
         {
+          "type": "keep_statement",
+          "named": true
+        },
+        {
           "type": "logged_statement",
           "named": true
         },
@@ -1729,6 +1733,29 @@
     }
   },
   {
+    "type": "keep_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "field_expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "logged_statement",
     "named": true,
     "fields": {
@@ -2656,6 +2683,10 @@
           "named": true
         },
         {
+          "type": "keep_statement",
+          "named": true
+        },
+        {
           "type": "logged_statement",
           "named": true
         },
@@ -3323,6 +3354,10 @@
   },
   {
     "type": "irrev",
+    "named": false
+  },
+  {
+    "type": "keep",
     "named": false
   },
   {
