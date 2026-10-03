@@ -1,4 +1,7 @@
-use crate::{CodegenError, FnGen, Value, bool_type, gen_binary, gen_place, gen_unary, mem_load};
+use crate::{
+    CodegenError, FnGen, Value, bool_type, gen_binary, gen_cast, gen_expr_as, gen_place, gen_unary,
+    mem_load,
+};
 use roop_syntax::{Expr, Type};
 
 pub fn gen_expr(g: &mut FnGen, expr: &Expr) -> Result<Value, CodegenError> {
@@ -11,6 +14,17 @@ pub fn gen_expr(g: &mut FnGen, expr: &Expr) -> Result<Value, CodegenError> {
             reg: format!("0x{:016X}", f.to_bits()),
             ty: Type::Named("f64".into()),
         }),
+        Expr::Byte(b) => Ok(Value {
+            reg: b.to_string(),
+            ty: Type::Named("u8".into()),
+        }),
+        Expr::Str(_) => Err(CodegenError::InvalidOperand(
+            "a string literal is only an argument for a read-only array parameter",
+        )),
+        Expr::Cast(inner, ty) => {
+            let v = gen_expr(g, inner)?;
+            gen_cast(g, v, ty)
+        }
         Expr::Empty => Err(CodegenError::InvalidOperand(
             "`empty` only starts an ancilla stack",
         )),
@@ -42,8 +56,19 @@ pub fn gen_expr(g: &mut FnGen, expr: &Expr) -> Result<Value, CodegenError> {
             gen_unary(g, *op, v)
         }
         Expr::Binary(lhs, op, rhs) => {
-            let l = gen_expr(g, lhs)?;
-            let r = gen_expr(g, rhs)?;
+            let (l, r) = match (&**lhs, &**rhs) {
+                (Expr::Int(_), Expr::Int(_)) => (gen_expr(g, lhs)?, gen_expr(g, rhs)?),
+                (Expr::Int(_), _) => {
+                    let r = gen_expr(g, rhs)?;
+                    (gen_expr_as(g, lhs, &r.ty)?, r)
+                }
+                (_, Expr::Int(_)) => {
+                    let l = gen_expr(g, lhs)?;
+                    let r = gen_expr_as(g, rhs, &l.ty)?;
+                    (l, r)
+                }
+                _ => (gen_expr(g, lhs)?, gen_expr(g, rhs)?),
+            };
             gen_binary(g, l, *op, r)
         }
     }

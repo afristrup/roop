@@ -18,12 +18,11 @@ fn collect(p: &mut Policy, payment: &i64) {
 }
 
 fn settle(p: &mut Policy, amount: &i64) {
-    ancilla covered: i64 = 0 {
-        covered += amount;
-        p.claims += covered;
-        p.reserve -= covered;
-        covered -= amount;
-    }
+    ancilla covered: i64 = 0;
+    covered += amount;
+    p.claims += covered;
+    p.reserve -= covered;
+    covered -= amount;
 }
 
 fn accrue(p: &mut Policy, months: &i64, i: &mut i64) {

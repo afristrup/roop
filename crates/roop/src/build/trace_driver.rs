@@ -4,7 +4,7 @@ use roop_syntax::FnDef;
 fn show_fixture(j: usize, f: &Fixture) -> String {
     let (cast, format) = match f.kind {
         'f' => ("((const double*)", "%g"),
-        'b' => ("((const unsigned char*)", "%d"),
+        'b' | 'u' => ("((const unsigned char*)", "%d"),
         _ => ("((const long long*)", "%lld"),
     };
     let open = if f.count > 1 { "[" } else { "" };
@@ -57,7 +57,7 @@ pub fn trace_driver(test: &FnDef, stages: usize) -> Result<String, CliError> {
     out.push_str("    printf(\"\\n\");\n    fflush(stdout);\n}\n");
     out.push_str("int main(void) {\n");
     for (j, f) in fixtures.iter().enumerate() {
-        let words = (f.count * if f.kind == 'b' { 1 } else { 8 }).div_ceil(8);
+        let words = (f.count * if matches!(f.kind, 'b' | 'u') { 1 } else { 8 }).div_ceil(8);
         out.push_str(&format!("    int64_t f{j}[{words}] = {{0}};\n"));
     }
     let args: Vec<String> = (0..fixtures.len()).map(|j| format!("f{j}")).collect();

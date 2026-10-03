@@ -1,6 +1,6 @@
 use crate::{
-    CodegenError, Dir, FnGen, Kind, gen_expr, gen_place, guard_scale, kind_of, llvm_type, mem_load,
-    mem_store, same_type,
+    CodegenError, Dir, FnGen, Kind, gen_expr_as, gen_place, guard_scale, kind_of, llvm_type,
+    mem_load, mem_store, same_type,
 };
 use roop_syntax::{Expr, Place, UpdateOp};
 
@@ -12,7 +12,7 @@ pub fn gen_update(
     dir: Dir,
 ) -> Result<(), CodegenError> {
     let slot = gen_place(g, target)?;
-    let v = gen_expr(g, value)?;
+    let v = gen_expr_as(g, value, &slot.ty)?;
     same_type(&slot.ty, &v.ty)?;
     let op = if dir == Dir::Backward {
         op.inverse()
@@ -25,7 +25,9 @@ pub fn gen_update(
         (Kind::Int, UpdateOp::Sub) => "sub",
         (Kind::Int, UpdateOp::Mul) => "mul",
         (Kind::Int, UpdateOp::Div) => "sdiv",
-        (Kind::Int | Kind::Bool, UpdateOp::Xor) => "xor",
+        (Kind::Int | Kind::Byte | Kind::Bool, UpdateOp::Xor) => "xor",
+        (Kind::Byte, UpdateOp::Add) => "add",
+        (Kind::Byte, UpdateOp::Sub) => "sub",
         (Kind::Float, UpdateOp::Add) => "fadd",
         (Kind::Float, UpdateOp::Sub) => "fsub",
         (Kind::Float, UpdateOp::Mul) => "fmul",

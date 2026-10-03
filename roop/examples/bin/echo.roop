@@ -1,0 +1,21 @@
+// Prints its arguments, separated by spaces. The status that `main` takes is
+// the exit status of the program.
+
+use std::io::*;
+use std::process::*;
+
+irrev fn main(status: &mut i64) {
+    ancilla argc: i64 = 0;
+    ancilla k: i64 = 1;
+    ancilla word: [u8; 256] = 0;
+    ancilla len: i64 = 0;
+    call arg_count(argc);
+    if argc >= 2 {
+        from k == 1 {
+            call arg(k, word, len);
+            call print_buf(word, len);
+            if k < argc - 1 { call print(" "); } fi k < argc - 1;
+        } loop { k += 1; } until k == argc - 1;
+    } fi argc >= 2;
+    call print("\n");
+}

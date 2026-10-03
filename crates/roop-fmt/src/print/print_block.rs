@@ -1,4 +1,4 @@
-use crate::{Ctx, Doc, Lines, is_simple, print_stmt};
+use crate::{Ctx, Doc, Lines, is_simple, print_entries};
 use roop_syntax::Block;
 
 /// `{ ... }` with one statement to a line. When `collapse` is set, a block of
@@ -17,14 +17,7 @@ pub fn print_block_after(ctx: &Ctx, block: &Block, collapse: bool, first: Option
     if let Some(c) = &header {
         lines = Lines::new(c.span.end);
     }
-    for stmt in &block.stmts {
-        for c in ctx.take_before(stmt.span.start) {
-            lines.comment(ctx, &c, false);
-        }
-        lines.gap(ctx, stmt.span.start, false);
-        lines.entry(ctx, print_stmt(ctx, stmt), stmt.span.end);
-        ctx.check_inside(stmt.span.end);
-    }
+    print_entries(ctx, &mut lines, &block.stmts);
     for c in ctx.take_before(block.span.end) {
         lines.comment(ctx, &c, false);
     }

@@ -1,0 +1,57 @@
+use std::math::*;
+
+test iabs_of_a_negative_number {
+    r: i64, n: i64;
+    n -= 5;
+    call iabs(r, n);
+    expect r == 5;
+}
+
+test imax_and_imin_pick_the_larger_and_smaller {
+    hi: i64, lo: i64, a: i64, b: i64;
+    a += 3;
+    b -= 8;
+    call imax(hi, a, b);
+    call imin(lo, a, b);
+    expect hi == 3 && lo == 0 - 8;
+}
+
+test isign_is_minus_one_zero_or_one {
+    neg: i64, zero: i64, pos: i64, a: i64, b: i64, zero_in: i64;
+    a -= 9;
+    b += 9;
+    call isign(neg, a);
+    call isign(zero, zero_in);
+    call isign(pos, b);
+    expect neg == 0 - 1 && pos == 1;
+}
+
+test ipow_raises_to_a_power {
+    r: i64, base: i64, exp: i64;
+    base += 3;
+    exp += 4;
+    call ipow(r, base, exp);
+    expect r == 81;
+}
+
+test ipow_to_the_zero_is_one {
+    r: i64, base: i64, exp: i64;
+    base += 5;
+    call ipow(r, base, exp);
+    expect r == 1;
+}
+
+test fibpair_of_ten {
+    n: i64, a: i64, b: i64;
+    n += 10;
+    call fibpair(n, a, b);
+    expect n == 0 && a == 89 && b == 144;
+}
+
+test fibpair_runs_backward_to_the_index {
+    n: i64, a: i64, b: i64;
+    a += 89;
+    b += 144;
+    uncall fibpair(n, a, b);
+    expect n == 10;
+}

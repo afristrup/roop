@@ -6,7 +6,9 @@ mod lean_args;
 mod parse_args;
 mod parse_fmt_args;
 mod parse_lean_args;
+mod parse_run_args;
 mod parse_test_args;
+mod run_args;
 mod test_args;
 mod usage;
 
@@ -18,6 +20,8 @@ pub use lean_args::*;
 pub use parse_args::*;
 pub use parse_fmt_args::*;
 pub use parse_lean_args::*;
+pub use parse_run_args::*;
 pub use parse_test_args::*;
+pub use run_args::*;
 pub use test_args::*;
 pub use usage::*;

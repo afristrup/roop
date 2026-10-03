@@ -1,5 +1,5 @@
 use crate::{
-    Ctx, Dir, Env, LeanError, Out, assign_place, esc_fn, lean_expr, read_place, tuple_proj,
+    Ctx, Dir, Env, LeanError, Out, assign_place, esc_fn, lean_expr_as, read_place, tuple_proj,
 };
 use roop_syntax::{Expr, Type};
 
@@ -45,7 +45,8 @@ pub fn lean_call(
                     "a mutable argument that is not a place".into(),
                 ));
             }
-            _ => passed.push(lean_expr(cx, env, arg)?),
+            (Type::Ref { inner, .. }, _) => passed.push(lean_expr_as(cx, env, arg, inner)?),
+            (ty, _) => passed.push(lean_expr_as(cx, env, arg, ty)?),
         }
     }
     let call = format!("{} {}", esc_fn(&name), passed.join(" "));

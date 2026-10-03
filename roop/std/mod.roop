@@ -1,6 +1,12 @@
 mod blas;
 mod complex;
+mod fs;
+mod io;
+mod math;
+mod process;
 mod session;
+mod sys;
+mod text;
 
 pub use blas::*;
 pub use complex::*;

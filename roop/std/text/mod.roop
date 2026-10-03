@@ -1,0 +1,139 @@
+// Text as bytes. A text is a buffer `[u8; N]` and a length `len`, and the bytes
+// after the first `len` are zero. Appending adds to those zeros, so it is
+// reversible: running `put` backward takes the text off again. Reversible code
+// builds its output here and std::io::flush hands it over. A string literal
+// such as "hello" is a read-only `[u8; 5]`.
+//
+// A write past the end of the buffer traps, like any index out of bounds.
+
+use super::math::ipow;
+
+// Appends a text, all of s.
+pub fn put<N, M>(out: &mut [u8; N], len: &mut i64, s: &[u8; M]) {
+    ancilla i: i64 = 0 {
+        from i == 0 { out[len + i] += s[i]; } loop { i += 1; } until i == M - 1;
+        i -= M - 1;
+    }
+    len += M;
+}
+
+// Appends the first n bytes of s.
+pub fn put_n<N, M>(out: &mut [u8; N], len: &mut i64, s: &[u8; M], n: &i64) {
+    if n > 0 {
+        ancilla i: i64 = 0;
+        from i == 0 { out[len + i] += s[i]; } loop { i += 1; } until i == n - 1;
+        i -= n - 1;
+    } fi n > 0;
+    len += n;
+}
+
+// Appends one byte.
+pub fn put_byte<N>(out: &mut [u8; N], len: &mut i64, c: &u8) {
+    out[len] += c;
+    len += 1;
+}
+
+// Appends a number in decimal, with a minus sign when it is negative. The
+// smallest i64 has no positive counterpart and traps.
+pub fn put_int<N>(out: &mut [u8; N], len: &mut i64, n: &i64) {
+    ancilla neg: i64 = 0;
+    ancilla mag: i64 = 0;
+    call magnitude(mag, neg, n);
+    expect mag >= 0;
+    ancilla d: [u8; 19] = 0 {
+        ancilla lead: i64 = 0;
+        call digits_of(d, lead, mag);
+        if neg == 1 {
+            out[len] += b'-';
+            len += 1;
+        } fi neg == 1;
+        ancilla j: i64 = 0 {
+            from j == 0 {
+                out[len + j] += d[lead + j] + b'0';
+            } loop { j += 1; } until j == 18 - lead;
+            j -= 18 - lead;
+        }
+        len += 19 - lead;
+        uncall digits_of(d, lead, mag);
+    }
+    uncall magnitude(mag, neg, n);
+}
+
+// mag gets |n| and neg is 1 for a negative n.
+fn magnitude(mag: &mut i64, neg: &mut i64, n: &i64) {
+    if n < 0 {
+        neg += 1;
+        mag -= n;
+    } else {
+        mag += n;
+    } fi neg == 1;
+}
+
+// The 19 decimal digits of a number that is not negative, most significant
+// first, and lead, how many of them are leading zeros, never counting the last.
+fn digits_of(d: &mut [u8; 19], lead: &mut i64, mag: &i64) {
+    ancilla i: i64 = 0 {
+        from i == 0 {
+            ancilla p: i64 = 0;
+            call ipow(p, 10, 18 - i);
+            d[i] += (mag / p % 10) as u8;
+            lead += (mag / p == 0) as i64;
+            uncall ipow(p, 10, 18 - i);
+        } loop { i += 1; } until i == 17;
+        i -= 17;
+    }
+    d[18] += (mag % 10) as u8;
+}
+
+// Sets same to 1 when the two texts, all N bytes of each, are equal.
+pub fn eq<N>(a: &[u8; N], b: &[u8; N], same: &mut i64) {
+    ancilla diff: i64 = 0;
+    call count_differences(diff, a, b);
+    if diff == 0 { same += 1; } fi diff == 0;
+    uncall count_differences(diff, a, b);
+}
+
+// diff gets how many positions the two differ at.
+fn count_differences<N>(diff: &mut i64, a: &[u8; N], b: &[u8; N]) {
+    ancilla i: i64 = 0;
+    from i == 0 { diff += (a[i] != b[i]) as i64; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
+}
+
+// Adds a text into a buffer that is zero, so it ends up holding a copy.
+pub fn copy<N>(dst: &mut [u8; N], src: &[u8; N]) {
+    ancilla i: i64 = 0;
+    #[parallel]
+    from i == 0 { dst[i] += src[i]; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
+}
+
+// Is the byte a decimal digit? Sets yes to 1 if so.
+pub fn is_digit(c: &u8, yes: &mut i64) {
+    if c >= b'0' && c <= b'9' { yes += 1; } fi c >= b'0' && c <= b'9';
+}
+
+// Reads a number written in decimal, with an optional minus sign, from the
+// first len bytes of s. ok is 1 when that is all there is to it.
+pub irrev fn parse_int<N>(s: &[u8; N], len: &i64, value: &mut i64, ok: &mut i64) {
+    ancilla start: i64 = 0;
+    ancilla negative: i64 = 0;
+    ancilla k: i64 = 0;
+    value = 0;
+    ok = 1;
+    if len > 0 && s[0] == b'-' {
+        negative = 1;
+        start = 1;
+    } fi len > 0 && s[0] == b'-';
+    if len <= start { ok = 0; } fi len <= start;
+    from k == 0 {
+        if k >= start && k < len {
+            if s[k] >= b'0' && s[k] <= b'9' {
+                value = value * 10 + (s[k] - b'0') as i64;
+            } else {
+                ok = 0;
+            } fi s[k] >= b'0' && s[k] <= b'9';
+        } fi k >= start && k < len;
+    } loop { k += 1; } until k == N - 1;
+    if negative == 1 { value = 0 - value; } fi negative == 1;
+}

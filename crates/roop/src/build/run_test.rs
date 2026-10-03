@@ -39,8 +39,8 @@ pub fn run_test(args: &TestArgs) -> Result<(), CliError> {
         let exe = dir.join("tests");
         let built = build(&BuildArgs {
             input: file.clone(),
-            output: exe.clone(),
-            emit: Emit::Executable,
+            output: Some(exe.clone()),
+            emit: Some(Emit::Executable),
             link: vec![driver],
             keep_tests: true,
         });

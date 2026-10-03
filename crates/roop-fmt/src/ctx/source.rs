@@ -20,6 +20,11 @@ impl<'a> Ctx<'a> {
         }
     }
 
+    /// The source byte at `pos`.
+    pub fn byte_at(&self, pos: usize) -> Option<u8> {
+        self.src.as_bytes().get(pos).copied()
+    }
+
     /// How many comments have been taken so far.
     pub fn taken(&self) -> usize {
         self.next.get()

@@ -1,5 +1,6 @@
 use crate::{
-    BuildArgs, CliError, Command, Emit, USAGE, parse_fmt_args, parse_lean_args, parse_test_args,
+    BuildArgs, CliError, Command, Emit, USAGE, parse_fmt_args, parse_lean_args, parse_run_args,
+    parse_test_args,
 };
 use std::path::PathBuf;
 
@@ -11,6 +12,7 @@ pub fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, CliErro
         Some("lean") => return parse_lean_args(args).map(Command::Lean),
         Some("fmt") => return parse_fmt_args(args).map(Command::Fmt),
         Some("test") => return parse_test_args(args).map(Command::Test),
+        Some("run") => return parse_run_args(args).map(Command::Run),
         _ => return Err(usage()),
     }
     let (mut input, mut output, mut emit, mut link) = (None, None, None, Vec::new());
@@ -32,17 +34,6 @@ pub fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, CliErro
         }
     }
     let input = input.ok_or_else(usage)?;
-    let emit = emit.unwrap_or(if link.is_empty() {
-        Emit::Object
-    } else {
-        Emit::Executable
-    });
-    let extension = match emit {
-        Emit::Ir => "ll",
-        Emit::Object => "o",
-        Emit::Executable => "",
-    };
-    let output = output.unwrap_or_else(|| input.with_extension(extension));
     Ok(Command::Build(BuildArgs {
         input,
         output,

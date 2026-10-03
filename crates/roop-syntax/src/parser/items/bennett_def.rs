@@ -23,6 +23,9 @@ pub fn bennett_def<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>>
                 public: public.is_some(),
                 test: false,
                 bennett: Some(target),
+                external: false,
+                world: false,
+                einsum: None,
             })
         })
 }

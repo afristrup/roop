@@ -14,6 +14,7 @@ pub fn apply_overwrite(
     let kind = kind_of(g.ctx, &old.ty)?;
     let instr = match (kind, op) {
         (Kind::Int, OverwriteOp::Rem) => "srem",
+        (Kind::Byte, OverwriteOp::Rem) => "urem",
         (Kind::Float, OverwriteOp::Rem) => "frem",
         _ => {
             return Err(CodegenError::InvalidOperand(

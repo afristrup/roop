@@ -1,0 +1,46 @@
+// Prints the Fibonacci number whose index is the argument, from the
+// reversible Fibonacci pair of std::math, which holds the numbers n + 1 and
+// n + 2, so the number n is their difference.
+
+use std::io::*;
+use std::math::fibpair;
+use std::process::*;
+use std::text::*;
+
+irrev fn main(status: &mut i64) {
+    ancilla argc: i64 = 0;
+    ancilla word: [u8; 32] = 0;
+    ancilla word_len: i64 = 0;
+    ancilla index: i64 = 0;
+    ancilla ok: i64 = 0;
+    call arg_count(argc);
+    if argc < 2 {
+        call eprintln("usage: fib <n>");
+        status = 2;
+    } else {
+        call arg(1, word, word_len);
+        call parse_int(word, word_len, index, ok);
+        if ok == 1 && index >= 0 && index <= 90 {
+            call print_fib(index);
+        } else {
+            call eprintln("fib: the index must be from 0 to 90");
+            status = 2;
+        } fi ok == 1 && index >= 0 && index <= 90;
+    } fi argc < 2;
+}
+
+irrev fn print_fib(index: &i64) {
+    ancilla n: i64 = 0;
+    ancilla a: i64 = 0;
+    ancilla b: i64 = 0;
+    ancilla number: i64 = 0;
+    ancilla out: [u8; 64] = 0;
+    ancilla len: i64 = 0;
+    n = index;
+    call fibpair(n, a, b);
+    number += b;
+    number -= a;
+    call put_int(out, len, number);
+    call put(out, len, "\n");
+    call flush(out, len);
+}

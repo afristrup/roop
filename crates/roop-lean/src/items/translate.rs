@@ -145,6 +145,11 @@ fn translate_fn(
     modular: &HashMap<String, LoopLemmas>,
     proofs: bool,
 ) -> Result<Piece, LeanError> {
+    if def.external {
+        return Err(LeanError::Unsupported(
+            "a function the runtime provides, which the model does not cover".into(),
+        ));
+    }
     let forward = lean_fn(cx, def, Dir::Forward)?;
     let reversible = !is_irreversible_fn(def);
     let mut text = format!("{}{}", forward.lifted, forward.text);

@@ -1,4 +1,4 @@
-use crate::{Import, ModuleError, Tree, global_name, imports_of, item_name};
+use crate::{Import, ModuleError, Tree, imports_of, item_global, item_name};
 use roop_syntax::Item;
 
 /// How deep re-exports may chain before they are taken to be a cycle.
@@ -14,11 +14,11 @@ pub fn exports(tree: &Tree, id: usize, depth: usize) -> Result<Vec<Import>, Modu
     let mut offered: Vec<Import> = module
         .items
         .iter()
-        .filter_map(item_name)
-        .filter(|(_, public)| *public)
-        .map(|(name, _)| Import {
+        .filter_map(|item| item_name(item).map(|n| (item, n)))
+        .filter(|(_, (_, public))| *public)
+        .map(|(item, (name, _))| Import {
             local: name.to_string(),
-            global: global_name(&module.path, name),
+            global: item_global(&module.path, item, name),
             from: id,
         })
         .collect();

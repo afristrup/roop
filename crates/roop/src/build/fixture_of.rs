@@ -7,6 +7,7 @@ fn flat(ty: &Type) -> Option<(char, usize)> {
             "i64" => Some(('i', 1)),
             "f64" => Some(('f', 1)),
             "bool" => Some(('b', 1)),
+            "u8" => Some(('u', 1)),
             _ => None,
         },
         Type::Array(elem, len) => {
@@ -30,7 +31,7 @@ pub fn fixture_of(test: &str, param: &Param) -> Result<Fixture, CliError> {
     };
     let (kind, count) = flat(inner).ok_or_else(|| {
         CliError::Tool(format!(
-            "test {test}: fixture {} must be made of i64, f64, bool, arrays of them, or a stack of i64",
+            "test {test}: fixture {} must be made of i64, f64, u8, bool, arrays of them, or a stack of i64",
             param.name
         ))
     })?;

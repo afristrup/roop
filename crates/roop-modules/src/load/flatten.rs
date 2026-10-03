@@ -1,5 +1,5 @@
 use crate::{
-    ModuleError, Tree, build_scope, global_name, item_name, lookup, order, prune, rename_names,
+    ModuleError, Tree, build_scope, item_global, item_name, lookup, order, prune, rename_names,
 };
 use roop_syntax::{Item, Program};
 use std::collections::HashSet;
@@ -27,7 +27,7 @@ pub fn flatten(tree: &Tree) -> Result<Program, ModuleError> {
                     *n = global;
                 }
             });
-            let global = global_name(&module.path, name);
+            let global = item_global(&module.path, &item, name);
             set_name(&mut item, global.clone());
             // A session names no code that would keep it, so an import does.
             let kept = id == tree.entry

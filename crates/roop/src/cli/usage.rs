@@ -1,14 +1,18 @@
 pub const USAGE: &str =
     "usage: roop build <input.roop> [-o <output>] [--emit ir|obj|exe] [--link <file>]...
+       roop run <input.roop> [<args>...]
        roop lean <input.roop> [-o <output.lean>] [--check]
        roop test [<path>...] [--filter <text>] [--timeout <seconds>] [--lean]
        roop fmt [<path>...] [--check] [--width <columns>] [--stdin]
 
   build        compile to LLVM IR, an object, or an executable
     --emit ir    write LLVM IR (and AIR/PTX modules) for inspection
-    --emit obj   write a relocatable object (default)
+    --emit obj   write a relocatable object (default without a `main`)
     --emit exe   link an executable; --link supplies the main (a .c/.ll/.o file)
     --link FILE  extra input for linking, implies --emit exe
+
+  run          build a program with a `main` and run it; the arguments after the
+               input are the program's, and its exit status is the result
 
   lean         translate to a Lean 4 model with reversibility theorems
     --check      run Lean on the result and fail if it is rejected

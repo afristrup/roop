@@ -117,5 +117,8 @@ pub fn build_bennett(
         public,
         test: false,
         bennett: None,
+        external: false,
+        world: false,
+        einsum: None,
     })
 }

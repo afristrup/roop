@@ -1,0 +1,61 @@
+// Rotates each letter of its input 13 places. The rotation is a bijection on
+// bytes, so it is reversible, and so is the loop around it: running `rot13`
+// twice, or backward, gives the text back.
+
+use std::io::*;
+use std::text::put;
+
+irrev fn main() {
+    ancilla line: [u8; 4096] = 0;
+    ancilla len: i64 = 0;
+    ancilla eof: i64 = 0;
+    ancilla first: i64 = 1;
+    from first == 1 {
+        call read_line(line, len, eof);
+        if eof == 0 {
+            call rot13(line);
+            call print_buf(line, len);
+            call print("\n");
+        } fi eof == 0;
+    } loop { first = 0; } until eof == 1;
+}
+
+pub fn rot13<N>(text: &mut [u8; N]) {
+    ancilla i: i64 = 0;
+    from i == 0 { call rot13_byte(text[i]); } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
+}
+
+// Each branch ends in a byte that the assertion of the branch tells apart from
+// the ones the other branches end in, which is what lets it run backward.
+pub fn rot13_byte(c: &mut u8) {
+    if c >= b'a' && c <= b'm' {
+        c += 13;
+    } else {
+        if c >= b'n' && c <= b'z' {
+            c -= 13;
+        } else {
+            if c >= b'A' && c <= b'M' {
+                c += 13;
+            } else {
+                if c >= b'N' && c <= b'Z' { c -= 13; } fi c >= b'A' && c <= b'M';
+            } fi c >= b'N' && c <= b'Z';
+        } fi c >= b'a' && c <= b'm';
+    } fi c >= b'n' && c <= b'z';
+}
+
+test rot13_rotates_letters_and_leaves_the_rest {
+    text: [u8; 6], len: i64;
+    call put(text, len, "Ab-z!n");
+    call rot13(text);
+    expect text[0] == b'N' && text[1] == b'o' && text[2] == b'-';
+    expect text[3] == b'm' && text[4] == b'!' && text[5] == b'a';
+}
+
+test rot13_twice_is_the_identity {
+    text: [u8; 5], len: i64;
+    call put(text, len, "Hello");
+    call rot13(text);
+    call rot13(text);
+    expect text[0] == b'H' && text[4] == b'o';
+}

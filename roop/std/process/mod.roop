@@ -1,0 +1,31 @@
+// The process: its exit, its arguments and environment, and the clock. All
+// irreversible, like the rest of what touches the world outside.
+
+use super::sys::*;
+
+// Ends the program at once with this status.
+pub irrev fn exit(code: &i64) {
+    call roop_exit(code);
+}
+
+// How many arguments the program got, its own name first.
+pub irrev fn arg_count(count: &mut i64) {
+    call roop_arg_count(count);
+}
+
+// Argument number index into buf, zero-padded; len is its length, or -1 when
+// there is no such argument. An argument longer than buf is cut off.
+pub irrev fn arg<N>(index: &i64, buf: &mut [u8; N], len: &mut i64) {
+    call roop_arg(index, buf, N, len);
+}
+
+// The environment variable called name, in the same way; len is -1 when it is
+// not set.
+pub irrev fn getenv<N, M>(name: &[u8; N], buf: &mut [u8; M], len: &mut i64) {
+    call roop_getenv(name, N, buf, M, len);
+}
+
+// Milliseconds since 1970.
+pub irrev fn now_ms(ms: &mut i64) {
+    call roop_now_ms(ms);
+}

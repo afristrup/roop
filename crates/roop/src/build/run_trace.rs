@@ -22,8 +22,8 @@ pub fn run_trace(
     let exe = dir.join("trace");
     let args = BuildArgs {
         input: dir.join("unused.roop"),
-        output: exe.clone(),
-        emit: Emit::Executable,
+        output: Some(exe.clone()),
+        emit: Some(Emit::Executable),
         link: vec![driver],
         keep_tests: true,
     };

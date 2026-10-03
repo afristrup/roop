@@ -11,7 +11,7 @@ pub fn gen_call(
     dir: Dir,
 ) -> Result<(), CodegenError> {
     let (def, inverse) = resolve(g, callee, is_uncall, dir)?;
-    let passed = call_arguments(g, &def.params, args)?;
+    let passed = call_arguments(g, &def.params, args, def.external)?;
     let symbol = if inverse {
         format!("{callee}_inv")
     } else {

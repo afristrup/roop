@@ -73,13 +73,18 @@ fn visit_expr(expr: &Expr, f: &mut BodyFeatures, cells: &mut Cells) {
     f.work += 1;
     match expr {
         Expr::Float(_) => f.has_float_literal = true,
-        Expr::Unary(_, inner) => visit_expr(inner, f, cells),
+        Expr::Unary(_, inner) | Expr::Cast(inner, _) => visit_expr(inner, f, cells),
         Expr::Binary(l, _, r) => {
             visit_expr(l, f, cells);
             visit_expr(r, f, cells);
         }
         Expr::Place(place) => touch(place, false, f, cells),
-        Expr::Int(_) | Expr::Bool(_) | Expr::Empty | Expr::Variant(..) => {}
+        Expr::Int(_)
+        | Expr::Bool(_)
+        | Expr::Byte(_)
+        | Expr::Str(_)
+        | Expr::Empty
+        | Expr::Variant(..) => {}
     }
 }
 

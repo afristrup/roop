@@ -5,6 +5,7 @@ pub fn llvm_type(ctx: &Ctx, ty: &Type) -> Result<String, CodegenError> {
     match ty {
         Type::Named(name) => match name.as_str() {
             "i64" => Ok("i64".into()),
+            "u8" => Ok("i8".into()),
             "f64" => Ok("double".into()),
             "bool" => Ok("i1".into()),
             _ if ctx.structs.contains_key(name.as_str()) => Ok(format!("%{name}")),

@@ -13,11 +13,10 @@ fn settle_to(balance: &mut i64, amount: &i64, h: &mut Stack<i64, 8>) {
 // Compute, copy, uncompute: keep the quote, then undo the overwrite so the
 // history is empty again and the temporary stack can go.
 fn quote(balance: &mut i64, amount: &i64, quoted: &mut i64) {
-    ancilla h: Stack<i64, 8> = empty {
-        call settle_to(balance, amount, h);
-        quoted += balance;
-        uncall settle_to(balance, amount, h);
-    }
+    ancilla h: Stack<i64, 8> = empty;
+    call settle_to(balance, amount, h);
+    quoted += balance;
+    uncall settle_to(balance, amount, h);
 }
 
 // A transfer that refuses to overdraw. If the exit assertion fails, the two

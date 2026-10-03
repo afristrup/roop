@@ -13,6 +13,8 @@ pub enum Token<'a> {
     Pub,
     #[token("as")]
     As,
+    #[token("extern")]
+    Extern,
     #[token("irrev")]
     Irrev,
     #[token("enum")]
@@ -82,6 +84,10 @@ pub enum Token<'a> {
     Int(&'a str),
     #[regex(r"[0-9]+\.[0-9]+")]
     Float(&'a str),
+    #[regex(r#""([^"\\\n]|\\.)*""#)]
+    Str(&'a str),
+    #[regex(r"b'([^'\\\n]|\\.)'")]
+    Byte(&'a str),
 
     #[token("#")]
     Hash,
@@ -164,7 +170,9 @@ pub enum Token<'a> {
 impl fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Ident(s) | Self::Int(s) | Self::Float(s) => write!(f, "{s}"),
+            Self::Ident(s) | Self::Int(s) | Self::Float(s) | Self::Str(s) | Self::Byte(s) => {
+                write!(f, "{s}")
+            }
             other => write!(f, "{other:?}"),
         }
     }

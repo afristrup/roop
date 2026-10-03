@@ -20,6 +20,7 @@ abbrev Res (α : Type) := Except Fail α
 
 /-- Machine integers wrap around, exactly like the compiled code. -/
 abbrev I64 := BitVec 64
+abbrev U8 := BitVec 8
 
 def check (c : Bool) (e : Fail) : Res Unit := if c then .ok () else .error e
 

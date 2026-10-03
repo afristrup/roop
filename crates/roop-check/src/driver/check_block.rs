@@ -1,5 +1,6 @@
 use crate::{
-    CheckError, Facts, Scope, check_ancilla, check_borrow, check_parallel, check_try, check_update,
+    CheckError, Facts, Scope, check_ancilla, check_borrow, check_no_world, check_parallel,
+    check_try, check_update,
 };
 use roop_syntax::{Block, StmtKind};
 
@@ -9,6 +10,7 @@ use roop_syntax::{Block, StmtKind};
 pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
     for stmt in &block.stmts {
         check_parallel(stmt)?;
+        check_no_world(stmt, scope.world_fns)?;
         let outside = || CheckError::IrreversibleOutsideIrrev { span: stmt.span };
         match &stmt.kind {
             StmtKind::Update { target, value, .. } => {

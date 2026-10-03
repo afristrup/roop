@@ -1,5 +1,5 @@
 use crate::{BinOp, Expr, Token, UnOp};
-use crate::{Err, TokenInput, binary_level, place, variant};
+use crate::{Err, TokenInput, binary_level, place, ty, unescape, variant};
 use chumsky::prelude::*;
 
 pub fn expr<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Expr, Err<'a>> + Clone {
@@ -14,6 +14,18 @@ pub fn expr<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Expr, Err<'a>> + Clon
                 .map(Expr::Float)
                 .map_err(|e| Rich::custom(span, e.to_string()))
         });
+        let string = select! { Token::Str(s) => s }.try_map(|s, span| {
+            unescape(&s[1..s.len() - 1])
+                .map(Expr::Str)
+                .map_err(|e| Rich::custom(span, e))
+        });
+        let byte = select! { Token::Byte(s) => s }.try_map(|s, span| {
+            match unescape(&s[2..s.len() - 1]).as_deref() {
+                Ok([b]) => Ok(Expr::Byte(*b)),
+                Ok(_) => Err(Rich::custom(span, "a byte literal is one byte")),
+                Err(e) => Err(Rich::custom(span, e.clone())),
+            }
+        });
         let empty = just(Token::Empty).to(Expr::Empty);
         let boolean =
             select! { Token::True => Expr::Bool(true), Token::False => Expr::Bool(false) };
@@ -22,6 +34,8 @@ pub fn expr<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Expr, Err<'a>> + Clon
             .delimited_by(just(Token::LParen), just(Token::RParen));
         let atom = int
             .or(float)
+            .or(string)
+            .or(byte)
             .or(boolean)
             .or(empty)
             .or(variant().map(|(e, v)| Expr::Variant(e, v)))
@@ -33,8 +47,13 @@ pub fn expr<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Expr, Err<'a>> + Clon
             .repeated()
             .foldr(atom, |op, e| Expr::Unary(op, Box::new(e)));
 
+        let cast = unary
+            .clone()
+            .foldl(just(Token::As).ignore_then(ty()).repeated(), |e, ty| {
+                Expr::Cast(Box::new(e), ty)
+            });
         let mul = binary_level(
-            unary,
+            cast,
             select! { Token::Star => BinOp::Mul, Token::Slash => BinOp::Div, Token::Percent => BinOp::Rem },
         );
         let add = binary_level(

@@ -5,6 +5,7 @@ pub fn kind_of(ctx: &Ctx, ty: &Type) -> Result<Kind, CodegenError> {
     match ty {
         Type::Named(name) => match name.as_str() {
             "i64" => Ok(Kind::Int),
+            "u8" => Ok(Kind::Byte),
             "f64" => Ok(Kind::Float),
             "bool" => Ok(Kind::Bool),
             _ if ctx.enums.contains_key(name.as_str()) => Ok(Kind::Enum),

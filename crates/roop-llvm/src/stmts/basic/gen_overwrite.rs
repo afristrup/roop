@@ -1,6 +1,6 @@
 use crate::{
-    CodegenError, Dir, FnGen, apply_overwrite, gen_expr, gen_logged_overwrite, gen_place, mem_load,
-    mem_store, same_type,
+    CodegenError, Dir, FnGen, apply_overwrite, gen_expr_as, gen_logged_overwrite, gen_place,
+    mem_load, mem_store, same_type,
 };
 use roop_syntax::{Expr, OverwriteOp, Place};
 
@@ -22,7 +22,7 @@ pub fn gen_overwrite(
         return Err(CodegenError::Unsupported("running an overwrite backward"));
     }
     let slot = gen_place(g, target)?;
-    let v = gen_expr(g, value)?;
+    let v = gen_expr_as(g, value, &slot.ty)?;
     same_type(&slot.ty, &v.ty)?;
     let old = mem_load(g, &slot)?;
     let new = apply_overwrite(g, op, &old, &v)?;

@@ -2,7 +2,7 @@ use crate::{CliError, Fixture, fixture_of};
 use roop_syntax::FnDef;
 
 fn bytes(f: &Fixture) -> usize {
-    f.count * if f.kind == 'b' { 1 } else { 8 }
+    f.count * if matches!(f.kind, 'b' | 'u') { 1 } else { 8 }
 }
 
 /// The C `main` that runs one test, chosen by index: it makes the fixtures

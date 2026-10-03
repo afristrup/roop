@@ -39,6 +39,10 @@ pub enum CheckError {
     ParallelNotLoop {
         span: Span,
     },
+    WorldInParallel {
+        callee: String,
+        span: Span,
+    },
     ParallelLoopShape {
         span: Span,
     },
@@ -158,6 +162,11 @@ impl fmt::Display for CheckError {
             Self::BorrowIndexModified { var, span } => write!(
                 f,
                 "`{var}` selects a borrowed place and is modified in the borrow at {}..{}",
+                span.start, span.end
+            ),
+            Self::WorldInParallel { callee, span } => write!(
+                f,
+                "`{callee}` changes the world outside the program, which a parallel loop or a concurrent task cannot do, at {}..{}",
                 span.start, span.end
             ),
             Self::ParallelNotLoop { span } => write!(

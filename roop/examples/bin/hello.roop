@@ -1,0 +1,9 @@
+// Hello, world. `main` is where a program starts. It is irrev, since writing
+// to the screen cannot be taken back, and `roop run examples/bin/hello.roop`
+// builds and runs it.
+
+use std::io::println;
+
+irrev fn main() {
+    call println("Hello, world!");
+}

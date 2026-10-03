@@ -23,6 +23,7 @@ pub fn host_options(config: &Config) -> Options {
     let threads = std::thread::available_parallelism().map_or(1, |n| n.get() as u64);
     let cpu = config.parallel.cpu.clone().or_else(detect_cpu);
     Options {
+        no_entry: false,
         triple: cfg!(all(target_os = "macos", target_arch = "aarch64"))
             .then(|| "arm64-apple-macosx".into()),
         cpu,

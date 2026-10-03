@@ -1,0 +1,70 @@
+// Input and output. A byte that has been written cannot be taken back, so these
+// functions are irrev and only irrev code, such as main, calls them. Reversible
+// code builds its output in a buffer, with the functions of std::text, and
+// hands it over with `flush`.
+//
+// A text is a buffer `[u8; N]` and a length `len`: the bytes after the first
+// `len` are zero. A string literal is a read-only `[u8; N]` of its own length.
+
+use super::sys::*;
+
+// Writes the text to standard output.
+pub irrev fn print<N>(s: &[u8; N]) {
+    ancilla written: i64 = 0;
+    call roop_write(1, s, N, written);
+}
+
+pub irrev fn println<N>(s: &[u8; N]) {
+    call print(s);
+    call print("\n");
+}
+
+// The same to standard error.
+pub irrev fn eprint<N>(s: &[u8; N]) {
+    ancilla written: i64 = 0;
+    call roop_write(2, s, N, written);
+}
+
+pub irrev fn eprintln<N>(s: &[u8; N]) {
+    call eprint(s);
+    call eprint("\n");
+}
+
+// Writes the first len bytes of a buffer to standard output.
+pub irrev fn print_buf<N>(buf: &[u8; N], len: &i64) {
+    ancilla written: i64 = 0;
+    call roop_write(1, buf, len, written);
+}
+
+pub irrev fn eprint_buf<N>(buf: &[u8; N], len: &i64) {
+    ancilla written: i64 = 0;
+    call roop_write(2, buf, len, written);
+}
+
+// Hands a buffer built by reversible code to standard output, and empties it.
+pub irrev fn flush<N>(buf: &mut [u8; N], len: &mut i64) {
+    call print_buf(buf, len);
+    ancilla i: i64 = 0 {
+        from i == 0 { buf[i] = 0; } loop { i += 1; } until i == N - 1;
+    }
+    len = 0;
+}
+
+// Reads a line of standard input into buf, without its newline. len is the
+// number of bytes read, and eof is set at the end of the input.
+pub irrev fn read_line<N>(buf: &mut [u8; N], len: &mut i64, eof: &mut i64) {
+    ancilla ignored: i64 = 0;
+    call roop_read_line(buf, N, len, ignored);
+    eof = ignored;
+}
+
+// Reads from the file with descriptor fd until its end or until buf is full,
+// after the len bytes it holds already. Adds what it read to len.
+pub irrev fn read_all<N>(fd: &i64, buf: &mut [u8; N], len: &mut i64) {
+    ancilla got: i64 = 0;
+    ancilla first: i64 = 1;
+    from first == 1 {
+        call roop_read(fd, buf, len, N - len, got);
+        if got > 0 { len += got; } fi got > 0;
+    } loop { first = 0; } until got <= 0 || len == N;
+}

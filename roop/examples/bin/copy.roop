@@ -1,0 +1,26 @@
+// Copies a file: `copy <from> <to>`. The status is 1 when it could not.
+
+use std::fs::copy_file;
+use std::io::*;
+use std::process::*;
+
+irrev fn main(status: &mut i64) {
+    ancilla argc: i64 = 0;
+    ancilla source: [u8; 512] = 0;
+    ancilla target: [u8; 512] = 0;
+    ancilla n: i64 = 0;
+    ancilla failed: i64 = 0;
+    call arg_count(argc);
+    if argc != 3 {
+        call eprintln("usage: copy <from> <to>");
+        status = 2;
+    } else {
+        call arg(1, source, n);
+        call arg(2, target, n);
+        call copy_file(source, target, failed);
+        if failed != 0 {
+            call eprintln("copy: failed");
+            status = 1;
+        } fi failed != 0;
+    } fi argc != 3;
+}
