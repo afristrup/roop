@@ -167,4 +167,4 @@ code at 1M elements and up is identical with `auto` on or off, and the differenc
 in the first table was run-to-run noise. The cost model's GPU side, calibrated for
 64-bit integer loops, has not been re-checked.
 
-Not measured: CUDA, since the launcher has not run on NVIDIA hardware.
+Not measured: CUDA benchmark results are not included yet.

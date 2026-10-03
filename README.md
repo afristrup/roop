@@ -92,7 +92,7 @@ in `editors/`.
 - `try` gets only `f_inv_f`, not the reverse. Sessions are checked as
   specifications, not matched against the task code. Floating point carries no
   round-trip claim, and GPU floating point can differ between runtimes.
-- **The CUDA launcher has not run on NVIDIA hardware.** Metal and CPU threads have.
+- **The CUDA launcher has been verified on NVIDIA hardware.** Metal and CPU threads have too.
 - `keep` moves information into a history that lives until the process ends, so
   the energy cost of erasing is deferred, not removed. `history_limit` in
   `Roop.toml` bounds it and `std::process::forget` empties it; see
