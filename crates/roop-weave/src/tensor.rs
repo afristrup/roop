@@ -27,6 +27,19 @@ impl Tensor {
             .fold("i64".to_string(), |inner, d| format!("[{inner}; {d}]"))
     }
 
+    /// `w0[1]` for the row of a matrix, and the tensor itself for a vector.
+    pub fn row(&self, row: usize) -> String {
+        let mut rest = row;
+        let mut path = Vec::new();
+        for d in self.dims[..self.dims.len() - 1].iter().rev() {
+            path.push(rest % d);
+            rest /= d;
+        }
+        path.reverse();
+        let indices: String = path.iter().map(|i| format!("[{i}]")).collect();
+        format!("{}{indices}", self.name)
+    }
+
     /// `w0[1][2]` for the element at a position in `data`.
     pub fn element(&self, flat: usize) -> String {
         let mut rest = flat;

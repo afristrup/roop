@@ -85,3 +85,15 @@ fn lean_proves_a_compiled_model_exactly_reversible() {
     }
     assert!(report.contains("Lean accepted the file"), "{report}");
 }
+
+#[test]
+fn lean_proves_the_weight_loader_exactly_reversible() {
+    let dir = project("lean-load");
+    let layers = vec![leapfrog("tanh", 2, 2, 1), mlp("relu", 2, 2, 2)];
+    compile(&dir, &model("tiny", 2, 1, layers), &["--tests"]);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", text(&out));
+    let report = text(&out);
+    assert!(report.contains("tiny_load"), "{report}");
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}
