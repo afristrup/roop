@@ -553,7 +553,7 @@ arguments to build a graph from. A test measures throughput: `cargo test -p roop
 
 ### From torch
 
-`roop-weave` compiles a model of these layers to roop code. A model is JSON: the
+`roop weave` compiles a model of these layers to roop code. A model is JSON: the
 state width, the number of outputs the loss reads, the step size and the layers,
 each with its activation and its weights. A layer may have its own hidden width
 and activation, which is why the compiler writes straight-line code for the
@@ -566,7 +566,7 @@ model, instead of calling the stack of `weave::forward`:
 ```
 
 ```
-cargo run -p roop-weave -- model.json -o net.roop --tests --batch 8
+roop weave model.json -o net.roop --tests --batch 8
 roop test net.roop
 ```
 
@@ -580,7 +580,9 @@ central differences, so it checks the compiler and weave together. Like every ro
 test it also runs backward. A model that is not well formed is refused with the
 name of the field, or the tensor, that is wrong.
 
-`roop-weave/python/torch_to_weave.py` writes that JSON from a torch `nn.Sequential`:
+`crates/roop-weave/python/torch_to_weave.py` writes that JSON from a torch module, an
+`nn.Sequential` or a custom module that `torch.fx` can trace into a chain, with
+`torch.relu`, `torch.tanh` and `F.softsign` read as activations:
 
 ```
 python3 torch_to_weave.py pkg.module:factory --outputs 1 -o model.json
@@ -593,8 +595,10 @@ are `Identity`, `ReLU`, `Tanh` and `Softsign`; any other layer is refused, namin
 it, since turning it into something else would not be the model. The compiled
 network is the network of those blocks run on `(q, p)` with the input in `q` and
 `p` zero, so it is a reversible network trained like the torch one, and not the
-same module run unchanged. The exporter is tested against stand-ins for
-`torch.nn`; it has not been run with torch itself.
+same module run unchanged. A graph that branches, a residual connection for one, is refused. The exporter is
+tested on real torch with uv (`uv run --extra torch python -m unittest`, in that
+directory), where a mirror of the compiled network in torch finds the same
+gradients as the reference that the generated test uses.
 
 ## Sessions
 

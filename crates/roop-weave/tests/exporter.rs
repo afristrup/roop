@@ -13,7 +13,7 @@ fn what_the_exporter_writes_compiles_and_agrees_with_the_reference() {
     let dir = project("exporter");
     let exported = dir.join("exported.json");
     let run = Command::new("python3")
-        .args(["-m", "unittest", "-q"])
+        .args(["-m", "unittest", "-q", "test_torch_to_weave"])
         .current_dir(python_dir())
         .env("WEAVE_EXPORT_OUT", &exported)
         .output();

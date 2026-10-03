@@ -1,6 +1,6 @@
 use crate::{
     BuildArgs, CliError, Command, Emit, USAGE, parse_fmt_args, parse_lean_args, parse_run_args,
-    parse_test_args,
+    parse_test_args, parse_weave_args,
 };
 use std::path::PathBuf;
 
@@ -13,6 +13,7 @@ pub fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, CliErro
         Some("fmt") => return parse_fmt_args(args).map(Command::Fmt),
         Some("test") => return parse_test_args(args).map(Command::Test),
         Some("run") => return parse_run_args(args).map(Command::Run),
+        Some("weave") => return parse_weave_args(args).map(Command::Weave),
         Some("lsp") => return Ok(Command::Lsp),
         _ => return Err(usage()),
     }
