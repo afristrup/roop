@@ -948,3 +948,88 @@ test qouter_stays_on_the_grid {
         && out[1][0] == 2048
         && out[1][1] == 4096;
 }
+
+// ij,ij->ij in Q12
+test qhadamard2_multiplies_elementwise {
+    out: [[i64; 2]; 2], x0: [[i64; 2]; 2], x1: [[i64; 2]; 2];
+    x0[0][0] += 4096;
+    x0[0][1] += 8192;
+    x0[1][0] += 12288;
+    x0[1][1] += 16384;
+    x1[0][0] += 2048;
+    x1[0][1] += 4096;
+    x1[1][0] += 4096;
+    x1[1][1] += 2048;
+    call qhadamard2(out, x0, x1);
+    expect out[0][0] == 2048
+        && out[0][1] == 8192
+        && out[1][0] == 12288
+        && out[1][1] == 8192;
+}
+
+// bsd,ed->bse in Q12: 1 * 0.5 + 2 * 0.25 = 1 and 4 * 0.5 + 2 * 0.25 = 2.5
+test qproject_reads_the_weight_transposed {
+    out: [[[i64; 1]; 1]; 2], x0: [[[i64; 2]; 1]; 2], x1: [[i64; 2]; 1];
+    x0[0][0][0] += 4096;
+    x0[0][0][1] += 8192;
+    x0[1][0][0] += 16384;
+    x0[1][0][1] += 8192;
+    x1[0][0] += 2048;
+    x1[0][1] += 1024;
+    call qproject(out, x0, x1);
+    expect out[0][0][0] == 4096 && out[1][0][0] == 10240;
+}
+
+// bsd,de->bse in Q12: 1 * 0.5 + 2 * 0.25 = 1
+test qunproject_reads_the_weight_as_it_is {
+    out: [[[i64; 1]; 1]; 1], x0: [[[i64; 2]; 1]; 1], x1: [[i64; 1]; 2];
+    x0[0][0][0] += 4096;
+    x0[0][0][1] += 8192;
+    x1[0][0] += 2048;
+    x1[1][0] += 1024;
+    call qunproject(out, x0, x1);
+    expect out[0][0][0] == 4096;
+}
+
+// bsi,bsk->ik in Q12: the sum over the batch, 2 * 1 + 1 * 3 = 5
+test qweight_grad_sums_over_the_batch {
+    out: [[i64; 1]; 1], x0: [[[i64; 1]; 1]; 2], x1: [[[i64; 1]; 1]; 2];
+    x0[0][0][0] += 8192;
+    x0[1][0][0] += 4096;
+    x1[0][0][0] += 4096;
+    x1[1][0][0] += 12288;
+    call qweight_grad(out, x0, x1);
+    expect out[0][0] == 20480;
+}
+
+// bqd,bkd->bqk in Q12: the scores of one query against two keys
+test qscores_are_inner_products_of_rows {
+    out: [[[i64; 2]; 1]; 1], x0: [[[i64; 1]; 1]; 1], x1: [[[i64; 1]; 2]; 1];
+    x0[0][0][0] += 8192;
+    x1[0][0][0] += 4096;
+    x1[0][1][0] += 2048;
+    call qscores(out, x0, x1);
+    expect out[0][0][0] == 8192 && out[0][0][1] == 4096;
+}
+
+// bqk,bkd->bqd in Q12: 0.5 * 2 + 0.5 * 4 = 3
+test qattend_weighs_the_values {
+    out: [[[i64; 1]; 1]; 1], x0: [[[i64; 2]; 1]; 1], x1: [[[i64; 1]; 2]; 1];
+    x0[0][0][0] += 2048;
+    x0[0][0][1] += 2048;
+    x1[0][0][0] += 8192;
+    x1[0][1][0] += 16384;
+    call qattend(out, x0, x1);
+    expect out[0][0][0] == 12288;
+}
+
+// bji,bjk->bik in Q12: 1 * 3 + 2 * 0.5 = 4
+test qattend_t_reads_the_first_transposed {
+    out: [[[i64; 1]; 1]; 1], x0: [[[i64; 1]; 2]; 1], x1: [[[i64; 1]; 2]; 1];
+    x0[0][0][0] += 4096;
+    x0[0][1][0] += 8192;
+    x1[0][0][0] += 12288;
+    x1[0][1][0] += 2048;
+    call qattend_t(out, x0, x1);
+    expect out[0][0][0] == 16384;
+}
