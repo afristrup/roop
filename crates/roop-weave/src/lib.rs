@@ -3,8 +3,11 @@
 //! against a reference in doubles.
 
 mod activation;
+mod batch_sample;
+mod batch_suffix;
 mod decl;
 mod emit_backward;
+mod emit_batch_tests;
 mod emit_forward;
 mod emit_grad;
 mod emit_load;
@@ -18,17 +21,22 @@ mod layer_call;
 mod loss;
 mod model;
 mod names;
+mod near;
 mod param_list;
 mod parse_model;
 mod quantize;
 mod reference;
 mod sample;
+mod state_type;
 mod tensor;
 mod weave_error;
 
 pub use activation::*;
+pub use batch_sample::*;
+pub use batch_suffix::*;
 pub use decl::*;
 pub use emit_backward::*;
+pub use emit_batch_tests::*;
 pub use emit_forward::*;
 pub use emit_grad::*;
 pub use emit_load::*;
@@ -42,10 +50,12 @@ pub use layer_call::*;
 pub use loss::*;
 pub use model::*;
 pub use names::*;
+pub use near::*;
 pub use param_list::*;
 pub use parse_model::*;
 pub use quantize::*;
 pub use reference::*;
 pub use sample::*;
+pub use state_type::*;
 pub use tensor::*;
 pub use weave_error::*;

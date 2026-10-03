@@ -4,10 +4,14 @@ use support::{attention, compile, leapfrog, mlp, model, project, roop, text};
 
 fn check(name: &str, layers: Vec<serde_json::Value>, width: usize, outputs: usize) {
     let dir = project(name);
-    compile(&dir, &model(name, width, outputs, layers), &["--tests"]);
+    compile(
+        &dir,
+        &model(name, width, outputs, layers),
+        &["--tests", "--batch", "3"],
+    );
     let out = roop(&dir, &["test", "prog.roop"]);
     assert!(out.status.success(), "{}", text(&out));
-    assert!(text(&out).contains("1 passed, 0 failed"), "{}", text(&out));
+    assert!(text(&out).contains("2 passed, 0 failed"), "{}", text(&out));
 }
 
 #[test]
@@ -81,6 +85,20 @@ fn lean_proves_a_compiled_model_exactly_reversible() {
     assert!(out.status.success(), "{}", text(&out));
     let report = text(&out);
     for name in ["tiny_forward", "tiny_backward", "tiny_grad"] {
+        assert!(report.contains(name), "{name} missing: {report}");
+    }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}
+
+#[test]
+fn lean_proves_a_compiled_batched_model_exactly_reversible() {
+    let dir = project("lean-batch");
+    let layers = vec![leapfrog("tanh", 2, 2, 1), mlp("relu", 2, 2, 2)];
+    compile(&dir, &model("tiny", 2, 1, layers), &["--batch", "2"]);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", text(&out));
+    let report = text(&out);
+    for name in ["tiny_forward_batch", "tiny_backward_batch", "tiny_grad_batch"] {
         assert!(report.contains(name), "{name} missing: {report}");
     }
     assert!(report.contains("Lean accepted the file"), "{report}");

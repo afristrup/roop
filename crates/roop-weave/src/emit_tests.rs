@@ -1,17 +1,4 @@
-use crate::{Model, decl, forward, gradients, loss, names, quantize, sample};
-
-/// `a - e` for a number a and an integer e, as roop writes it.
-fn difference(a: &str, e: i64) -> String {
-    match e < 0 {
-        true => format!("({a} + {})", -e),
-        false => format!("({a} - {e})"),
-    }
-}
-
-fn near(a: &str, e: i64, tolerance: i64) -> String {
-    let d = difference(a, e);
-    format!("    expect {d} * {d} <= {};\n", tolerance * tolerance)
-}
+use crate::{Model, decl, forward, gradients, loss, names, near, quantize, sample};
 
 /// A test that loads the model, and checks its forward pass, its loss and every
 /// gradient against the reference in doubles. Like every roop test it also runs
