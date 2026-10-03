@@ -4,10 +4,14 @@ use support::{attention, compile, conv, leapfrog, mlp, mlp_norm, model, project,
 
 fn check(name: &str, layers: Vec<serde_json::Value>, width: usize, outputs: usize) {
     let dir = project(name);
-    compile(&dir, &model(name, width, outputs, layers), &["--tests"]);
+    compile(
+        &dir,
+        &model(name, width, outputs, layers),
+        &["--tests", "--batch", "3"],
+    );
     let out = roop(&dir, &["test", "prog.roop"]);
     assert!(out.status.success(), "{}", text(&out));
-    assert!(text(&out).contains("1 passed, 0 failed"), "{}", text(&out));
+    assert!(text(&out).contains("2 passed, 0 failed"), "{}", text(&out));
 }
 
 #[test]
@@ -144,4 +148,39 @@ fn a_normalized_perceptron_mixed_with_the_other_blocks_agrees_with_the_reference
         attention(3, 2, 5),
     ];
     check("norm_mixed", layers, 6, 3);
+}
+
+#[test]
+fn lean_proves_a_compiled_batched_model_exactly_reversible() {
+    let dir = project("lean-batch");
+    let layers = vec![leapfrog("tanh", 2, 2, 1), mlp("relu", 2, 2, 2)];
+    compile(&dir, &model("tiny", 2, 1, layers), &["--batch", "2"]);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", text(&out));
+    let report = text(&out);
+    for name in [
+        "tiny_forward_batch",
+        "tiny_backward_batch",
+        "tiny_grad_batch",
+    ] {
+        assert!(report.contains(name), "{name} missing: {report}");
+    }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}
+
+#[test]
+fn the_batched_functions_cover_convolution_normalization_and_cross_entropy() {
+    let dir = project("batched-blocks");
+    let layers = vec![
+        conv(2, 3, 1),
+        mlp_norm("silu", 4, 6, 2),
+        attention(3, 2, 3),
+        mlp("tanh", 3, 6, 4),
+    ];
+    let mut spec = model("batched", 6, 3, layers);
+    spec["loss"] = "softmax".into();
+    compile(&dir, &spec, &["--tests", "--batch", "2"]);
+    let out = roop(&dir, &["test", "prog.roop"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(text(&out).contains("2 passed, 0 failed"), "{}", text(&out));
 }

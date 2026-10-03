@@ -122,3 +122,32 @@ pub fn seed_sigmoid<N, K>(
     k -= K - 1;
     uncall sigmoids<N, K>(p, q);
 }
+
+// The seed of each of B rows: aq[r] += softmax(q[r]) - t[r], and the squared errors
+// added to total.
+pub fn seed_softmax_batch<N, K, B>(
+    aq: &mut [[i64; N]; B],
+    total: &mut i64,
+    q: &[[i64; N]; B],
+    t: &[[i64; K]; B],
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        call seed_softmax<N, K>(aq[r], total, q[r], t[r]);
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// The seed of each of B rows: aq[r] += sigmoid(q[r]) - t[r].
+pub fn seed_sigmoid_batch<N, K, B>(
+    aq: &mut [[i64; N]; B],
+    total: &mut i64,
+    q: &[[i64; N]; B],
+    t: &[[i64; K]; B],
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        call seed_sigmoid<N, K>(aq[r], total, q[r], t[r]);
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}

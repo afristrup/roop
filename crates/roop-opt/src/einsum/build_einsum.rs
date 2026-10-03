@@ -1,117 +1,38 @@
-use crate::{EinsumError, Spec, length_name, loop_over, number_spans, operand_type, parse_spec};
-use roop_syntax::{
-    Attr, BinOp, Block, Expr, FnDef, Param, Place, Span, Stmt, StmtKind, Type, UpdateOp,
-};
+use crate::{EinsumError, build_sum, build_wide, parse_spec};
+use roop_syntax::{FnDef, Type};
 
-fn stmt(kind: StmtKind) -> Stmt {
-    Stmt {
-        attrs: Vec::new(),
-        kind,
-        span: Span::from(0..0),
-    }
-}
-
-fn counter(label: char) -> String {
-    format!("i_{label}")
-}
-
-/// `name[i_a][i_b]` for the labels.
-fn element(name: &str, labels: &[char]) -> Place {
-    labels
-        .iter()
-        .fold(Place::Var(name.to_string()), |place, l| {
-            Place::Index(
-                Box::new(place),
-                Box::new(Expr::Place(Place::Var(counter(*l)))),
-            )
-        })
-}
-
-/// The loops around `inner`, outermost label first. The first loop over an
-/// output label is parallel: each of its iterations writes its own part of the
-/// output.
-fn nest(labels: &[char], parallel_first: bool, inner: Vec<Stmt>) -> Vec<Stmt> {
-    let Some((label, rest)) = labels.split_first() else {
-        return inner;
-    };
-    let body = nest(rest, false, inner);
-    let mut looped = loop_over(&counter(*label), &Err(length_name(*label)), body);
-    if parallel_first && let StmtKind::Ancilla { body, .. } = &mut looped.kind {
-        body.stmts[0].attrs = vec![Attr::Parallel { target: None }];
-    }
-    vec![looped]
-}
-
-/// The function for an `einsum fn`: `out` gets the sum, over the labels that
-/// are not in the output, of the product of the elements of the operands
-/// `x0`, `x1`, and so on. The sum is added to `out`, so a zero `out` ends up
-/// holding the contraction, and running it backward takes it off again.
-pub fn build_einsum(def: &FnDef) -> Result<FnDef, EinsumError> {
+/// The functions for an `einsum fn`: `out` gets the sum, over the labels that
+/// are not in the output, of the product of the elements of the operands `x0`,
+/// `x1`, and so on. The sum is added to `out`, so a zero `out` ends up holding
+/// the contraction, and running it backward takes it off again.
+///
+/// The element type says what a product is. In `i64` and `f64` it is the
+/// product. In `q12` the numbers are fixed point, x * 4096, so each product is
+/// divided by 4096. In `q12w` the products of a sum are added exactly and the
+/// sum is divided by 4096 once, which is more exact and is one matrix product
+/// that the compiler can give to the matrix unit; that needs the helper
+/// `<name>__sum`, so there are two functions.
+pub fn build_einsum(def: &FnDef) -> Result<Vec<FnDef>, EinsumError> {
     let einsum = def.einsum.as_ref().expect("an einsum fn");
     let name = &def.name;
     let Type::Named(elem) = &einsum.elem else {
         return Err(EinsumError::BadType(name.clone()));
     };
-    if !matches!(elem.as_str(), "i64" | "f64" | "q12") {
+    if !matches!(elem.as_str(), "i64" | "f64" | "q12" | "q12w") {
         return Err(EinsumError::BadType(name.clone()));
     }
-    let fixed = elem == "q12";
-    let storage = if fixed {
-        Type::Named("i64".into())
-    } else {
-        einsum.elem.clone()
+    let storage = match elem.starts_with("q12") {
+        true => Type::Named("i64".into()),
+        false => einsum.elem.clone(),
     };
-    let spec: Spec = parse_spec(name, &einsum.spec)?;
-    let by_ref = |ty: Type, mutable: bool| Type::Ref {
-        mutable,
-        inner: Box::new(ty),
-    };
-    let mut params = vec![Param {
-        name: "out".into(),
-        ty: by_ref(operand_type(&storage, &spec.output), true),
-    }];
-    for (k, labels) in spec.inputs.iter().enumerate() {
-        params.push(Param {
-            name: format!("x{k}"),
-            ty: by_ref(operand_type(&storage, labels), false),
-        });
+    let spec = parse_spec(name, &einsum.spec)?;
+    if elem == "q12w" && !spec.reduced().is_empty() {
+        let sum = format!("{name}__sum");
+        return Ok(vec![
+            build_sum(&sum, false, &spec, &storage, false),
+            build_wide(name, &sum, def.public, &spec, &storage),
+        ]);
     }
-    let product = spec
-        .inputs
-        .iter()
-        .enumerate()
-        .map(|(k, labels)| Expr::Place(element(&format!("x{k}"), labels)))
-        .reduce(|a, b| {
-            let product = Expr::Binary(Box::new(a), BinOp::Mul, Box::new(b));
-            match fixed {
-                true => Expr::Binary(Box::new(product), BinOp::Div, Box::new(Expr::Int(4096))),
-                false => product,
-            }
-        })
-        .expect("at least one operand");
-    let update = stmt(StmtKind::Update {
-        target: element("out", &spec.output),
-        op: UpdateOp::Add,
-        value: product,
-    });
-    let mut order = spec.output.clone();
-    order.extend(spec.reduced());
-    let mut body = nest(&order, !spec.output.is_empty(), vec![update]);
-    number_spans(&mut body, &mut 1);
-    Ok(FnDef {
-        name: name.clone(),
-        generics: spec.labels().into_iter().map(length_name).collect(),
-        params,
-        body: Block {
-            stmts: body,
-            span: Span::from(0..0),
-        },
-        irreversible: false,
-        public: def.public,
-        test: false,
-        bennett: None,
-        external: false,
-        world: false,
-        einsum: None,
-    })
+    let scaled = elem.starts_with("q12");
+    Ok(vec![build_sum(name, def.public, &spec, &storage, scaled)])
 }

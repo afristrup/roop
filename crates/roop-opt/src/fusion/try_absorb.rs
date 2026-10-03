@@ -28,7 +28,7 @@ pub fn try_absorb(fused: &mut Fused, next: &Stmt) -> bool {
     let mut body = a.body.clone();
     body.stmts.extend(rename_block(b.body, b.var, a.var).stmts);
     let span = Span::from(fused.head.span.start..next.span.end);
-    if check_parallel_body(a.var, a.lo, a.hi, &body, span).is_err() {
+    if check_parallel_body(a.var, a.lo, a.hi, &body, span, None).is_err() {
         return false;
     }
 

@@ -1,17 +1,6 @@
-use crate::{LossKind, Model, decl, forward, gradients, loss, names, quantize, sample};
-
-/// `a - e` for a number a and an integer e, as roop writes it.
-fn difference(a: &str, e: i64) -> String {
-    match e < 0 {
-        true => format!("({a} + {})", -e),
-        false => format!("({a} - {e})"),
-    }
-}
-
-fn near(a: &str, e: i64, tolerance: i64) -> String {
-    let d = difference(a, e);
-    format!("    expect {d} * {d} <= {};\n", tolerance * tolerance)
-}
+use crate::{
+    LossKind, Model, decl, forward, gradient_unit, gradients, loss, names, near, quantize, sample,
+};
 
 /// A test that loads the model, and checks its forward pass, its loss and every
 /// gradient against the reference in doubles. Like every roop test it also runs
@@ -68,7 +57,9 @@ pub fn emit_tests(model: &Model) -> String {
     let gradient_tolerance = quantize(0.05 * scale + 0.005);
     for (tensor, grad) in model.gradients().iter().zip(&grads) {
         for (flat, g) in grad.iter().enumerate() {
-            body += &near(&tensor.element(flat), quantize(*g), gradient_tolerance);
+            let unit = gradient_unit(tensor);
+            let expected = (g * 4096.0 * unit as f64).round() as i64;
+            body += &near(&tensor.element(flat), expected, gradient_tolerance * unit);
         }
     }
     format!(

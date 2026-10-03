@@ -34,9 +34,11 @@ pub const USAGE: &str =
 
   weave        compile a model of reversible layers (JSON, from
                crates/roop-weave/python/torch_to_weave.py) to weave code
-    --tests      add a test that checks the code against a reference in doubles
+    --tests      add tests that check the code against a reference in doubles
     --main       add a `main` that runs the model on arguments, as whole numbers of 1/4096
-    --batch N    add `<name>_train`, a training step of N samples that C can call
+    --batch N    add the functions for a batch (`<name>_grad_batch`, ...), which run
+                 N samples through the network together as matrix products, and
+                 `<name>_train`, a step on N samples that C can call
     --driver F   write a C program that trains the model on data files (needs --batch)
 
   lsp          language server on stdin and stdout: syntax and check errors as

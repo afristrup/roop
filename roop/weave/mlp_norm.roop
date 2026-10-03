@@ -5,7 +5,7 @@
 use einsum::qhadamard;
 use einsum::qmatvec;
 use einsum::qmatvec_t;
-use einsum::qouter;
+use einsum::iouter;
 use super::act::*;
 use super::kernels::*;
 use super::norm::*;
@@ -69,9 +69,9 @@ pub fn mlp_norm_vjp<N, M>(
     call rmsnorm_vjp<M>(tz, tg, tn, z, g, eps);
     call add_vec<M>(gg, tg);
     call add_vec<N>(gb2, u);
-    call qouter(gw2, u, a);
+    call iouter(gw2, u, a);
     call add_vec<M>(gb1, tz);
-    call qouter(gw1, tz, x);
+    call iouter(gw1, tz, x);
     call qmatvec_t(ax, w1, tz);
     uncall rmsnorm_vjp<M>(tz, tg, tn, z, g, eps);
     uncall qhadamard(tn, d, ta);

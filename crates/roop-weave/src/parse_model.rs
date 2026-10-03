@@ -102,7 +102,7 @@ fn activation(layer: &Value, path: &str) -> Result<Activation, WeaveError> {
 fn parse_attention(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveError> {
     let path = format!("layers[{index}].");
     let seq = count(layer, "seq")?;
-    if width % seq != 0 {
+    if !width.is_multiple_of(seq) {
         let found = format!("a width of {width}");
         return Err(WeaveError::Shape {
             name: format!("layers[{index}]"),
@@ -129,7 +129,7 @@ fn parse_conv(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveE
         expected,
         found,
     };
-    if width % channels != 0 {
+    if !width.is_multiple_of(channels) {
         return Err(shape(
             format!("a width that {channels} channels divide"),
             format!("a width of {width}"),

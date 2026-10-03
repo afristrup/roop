@@ -1,5 +1,6 @@
 use crate::{
-    Access, CheckError, collect_accesses, expr_vars, place_root, places_overlap, private_key,
+    Access, CheckError, Mutability, collect_accesses, expr_vars, place_root, places_overlap,
+    private_key,
 };
 use roop_syntax::{Block, Expr, Span};
 use std::collections::HashSet;
@@ -14,9 +15,10 @@ pub fn check_parallel_body(
     hi: &Expr,
     body: &Block,
     span: Span,
+    mutability: Option<&Mutability>,
 ) -> Result<(), CheckError> {
     let mut accesses: Vec<Access> = Vec::new();
-    collect_accesses(body, &mut Vec::new(), &mut accesses);
+    collect_accesses(body, &mut Vec::new(), &mut accesses, mutability);
     let shared: Vec<&Access> = accesses.iter().filter(|a| !a.local).collect();
     let written = |name: &str| {
         shared

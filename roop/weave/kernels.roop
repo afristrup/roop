@@ -8,9 +8,9 @@
 // state of width N and a hidden layer of width M, so W is M by N.
 
 use einsum::qhadamard;
-use einsum::qmatvec;
-use einsum::qmatvec_t;
-use einsum::qouter;
+use einsum::wmatvec;
+use einsum::wmatvec_t;
+use einsum::iouter;
 use super::act::*;
 
 // x += y
@@ -32,15 +32,15 @@ pub fn drift<N>(x: &mut [i64; N], y: &[i64; N], h: &i64) {
 // z += W q + b
 pub fn affine<N, M>(z: &mut [i64; M], w: &[[i64; N]; M], q: &[i64; N], b: &[i64; M]) {
     call add_vec<M>(z, b);
-    call qmatvec(z, w, q);
+    call wmatvec(z, w, q);
 }
 
 // p += c * W^T s
 pub fn kick<N, M>(p: &mut [i64; N], w: &[[i64; N]; M], s: &[i64; M], c: &i64) {
     ancilla t: [i64; N] = 0;
-    call qmatvec_t(t, w, s);
+    call wmatvec_t(t, w, s);
     call drift<N>(p, t, c);
-    uncall qmatvec_t(t, w, s);
+    uncall wmatvec_t(t, w, s);
 }
 
 // The adjoints of `kick`: with u the adjoint of what kick added to, aq += c W^T
@@ -62,8 +62,8 @@ pub fn adjoint<N, M>(
     call drift<M>(cs, s, c);
     call drift<M>(cdt, dt, c);
     call kick<N, M>(aq, w, dt, c);
-    call qouter(gw, cs, u);
-    call qouter(gw, cdt, q);
+    call iouter(gw, cs, u);
+    call iouter(gw, cdt, q);
     call add_vec<M>(gb, cdt);
     uncall drift<M>(cdt, dt, c);
     uncall drift<M>(cs, s, c);

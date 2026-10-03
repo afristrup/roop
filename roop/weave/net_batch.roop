@@ -1,0 +1,178 @@
+// The leapfrog network on a batch of samples, as in `net`: the state is B rows
+// of N numbers, and every contraction is one matrix product over the batch.
+// The gradients added are the sums of what each sample adds, term for term, so
+// they are equal to the bit to B calls of `grad`.
+
+use einsum::qhadamard2;
+use einsum::wmatmul_nt;
+use super::kernels_batch::*;
+use super::rows::*;
+
+// p += -h/2 * W^T f(W q + b) for each row, with the intermediates undone.
+fn force_batch<N, M, B>(
+    p: &mut [[i64; N]; B],
+    w: &[[i64; N]; M],
+    q: &[[i64; N]; B],
+    b: &[i64; M],
+    c: &i64,
+    kind: &i64,
+) {
+    ancilla z: [[i64; M]; B] = 0;
+    ancilla s: [[i64; M]; B] = 0;
+    call affine_batch<N, M, B>(z, w, q, b);
+    call act_rows<M, B>(s, z, kind);
+    call kick_batch<N, M, B>(p, w, s, c);
+    uncall act_rows<M, B>(s, z, kind);
+    uncall affine_batch<N, M, B>(z, w, q, b);
+}
+
+// One leapfrog step with step size h for each row.
+pub fn layer_batch<N, M, B>(
+    q: &mut [[i64; N]; B],
+    p: &mut [[i64; N]; B],
+    w: &[[i64; N]; M],
+    b: &[i64; M],
+    h: &i64,
+    kind: &i64,
+) {
+    ancilla c: i64 = 0;
+    c -= h / 2;
+    call force_batch<N, M, B>(p, w, q, b, c, kind);
+    call drift_rows<N, B>(q, p, h);
+    call force_batch<N, M, B>(p, w, q, b, c, kind);
+    c += h / 2;
+}
+
+// The network: L layers, each with its own W and b.
+pub fn forward_batch<N, M, L, B>(
+    q: &mut [[i64; N]; B],
+    p: &mut [[i64; N]; B],
+    ws: &[[[i64; N]; M]; L],
+    bs: &[[i64; M]; L],
+    h: &i64,
+    kind: &i64,
+) {
+    ancilla k: i64 = 0;
+    from k == 0 {
+        call layer_batch<N, M, B>(q, p, ws[k], bs[k], h, kind);
+    } loop { k += 1; } until k == L - 1;
+    k -= L - 1;
+}
+
+// What the adjoint of p does to q and to the parameters, summed over the rows.
+pub fn vjp_batch<N, M, B>(
+    aq: &mut [[i64; N]; B],
+    gw: &mut [[i64; N]; M],
+    gb: &mut [i64; M],
+    u: &[[i64; N]; B],
+    w: &[[i64; N]; M],
+    q: &[[i64; N]; B],
+    b: &[i64; M],
+    c: &i64,
+    kind: &i64,
+) {
+    ancilla z: [[i64; M]; B] = 0;
+    ancilla s: [[i64; M]; B] = 0;
+    ancilla d: [[i64; M]; B] = 0;
+    ancilla t: [[i64; M]; B] = 0;
+    ancilla dt: [[i64; M]; B] = 0;
+    call affine_batch<N, M, B>(z, w, q, b);
+    call act_rows<M, B>(s, z, kind);
+    call dact_rows<M, B>(d, z, kind);
+    call wmatmul_nt(t, u, w);
+    call qhadamard2(dt, d, t);
+    call adjoint_batch<N, M, B>(aq, gw, gb, s, dt, u, w, q, c);
+    uncall qhadamard2(dt, d, t);
+    uncall wmatmul_nt(t, u, w);
+    uncall dact_rows<M, B>(d, z, kind);
+    uncall act_rows<M, B>(s, z, kind);
+    uncall affine_batch<N, M, B>(z, w, q, b);
+}
+
+// The backward step of `force_batch`: with u the adjoint of p, adds what it does
+// to aq, gw and gb, as `vjp_batch` does, and takes the force off p again, as
+// `uncall force_batch` does, from one evaluation of the force.
+pub fn force_back_batch<N, M, B>(
+    aq: &mut [[i64; N]; B],
+    gw: &mut [[i64; N]; M],
+    gb: &mut [i64; M],
+    p: &mut [[i64; N]; B],
+    u: &[[i64; N]; B],
+    w: &[[i64; N]; M],
+    q: &[[i64; N]; B],
+    b: &[i64; M],
+    c: &i64,
+    kind: &i64,
+) {
+    ancilla z: [[i64; M]; B] = 0;
+    ancilla s: [[i64; M]; B] = 0;
+    ancilla d: [[i64; M]; B] = 0;
+    ancilla t: [[i64; M]; B] = 0;
+    ancilla dt: [[i64; M]; B] = 0;
+    call affine_batch<N, M, B>(z, w, q, b);
+    call act_rows<M, B>(s, z, kind);
+    call dact_rows<M, B>(d, z, kind);
+    call wmatmul_nt(t, u, w);
+    call qhadamard2(dt, d, t);
+    call adjoint_batch<N, M, B>(aq, gw, gb, s, dt, u, w, q, c);
+    uncall kick_batch<N, M, B>(p, w, s, c);
+    uncall qhadamard2(dt, d, t);
+    uncall wmatmul_nt(t, u, w);
+    uncall dact_rows<M, B>(d, z, kind);
+    uncall act_rows<M, B>(s, z, kind);
+    uncall affine_batch<N, M, B>(z, w, q, b);
+}
+
+// The adjoints of one layer, from its output states back to its input states.
+pub fn layer_back_batch<N, M, B>(
+    q: &mut [[i64; N]; B],
+    p: &mut [[i64; N]; B],
+    aq: &mut [[i64; N]; B],
+    ap: &mut [[i64; N]; B],
+    gw: &mut [[i64; N]; M],
+    gb: &mut [i64; M],
+    w: &[[i64; N]; M],
+    b: &[i64; M],
+    h: &i64,
+    kind: &i64,
+) {
+    ancilla c: i64 = 0;
+    c -= h / 2;
+    call force_back_batch<N, M, B>(aq, gw, gb, p, ap, w, q, b, c, kind);
+    call drift_rows<N, B>(ap, aq, h);
+    uncall drift_rows<N, B>(q, p, h);
+    call force_back_batch<N, M, B>(aq, gw, gb, p, ap, w, q, b, c, kind);
+    c += h / 2;
+}
+
+// The backward pass for the batch: on exit q and p are the input again, aq and
+// ap hold the adjoint of the input, and gw and gb have the gradients added.
+pub fn backward_batch<N, M, L, B>(
+    q: &mut [[i64; N]; B],
+    p: &mut [[i64; N]; B],
+    aq: &mut [[i64; N]; B],
+    ap: &mut [[i64; N]; B],
+    gw: &mut [[[i64; N]; M]; L],
+    gb: &mut [[i64; M]; L],
+    ws: &[[[i64; N]; M]; L],
+    bs: &[[i64; M]; L],
+    h: &i64,
+    kind: &i64,
+) {
+    ancilla k: i64 = 0;
+    from k == 0 {
+        call layer_back_batch<N, M, B>(
+            q,
+            p,
+            aq,
+            ap,
+            gw[L - 1 - k],
+            gb[L - 1 - k],
+            ws[L - 1 - k],
+            bs[L - 1 - k],
+            h,
+            kind,
+        );
+    } loop { k += 1; } until k == L - 1;
+    k -= L - 1;
+}

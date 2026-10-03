@@ -415,7 +415,17 @@ contraction of three indices with a matrix, and the two products of attention,
 integer) and a `d` (f64) version. The element type `q12` is fixed point for weave: the
 numbers are `i64` holding x * 4096, and each product is divided by 4096, so a
 contraction stays on that grid (`qmatvec`, `qmatvec_t`, `qouter`, `qhadamard`,
-`qmatmul`, `qmatmul_nt`). Their tests are checked against sums worked out by
+`qmatmul`, `qmatmul_nt`, `qmatmul_tn`). The element type `q12w` is the fixed
+point that weave uses: the products of a sum are added exactly, in 64 bits, and
+the sum is divided by 4096 once (`wmatvec`, `wmatvec_t`, `wmatmul`, `wmatmul_nt`,
+`wmatmul_tn`, and for a batch `wproject`, `wunproject`, `wscores`, `wattend`,
+`wattend_t`). It is more exact than `q12`, and a `q12w` einsum with a sum in it
+is two functions: the `i64` einsum `<name>__sum` into a scratch array, and the
+quotients added to `out`, with the scratch array taken off again by `uncall`
+(which the compiler does by zeroing it, see Building). A contraction with no sum
+(`qouter`, `qhadamard`) is the same in `q12` and `q12w`. `iweight_grad`
+(`"bsi,bsk->ik"` in `i64`) is the gradient of a shared weight, and is not divided
+by 4096. Their tests are checked against sums worked out by
 hand, in `roop/tests/einsum.roop`. Because a contraction is reversible, so is its
 gradient: the vector-jacobian product of an einsum is another einsum with the
 labels moved, such as `"ik,jk->ij"` for the gradient of `matmul` with respect to
@@ -515,6 +525,13 @@ so the branch on it is undone by the same test going back:
 The slope of each is in `weave::dact`. The tanh is smooth where it joins 1: its
 slope `((9 - z^2) / (3 (3 + z^2)))^2` is zero there.
 
+Contractions are the `q12w` einsums: the products of a sum are added exactly and
+divided by 4096 once, which is more exact than dividing each and lets the compiler
+run them on the matrix unit. The gradient of a matrix is the sum of the products
+that `adjoint`, `mlp_vjp`, `mlp_norm_vjp` and `conv_vjp` add up, not divided by 4096, so it is in Q24 (4096
+times a Q12 number); the gradient of a bias is in Q12. `sgd_mat` divides by
+2^24 when it applies it.
+
 **The perceptron block** is the other reversible layer, from RevNets and NICE:
 the state is split in two, and each half takes in a function of the other,
 
@@ -568,6 +585,23 @@ widths 2, 4 and 8 with up to three layers, and the perceptron block at 4 by 3; w
 minutes): each call's own lemma settles it, so a function of eleven calls takes
 seconds, not a case split of every outcome.
 
+**Batches.** `weave::step` runs one sample at a time. `layer_batch`, `forward_batch`,
+`layer_back_batch`, `backward_batch`, `grad_batch` and `step_batch` run `B`
+samples as matrix products, on a state of `B` rows (`[[i64; N]; B]`), and
+`mlp_batch`, `mlp_back_batch`, `attn_batch` and `attn_back_batch` do the same for
+the perceptron and attention blocks. They add into places they do not read and
+rebuild every intermediate by `uncall` like the single-sample functions, so a
+batch needs no more memory per layer than a sample does, and none that grows with
+the depth. The gradients they add are the sums of what `B` calls of the
+single-sample function add, to the bit (a test checks that for the leapfrog
+network, the perceptron and attention, for every activation).
+`step_parallel<N, M, L, K, B, C>` splits a step into `C` chunks of `B` samples,
+each with its own buffers and its own gradients, runs them with `#[parallel(cpu)]`,
+adds the gradients up and takes the step, which gives the weights of one batch of
+`C * B` samples to the bit. A parallel loop may pass read-only places, the
+weights, to a call, since the checker now counts a call as writing only the
+arguments it gives to `&mut` parameters.
+
 This is a research library, not a framework. There is no automatic
 differentiation: each layer's adjoint is written out, and roop has no function
 arguments to build a graph from. A test measures throughput: `cargo test -p roop
@@ -586,7 +620,8 @@ The softmax targets must sum to 1.
 `{"kind": "adam", "beta1": 0.9, "beta2": 0.999}`. The optimizers are `irrev`, since they
 overwrite their moving averages, and live in the training step; the gradient stays
 reversible. Adam has no bias correction, and keeps its second moment in Q24 so that small
-squared gradients are not lost.
+squared gradients are not lost. A matrix's gradient is in Q24, so the matrix
+versions divide it by 4096 before the moving averages, and the vector ones take a unit of 1.
 
 `crates/roop-weave/python/weave_train.py` closes the loop with torch:
 
@@ -625,10 +660,16 @@ roop test net.roop
 
 The output has `net_forward`, `net_backward`, `net_grad` (the loss of a sample and its gradients, with the input
 rebuilt at the end) and `net_step<B>`, which is the training step. With `--batch B`
-it also has `net_train`, a step of B samples with the length filled in, which C
-can call. With `--tests` it adds `net_load` (the weights, rounded to 1/4096) and a test that runs
+it also has `net_forward_batch<B>`, `net_backward_batch<B>`, `net_grad_batch<B>` and
+`net_step_batch<B>`, which run the samples through the network together as
+matrix products, and `net_train`, a step of B samples with the length filled in,
+which C can call; its buffers `q`, `p`, `aq` and `ap` hold B rows of the state.
+The gradients of the matrices are in Q24. With `--tests` it adds `net_load` (the weights, rounded to 1/4096) and a test that runs
 the forward pass and the gradient and compares them with a reference in doubles, whose gradients are
-central differences, so it checks the compiler and weave together. Like every roop
+central differences, so it checks the compiler and weave together. With `--batch B`
+it adds a second test that runs B different samples through the batched
+functions and compares the outputs, the summed loss and the summed gradients
+with the sum of the reference over the samples. Like every roop
 test it also runs backward. Lean proves a compiled model's forward, backward and gradient exactly reversible
 (`roop lean net.roop --check`; it does not take the loader, which is only for the test).
 A model that is not well formed is refused with the
@@ -907,6 +948,31 @@ what `std::blas::level3::dgemm` and `std::blas::level1::daxpy` are. Backward
 the kernel subtracts, so reversal works as for the loops. The results can
 differ from the loops in the last bits, since the kernel fuses the
 multiply and the add. `sme = false` under `[parallel]` turns it off.
+
+The same recognition covers integer matrix products, the loops that `imatmul`,
+`imatmul_nt` and `imatmul_tn` expand to (`c[i][k] += a[i][j] * b[j][k]`, or with
+`a[j][i]` or `b[k][j]`), over `i64` arrays. With SME they call `roop_i64_matmul`,
+which converts to doubles, uses the `dgemm` kernel and converts back; doubles hold
+integers exactly, so it is used only when every product and every sum is below
+2^52, and otherwise the loops run. The result is what the loops give, to the bit,
+and backward the kernel subtracts it. The loops of the `q12` einsums, where each
+product is divided by 4096 (`c[i][k] += a[i][j] * b[j][k] / 4096`), call a NEON
+kernel instead, `roop_q12_matmul`, which does the same in doubles, truncating each
+product, with the same fallback; `q12 = false` under `[parallel]` turns that one
+off.
+
+```toml
+[optimize]
+clear_ancillas = true
+```
+
+An ancilla that a `call f(w, ..)` made and an `uncall f(w, ..)` takes off again is
+set to zero, not computed backward, when `w` is an array that starts at zero and
+is written by nothing else, `f` writes nothing but `w` and does nothing to the
+world, and nothing between the two writes what `f` reads. Running the function
+backward does the same to the other of the two. Nothing observable changes, since
+the `uncall` would have left zero, and a test runs weave's step with and without
+it and compares the weights. `clear_ancillas = false` turns it off.
 
 Metal kernels are emitted as AIR and built with Apple's `metal` tools; NVPTX
 kernels go through LLVM's PTX backend and need a CUDA driver at run time. The

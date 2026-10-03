@@ -35,7 +35,7 @@ fn driver(model: &roop_weave::Model, rate: f64, epochs: usize) -> String {
         c += &format!("static int64_t {}[{}];\n", t.name, t.data.len());
         pointers.push(t.name);
     }
-    c += "static int64_t q[4], p[4], aq[4], ap[4];\n";
+    c += "static int64_t q[16], p[16], aq[16], ap[16];\n";
     pointers
         .extend(["q", "p", "aq", "ap", "(int64_t*)xs", "(int64_t*)ts", "&lr"].map(String::from));
     let xs: Vec<String> = XS.iter().map(|x| numbers(&x.map(|v| v as f64))).collect();
