@@ -1,0 +1,69 @@
+// Protocols for conversations that can be rolled back, from "Compliance for
+// reversible client/server interactions" (Barbanera, Dezani-Ciancaglini and
+// de'Liguoro).
+//
+// A behaviour says what one party does. `offer { a: b, ... }` waits for the
+// other party to pick an action, `select { a: b, ... }` picks one, `end` is
+// success and `rec x { ... }` repeats. A `checkpoint` marks a point that both
+// parties can roll the conversation back to. A session with one role declares
+// the client and takes the server to be its dual; with two roles the first is
+// the client and the second the server. The compiler checks that the client
+// is checkpoint compliant with the server: whatever either does, including
+// rolling back to its last checkpoint, they never get stuck. Lean checks the
+// same independently (`roop lean`).
+
+// The travel agency of the paper. The client wants a house, or a bungalow at
+// sea, or a house in the mountains. Importing it checks the pair.
+pub session Booking {
+    client: offer { sea: offer { house: end, bung: end }, mount: offer { house: end } };
+}
+
+// The same agency, where the server may change its mind: after offering a
+// house it can roll back to its checkpoint and offer a bungalow instead. For
+// the client to survive that, it needs the matching checkpoint: the dual is
+// exactly that.
+pub session Negotiation {
+    client: checkpoint select {
+        sea: checkpoint select { house: end, bung: end },
+        mount: select { house: end },
+    };
+}
+
+// A client asks for a house with a garden. The server checkpoints in the
+// middle of the conversation and the client does not, which is fine because
+// rolling back still lands both in compliant states.
+pub session Garden {
+    client: checkpoint offer {
+        sea: offer { house: offer { garden: end } },
+        house: offer { garden: end },
+    };
+    server: checkpoint select {
+        sea: checkpoint select { house: select { garden: end } },
+        house: select { garden: end },
+    };
+}
+
+// Say hello until the server acknowledges.
+pub session Handshake {
+    client: rec again { select { hello: offer { ack: end, nack: again } } };
+}
+
+// A stream of items closed by `done`.
+pub session Stream {
+    client: rec more { select { item: more, done: end } };
+}
+
+// Two-phase commit, from the coordinator's side. The coordinator checkpoints
+// before it asks, so a refusal can roll the whole round back.
+pub session TwoPhase {
+    coordinator: checkpoint select {
+        prepare: offer { yes: select { commit: end }, no: select { abort: end } },
+    };
+}
+
+// A request that may be answered, refused or deferred, any number of times.
+pub session Request {
+    client: rec ask {
+        checkpoint select { request: offer { reply: end, refused: end, busy: ask } }
+    };
+}

@@ -1,0 +1,15 @@
+[package]
+name = "roop-rt"
+edition.workspace = true
+version.workspace = true
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-metal = "0.3"
+
+[dependencies]
+libloading = "0.8"

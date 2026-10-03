@@ -1,0 +1,19 @@
+mod blas;
+mod complex;
+mod session;
+
+pub use blas::*;
+pub use complex::*;
+pub use session::*;
+
+pub fn swap(a: &mut i64, b: &mut i64) {
+    a <=> b;
+}
+
+pub fn add(a: &mut i64, b: &i64) {
+    a += b;
+}
+
+pub fn xor(a: &mut i64, b: &i64) {
+    a ^= b;
+}

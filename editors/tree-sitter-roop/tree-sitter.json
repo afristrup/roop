@@ -1,0 +1,21 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "roop",
+      "camelcase": "Roop",
+      "title": "Roop",
+      "scope": "source.roop",
+      "path": ".",
+      "file-types": ["roop"],
+      "highlights": "queries/highlights.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Tree-sitter grammar for the roop reversible programming language",
+    "authors": [{ "name": "Aksel Fristrup" }],
+    "links": { "repository": "https://github.com/afristrup/roop" }
+  }
+}

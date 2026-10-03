@@ -1,0 +1,20 @@
+id = "roop"
+name = "Roop"
+version = "0.1.0"
+schema_version = 1
+authors = ["Aksel Fristrup <aksel@fristrup.co>"]
+description = "Roop, the reversible programming language: highlighting, outline and brackets."
+repository = "https://github.com/afristrup/roop"
+
+[grammars.roop]
+repository = "https://github.com/afristrup/roop"
+rev = "2aa6f14c14aeebb220ab7122abae90db33a315bc"
+path = "editors/tree-sitter-roop"
+
+# A language server needs one more step: a small Rust extension that starts
+# `roop lsp`. Then uncomment this, and `language_servers` in
+# languages/roop/config.toml. See ../README.md.
+#
+# [language_servers.roop-lsp]
+# name = "Roop Language Server"
+# languages = ["Roop"]

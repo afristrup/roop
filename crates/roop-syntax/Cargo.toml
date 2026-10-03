@@ -1,0 +1,8 @@
+[package]
+name = "roop-syntax"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+chumsky = "1.0.0-alpha.8"
+logos = "0.16.1"

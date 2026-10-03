@@ -1,0 +1,46 @@
+struct Policy {
+    premium: i64,
+    reserve: i64,
+    claims: i64,
+    build(initial: &i64) {
+        self.premium += initial;
+        self.reserve += initial;
+    }
+    unbuild(initial: &i64) {
+        self.reserve -= initial;
+        self.premium -= initial;
+    }
+}
+
+fn collect(p: &mut Policy, payment: &i64) {
+    p.premium += payment;
+    p.reserve += payment;
+}
+
+fn settle(p: &mut Policy, amount: &i64) {
+    ancilla covered: i64 = 0 {
+        covered += amount;
+        p.claims += covered;
+        p.reserve -= covered;
+        covered -= amount;
+    }
+}
+
+fn accrue(p: &mut Policy, months: &i64, i: &mut i64) {
+    from i == 0 { p.reserve += p.premium; } loop { i += 1; } until i == months;
+}
+
+enum Status { Active, Lapsed, Closed }
+
+fn apply(status: &Status, p: &mut Policy, amount: &i64) {
+    match status {
+        Status::Active => { p.reserve += amount; } assert status == Status::Active;
+        Status::Lapsed => { p.claims += amount; } assert status == Status::Lapsed;
+        Status::Closed => {} assert status == Status::Closed;
+    }
+}
+
+fn accrue_all(reserves: &mut [i64; 4], premiums: &[i64; 4], i: &mut i64) {
+    #[parallel]
+    from i == 0 { reserves[i] += premiums[i]; } loop { i += 1; } until i == 3;
+}

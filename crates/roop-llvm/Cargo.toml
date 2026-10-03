@@ -1,0 +1,12 @@
+[package]
+name = "roop-llvm"
+edition.workspace = true
+version.workspace = true
+
+[dev-dependencies]
+roop-opt = { path = "../roop-opt" }
+
+[dependencies]
+roop-syntax = { path = "../roop-syntax" }
+roop-check = { path = "../roop-check" }
+

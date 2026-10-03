@@ -1,0 +1,40 @@
+// Destroying information without losing reversibility: the history stack, and
+// a try whose outcome is data.
+
+// Overwrites the balance. The old value goes on the history, so this function
+// still has an inverse; it takes the history as a parameter because that is
+// where the destroyed information lives.
+fn settle_to(balance: &mut i64, amount: &i64, h: &mut Stack<i64, 8>) {
+    logged h {
+        balance = amount * 2;
+    }
+}
+
+// Compute, copy, uncompute: keep the quote, then undo the overwrite so the
+// history is empty again and the temporary stack can go.
+fn quote(balance: &mut i64, amount: &i64, quoted: &mut i64) {
+    ancilla h: Stack<i64, 8> = empty {
+        call settle_to(balance, amount, h);
+        quoted += balance;
+        uncall settle_to(balance, amount, h);
+    }
+}
+
+// A transfer that refuses to overdraw. If the exit assertion fails, the two
+// updates are undone by running them backward, the handler counts the refusal,
+// and `refused` records which way it went, which is what makes this reversible.
+fn transfer(
+    payer: &mut i64,
+    payee: &mut i64,
+    amount: &i64,
+    refusals: &mut i64,
+    refused: &mut bool,
+) {
+    try {
+        payer -= amount;
+        payee += amount;
+        if payer >= 0 {} fi payer >= 0;
+    } catch_rollback {
+        refusals += 1;
+    } -> refused;
+}

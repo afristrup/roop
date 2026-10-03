@@ -1,0 +1,96 @@
+========================================
+literals and operators
+========================================
+
+fn f(a: &mut f64) {
+    a += 1.5 * -2.0 + (3.0 - 1.0) / 2.0;
+    a += !true;
+    a += x[i + 1].re % 3;
+    a += x == 1 || y != 2 && z <= 3;
+}
+
+----------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type))))
+    (block
+      (update_statement
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (float)
+            (unary_expression
+              (float)))
+          (binary_expression
+            (parenthesized_expression
+              (binary_expression
+                (float)
+                (float)))
+            (float))))
+      (update_statement
+        (identifier)
+        (unary_expression
+          (boolean)))
+      (update_statement
+        (identifier)
+        (binary_expression
+          (field_expression
+            (index_expression
+              (identifier)
+              (binary_expression
+                (identifier)
+                (integer)))
+            (identifier))
+          (integer)))
+      (update_statement
+        (identifier)
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (integer))
+          (binary_expression
+            (binary_expression
+              (identifier)
+              (integer))
+            (binary_expression
+              (identifier)
+              (integer))))))))
+
+========================================
+variants and empty
+========================================
+
+fn f(s: &mut Status) {
+    ancilla h: Stack<i64, 4> = empty { s += Status::Active; }
+}
+
+----------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (type_identifier
+            (identifier)))))
+    (block
+      (ancilla_statement
+        (identifier)
+        (stack_type
+          (primitive_type)
+          (integer))
+        (empty)
+        (block
+          (update_statement
+            (identifier)
+            (variant_path
+              (identifier)
+              (identifier))))))))

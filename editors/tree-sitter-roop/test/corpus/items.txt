@@ -1,0 +1,156 @@
+========================================
+modules and imports
+========================================
+
+mod util;
+pub use std::blas::{iaxpy, idot as dot};
+use std::complex::*;
+use super::base as b;
+
+----------------------------------------
+
+(source_file
+  (mod_item
+    (identifier))
+  (use_item
+    (visibility)
+    (identifier)
+    (identifier)
+    (use_group
+      (use_name
+        (identifier))
+      (use_name
+        (identifier)
+        (identifier))))
+  (use_item
+    (identifier)
+    (identifier))
+  (use_item
+    (identifier)
+    (identifier)
+    (identifier)))
+
+========================================
+enums and structs
+========================================
+
+pub enum Status { Active, Lapsed, Closed }
+struct Account {
+    balance: i64,
+    history: Stack<i64, 8>,
+    build(x: &i64) { balance += x; }
+    unbuild(x: &i64) { balance -= x; }
+}
+
+----------------------------------------
+
+(source_file
+  (enum_item
+    (visibility)
+    (identifier)
+    (variant
+      (identifier))
+    (variant
+      (identifier))
+    (variant
+      (identifier)))
+  (struct_item
+    (identifier)
+    (field_declaration
+      (identifier)
+      (primitive_type))
+    (field_declaration
+      (identifier)
+      (stack_type
+        (primitive_type)
+        (integer)))
+    (build_function
+      (parameters
+        (parameter
+          (identifier)
+          (reference_type
+            (primitive_type))))
+      (block
+        (update_statement
+          (identifier)
+          (identifier))))
+    (build_function
+      (parameters
+        (parameter
+          (identifier)
+          (reference_type
+            (primitive_type))))
+      (block
+        (update_statement
+          (identifier)
+          (identifier))))))
+
+========================================
+functions
+========================================
+
+pub irrev fn settle<N>(x: &mut [i64; N], k: &i64) {
+    x[0] = k;
+}
+fn plain() {}
+
+----------------------------------------
+
+(source_file
+  (function_item
+    (visibility)
+    (identifier)
+    (generics
+      (identifier))
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (array_type
+            (primitive_type)
+            (identifier))))
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type))))
+    (block
+      (overwrite_statement
+        (index_expression
+          (identifier)
+          (integer))
+        (identifier))))
+  (function_item
+    (identifier)
+    (parameters)
+    (block)))
+
+========================================
+bennett
+========================================
+
+pub bennett fn quote = settle_to;
+
+----------------------------------------
+
+(source_file
+  (bennett_item
+    (visibility)
+    (identifier)
+    (identifier)))
+
+========================================
+comments
+========================================
+
+// a comment
+fn f() {} // beside
+
+----------------------------------------
+
+(source_file
+  (comment)
+  (function_item
+    (identifier)
+    (parameters)
+    (block))
+  (comment))

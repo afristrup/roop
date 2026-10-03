@@ -1,3 +1,12 @@
 [modules]
 std = "std"
 insurance = "examples/insurance"
+history = "examples/history"
+server = "examples/server"
+weave = "weave"
+
+[parallel]
+# Bare #[parallel] picks CPU threads or a GPU, whichever is estimated faster.
+# Set auto = false to always use CPU threads, or drop a target to opt out of it.
+auto = true
+targets = ["cpu", "metal", "cuda"]

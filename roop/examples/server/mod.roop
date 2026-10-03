@@ -1,0 +1,60 @@
+// A reversible server for the travel agency of std::session::Negotiation.
+//
+// The client asks for a place, the server offers a house, and then a better
+// offer turns up: the server rolls its last step back to the checkpoint and
+// offers a bungalow instead. Rolling back is not a special mechanism. Every
+// step is a reversible function, so undoing it is `uncall`, and a step that
+// overwrites information pushes what it destroys onto the history, which is
+// where the rollback finds it.
+
+use std::session::Negotiation;
+
+struct Conversation { place: i64, offer: i64, taken: i64 }
+
+// The place the client asked for: sea is 1 and mount is 2.
+fn receive(c: &mut Conversation, place: &i64, history: &mut Stack<i64, 8>) {
+    logged history {
+        c.place = place;
+    }
+}
+
+fn offer_house(c: &mut Conversation, history: &mut Stack<i64, 8>) {
+    logged history {
+        c.offer = 1;
+    }
+}
+
+fn offer_bung(c: &mut Conversation, history: &mut Stack<i64, 8>) {
+    logged history {
+        c.offer = 2;
+    }
+}
+
+fn take(c: &mut Conversation, history: &mut Stack<i64, 8>) {
+    logged history {
+        c.taken = c.offer;
+    }
+}
+
+// Offers a house, or, when a better offer turned up, rolls that step back and
+// offers a bungalow. The exit assertion is what a rollback follows back: it
+// holds after the first branch and fails after the second.
+fn answer(c: &mut Conversation, better: &i64, history: &mut Stack<i64, 8>) {
+    call offer_house(c, history);
+    if better > 0 {
+        uncall offer_house(c, history);
+        call offer_bung(c, history);
+    } fi better > 0;
+}
+
+// A whole conversation. Calling it backward is the client abandoning it: every
+// field and the history return to where they started.
+fn converse(
+    c: &mut Conversation,
+    place: &i64,
+    better: &i64,
+    history: &mut Stack<i64, 8>,
+) {
+    call receive(c, place, history);
+    call answer(c, better, history);
+}
