@@ -5,6 +5,7 @@
 mod activation;
 mod decl;
 mod emit_backward;
+mod emit_driver;
 mod emit_forward;
 mod emit_grad;
 mod emit_load;
@@ -31,6 +32,7 @@ mod weave_error;
 pub use activation::*;
 pub use decl::*;
 pub use emit_backward::*;
+pub use emit_driver::*;
 pub use emit_forward::*;
 pub use emit_grad::*;
 pub use emit_load::*;

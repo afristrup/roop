@@ -8,6 +8,10 @@ import torch
 
 GRID = 4096.0
 
+KEYS = {"leapfrog": [("w", "weight"), ("b", "bias")],
+        "mlp": [("w1", "w1"), ("b1", "b1"), ("w2", "w2"), ("b2", "b2")],
+        "attention": [("wq", "wq"), ("wk", "wk"), ("wv", "wv")]}
+
 
 def snap(x):
     return torch.round(torch.as_tensor(x, dtype=torch.float64) * GRID) / GRID
@@ -44,9 +48,13 @@ def activate(name, z):
     raise ValueError(name)
 
 
-def sample(width, outputs):
+def sample(width, outputs, loss="mse"):
     x = [((i * 3 + 1) % 7) / 4 - 0.75 for i in range(width)]
-    t = [((k * 2 + 1) % 3) / 4 - 0.25 for k in range(outputs)]
+    t = {
+        "mse": [((k * 2 + 1) % 3) / 4 - 0.25 for k in range(outputs)],
+        "sigmoid": [float(k % 2) for k in range(outputs)],
+        "softmax": [float(k == 0) for k in range(outputs)],
+    }[loss]
     return torch.tensor(x, dtype=torch.float64), torch.tensor(t, dtype=torch.float64)
 
 
@@ -77,6 +85,34 @@ def attention(layer, x):
     return ((q @ k.T) @ v).reshape(-1)
 
 
+def run_layers(layers, h, x):
+    q, p, into_q = x, torch.zeros_like(x), True
+    for layer in layers:
+        if layer["kind"] == "leapfrog":
+            q, p = leapfrog(layer, h, q, p)
+        else:
+            half = attention if layer["kind"] == "attention" else perceptron
+            if into_q:
+                q = q + half(layer, p)
+            else:
+                p = p + half(layer, q)
+            into_q = not into_q
+    return q
+
+
+def evaluate(spec, xs, ts):
+    """The loss, summed over the samples, of the model as it is, in doubles. This
+    is what the training of weave reports, in fixed point."""
+    layers = [dict(raw, **{ours: snap(raw[theirs]) for ours, theirs in KEYS[raw["kind"]]},
+                   activation=raw.get("activation"), seq=raw.get("seq"))
+              for raw in spec["layers"]]
+    h, total = float(snap(spec["step"])), 0.0
+    for x, t in zip(xs, ts):
+        q = run_layers(layers, h, snap(x))[: spec["outputs"]]
+        total += float(0.5 * ((q - snap(t)) ** 2).sum())
+    return total
+
+
 def mirror(spec):
     """The loss of the sample and the gradient of every tensor, in the order of
     the layers' tensors: w, b for a leapfrog layer and w1, b1, w2, b2 for a
@@ -92,7 +128,8 @@ def mirror(spec):
             layer[ours] = leaf(raw[theirs])
             leaves.append(layer[ours])
         layers.append(layer)
-    x, t = sample(width, spec["outputs"])
+    loss_kind = spec.get("loss", "mse")
+    x, t = sample(width, spec["outputs"], loss_kind)
     x = snap(x)
     q, p = x, torch.zeros_like(x)
     into_q = True
@@ -106,7 +143,13 @@ def mirror(spec):
             else:
                 p = p + half(layer, q)
             into_q = not into_q
-    loss = 0.5 * ((q[: spec["outputs"]] - snap(t)) ** 2).sum()
+    out, target = q[: spec["outputs"]], snap(t)
+    if loss_kind == "sigmoid":
+        loss = torch.nn.functional.binary_cross_entropy_with_logits(out, target, reduction="sum")
+    elif loss_kind == "softmax":
+        loss = -(target * torch.log_softmax(out, dim=0)).sum()
+    else:
+        loss = 0.5 * ((out - target) ** 2).sum()
     loss.backward()
     grads = [torch.zeros_like(l) if l.grad is None else l.grad for l in leaves]
     return loss.item(), [g.flatten().tolist() for g in grads]

@@ -9,14 +9,22 @@ import unittest
 import torch
 from torch import nn
 
-from torch_mirror import mirror
+from torch_mirror import evaluate, mirror
+from weave_train import train
 from torch_to_weave import Unsupported, export
 from weave_modules import LinearAttention
+
+
+LOSSES = {"softmax_head": "softmax", "sigmoid_head": "sigmoid"}
 
 
 def models():
     torch.manual_seed(0)
     return {
+        "softmax_head": nn.Sequential(
+            nn.Linear(4, 3), nn.ReLU(), nn.Linear(3, 4), nn.Linear(4, 3), nn.Tanh(), nn.Linear(3, 4),
+        ),
+        "sigmoid_head": nn.Sequential(nn.Linear(4, 3), nn.Tanh(), nn.Linear(3, 4)),
         "mlp_then_leapfrog": nn.Sequential(
             nn.Linear(4, 3), nn.ReLU(), nn.Linear(3, 4), nn.Linear(4, 4), nn.Tanh()
         ),
@@ -84,6 +92,24 @@ class RealTorch(unittest.TestCase):
         with self.assertRaisesRegex(Unsupported, "reads 6 numbers"):
             export(nn.Sequential(nn.Linear(4, 3), nn.ReLU(), nn.Linear(3, 4), LinearAttention(3, 2)))
 
+    def test_training_through_weave_puts_the_trained_weights_back(self):
+        torch.manual_seed(1)
+        net = nn.Sequential(
+            nn.Linear(4, 6), nn.Tanh(), nn.Linear(6, 4),
+            nn.Linear(4, 6), nn.Tanh(), nn.Linear(6, 4),
+            nn.Linear(4, 6), nn.Tanh(), nn.Linear(6, 4),
+        )
+        xs = [[1, 1, 1, 0], [1, -1, 1, 0], [-1, 1, 1, 0], [-1, -1, 1, 0]]
+        ts = [[-0.5], [0.5], [0.5], [-0.5]]
+        before = net[0].weight.detach().clone()
+        roop = os.environ.get("WEAVE_ROOP", "roop")
+        losses = train(net, xs, ts, epochs=1500, rate=0.05, roop=roop)
+        self.assertLess(losses[-1], losses[0] / 5)
+        self.assertFalse(torch.equal(before, net[0].weight))
+        # The weights that came back reproduce the loss weave reported.
+        again = evaluate(export(net.eval(), outputs=1), xs, ts)
+        self.assertAlmostEqual(again, losses[-1], delta=0.02 + 0.1 * losses[-1])
+
     def test_a_residual_connection_is_refused_because_the_graph_branches(self):
         class Residual(nn.Module):
             def __init__(self):
@@ -99,7 +125,8 @@ class RealTorch(unittest.TestCase):
     def test_export_for_each_model_and_its_autograd_gradients(self):
         out = os.environ.get("WEAVE_TORCH_OUT")
         for name, net in models().items():
-            spec = export(net.eval(), outputs=2, name=name)
+            spec = export(net.eval(), outputs=3 if name in LOSSES else 2, name=name,
+                          loss=LOSSES.get(name, "mse"))
             loss, grads = mirror(spec)
             self.assertTrue(all(torch.isfinite(torch.tensor(g)).all() for g in grads))
             if out:

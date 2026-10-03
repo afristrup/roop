@@ -559,6 +559,34 @@ differentiation: each layer's adjoint is written out, and roop has no function
 arguments to build a graph from. A test measures throughput: `cargo test -p roop
 --test weave --release -- --ignored --nocapture`.
 
+### Losses, optimizers and training from torch
+
+The loss is chosen in the model: `"loss": "mse"` (half the squared error, the default),
+`"sigmoid"` or `"softmax"`. For the two cross entropies the seed of the backward pass is
+the usual `p - t`, with the sigmoid from the tanh above and an exponential computed as
+`(1 + x / 64) ^ 64` (within 1% down to -2, about 7% off at -5); the cross entropy needs a
+logarithm, which weave lacks, so `total` is the squared error of the probabilities there.
+The softmax targets must sum to 1.
+
+`"optimizer"` is `{"kind": "sgd"}`, `{"kind": "momentum", "beta": 0.9}` or
+`{"kind": "adam", "beta1": 0.9, "beta2": 0.999}`. The optimizers are `irrev`, since they
+overwrite their moving averages, and live in the training step; the gradient stays
+reversible. Adam has no bias correction, and keeps its second moment in Q24 so that small
+squared gradients are not lost.
+
+`crates/roop-weave/python/weave_train.py` closes the loop with torch:
+
+```python
+from weave_train import train
+losses = train(net, xs, ts, epochs=1500, rate=0.05, loss="mse", optimizer={"kind": "adam"})
+```
+
+It exports the model, compiles it with `roop weave --batch B --driver main.c`, builds that
+with the C program that trains on files (`prog weights data epochs rate samples trained`),
+trains in fixed point with no activations stored, and copies the trained weights back into
+the torch tensors they came from. `roop weave --driver` writes the program on its own, for
+use outside Python.
+
 ### From torch
 
 `roop weave` compiles a model of these layers to roop code. A model is JSON: the

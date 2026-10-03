@@ -37,16 +37,25 @@ pub fn project(name: &str) -> PathBuf {
     dir
 }
 
-pub fn roop(dir: &Path, args: &[&str]) -> Output {
+pub fn roop_binary() -> PathBuf {
     static BUILD: std::sync::Once = std::sync::Once::new();
     BUILD.call_once(|| {
         build("roop");
         build("roop-rt");
     });
-    Command::new(target().join("debug/roop"))
+    target().join("debug/roop")
+}
+
+pub fn runtime_library() -> PathBuf {
+    roop_binary();
+    target().join("debug/libroop_rt.a")
+}
+
+pub fn roop(dir: &Path, args: &[&str]) -> Output {
+    Command::new(roop_binary())
         .current_dir(dir)
         .args(args)
-        .env("ROOP_RT_LIB", target().join("debug/libroop_rt.a"))
+        .env("ROOP_RT_LIB", runtime_library())
         .output()
         .unwrap()
 }

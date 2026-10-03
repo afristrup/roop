@@ -174,26 +174,51 @@ def block_at(leaves, i, width):
     return block, 2
 
 
-def export(model, outputs=None, step=0.25, name="model"):
-    """The roop-weave model for a torch module, as a dict."""
+def parameters(block, leaves, i):
+    """The torch tensors of a block, in the order of its tensors in roop-weave. A
+    bias that does not exist is None."""
+    if block["kind"] == "attention":
+        m = leaves[i]
+        return [m.wq.weight, m.wk.weight, m.wv.weight]
+    first = leaves[i]
+    if block["kind"] == "leapfrog":
+        return [first.weight, first.bias]
+    second = leaves[i + 2]
+    return [first.weight, first.bias, second.weight, second.bias]
+
+
+def export_bound(model, outputs=None, step=0.25, name="model", loss="mse", optimizer=None):
+    """The roop-weave model for a torch module as a dict, and the torch tensors
+    that hold each of its weights, in the order roop-weave keeps them."""
     leaves = flatten(model) if kind(model) == "Sequential" else traced_chain(model)
     heads = [m for m in leaves if is_linear(m) or kind(m) == "LinearAttention"]
     if not heads:
         raise Unsupported("the model has no Linear layer")
     first = heads[0]
     width = first.seq * first.dim if kind(first) == "LinearAttention" else first.in_features
-    layers, i = [], 0
+    layers, bound, i = [], [], 0
     while i < len(leaves):
         block, taken = block_at(leaves, i, width)
         layers.append(block)
+        bound.extend(parameters(block, leaves, i))
         i += taken
-    return {
+    spec = {
         "name": name,
         "width": width,
         "outputs": width if outputs is None else outputs,
         "step": step,
         "layers": layers,
     }
+    if loss != "mse":
+        spec["loss"] = loss
+    if optimizer is not None:
+        spec["optimizer"] = optimizer
+    return spec, bound
+
+
+def export(model, outputs=None, step=0.25, name="model", loss="mse", optimizer=None):
+    """The roop-weave model for a torch module, as a dict."""
+    return export_bound(model, outputs, step, name, loss, optimizer)[0]
 
 
 def load(spec):
@@ -208,10 +233,14 @@ def main(argv=None):
     parser.add_argument("--outputs", type=int, help="how many outputs the loss reads")
     parser.add_argument("--step", type=float, default=0.25, help="leapfrog step size")
     parser.add_argument("--name", default="model", help="prefix of the roop functions")
+    parser.add_argument("--loss", default="mse", choices=["mse", "sigmoid", "softmax"])
+    parser.add_argument("--optimizer", default="sgd", choices=["sgd", "momentum", "adam"])
     parser.add_argument("-o", "--output", required=True)
     args = parser.parse_args(argv)
     try:
-        spec = export(load(args.model).eval(), args.outputs, args.step, args.name)
+        optimizer = {"kind": args.optimizer}
+        net = load(args.model).eval()
+        spec = export(net, args.outputs, args.step, args.name, args.loss, optimizer)
     except Unsupported as why:
         sys.exit(f"torch_to_weave: {why}")
     with open(args.output, "w") as out:
