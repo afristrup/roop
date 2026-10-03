@@ -12,7 +12,9 @@ pub fn igemv<M, N>(y: &mut [i64; M], a: &[[i64; N]; M], x: &[i64; N], alpha: &i6
         #[parallel]
         from i == 0 {
             ancilla j: i64 = 0 {
-                from j == 0 { y[i] += alpha * a[i][j] * x[j]; } loop { j += 1; } until j == N - 1;
+                from j == 0 {
+                    y[i] += alpha * a[i][j] * x[j];
+                } loop { j += 1; } until j == N - 1;
                 j -= N - 1;
             }
         } loop { i += 1; } until i == M - 1;
@@ -26,7 +28,9 @@ pub fn igemvt<M, N>(y: &mut [i64; N], a: &[[i64; N]; M], x: &[i64; M], alpha: &i
         #[parallel]
         from j == 0 {
             ancilla i: i64 = 0 {
-                from i == 0 { y[j] += alpha * a[i][j] * x[i]; } loop { i += 1; } until i == M - 1;
+                from i == 0 {
+                    y[j] += alpha * a[i][j] * x[i];
+                } loop { i += 1; } until i == M - 1;
                 i -= M - 1;
             }
         } loop { j += 1; } until j == N - 1;
@@ -40,7 +44,9 @@ pub fn iger<M, N>(a: &mut [[i64; N]; M], x: &[i64; M], y: &[i64; N], alpha: &i64
         #[parallel]
         from i == 0 {
             ancilla j: i64 = 0 {
-                from j == 0 { a[i][j] += alpha * x[i] * y[j]; } loop { j += 1; } until j == N - 1;
+                from j == 0 {
+                    a[i][j] += alpha * x[i] * y[j];
+                } loop { j += 1; } until j == N - 1;
                 j -= N - 1;
             }
         } loop { i += 1; } until i == M - 1;
@@ -60,7 +66,7 @@ pub fn itrmv<N>(x: &mut [i64; N], a: &[[i64; N]; N]) {
                 from j == 0 {
                     if j < N - 1 - k {
                         x[N - 1 - k] += a[N - 1 - k][j] * x[j];
-                    } else { } fi j < N - 1 - k;
+                    } fi j < N - 1 - k;
                 } loop { j += 1; } until j == N - 1;
                 j -= N - 1;
             }
@@ -80,7 +86,9 @@ pub fn dgemv<M, N>(y: &mut [f64; M], a: &[[f64; N]; M], x: &[f64; N], alpha: &f6
         #[parallel]
         from i == 0 {
             ancilla j: i64 = 0 {
-                from j == 0 { y[i] += alpha * a[i][j] * x[j]; } loop { j += 1; } until j == N - 1;
+                from j == 0 {
+                    y[i] += alpha * a[i][j] * x[j];
+                } loop { j += 1; } until j == N - 1;
                 j -= N - 1;
             }
         } loop { i += 1; } until i == M - 1;
@@ -94,7 +102,9 @@ pub fn dgemvt<M, N>(y: &mut [f64; N], a: &[[f64; N]; M], x: &[f64; M], alpha: &f
         #[parallel]
         from j == 0 {
             ancilla i: i64 = 0 {
-                from i == 0 { y[j] += alpha * a[i][j] * x[i]; } loop { i += 1; } until i == M - 1;
+                from i == 0 {
+                    y[j] += alpha * a[i][j] * x[i];
+                } loop { i += 1; } until i == M - 1;
                 i -= M - 1;
             }
         } loop { j += 1; } until j == N - 1;
@@ -108,7 +118,9 @@ pub fn dger<M, N>(a: &mut [[f64; N]; M], x: &[f64; M], y: &[f64; N], alpha: &f64
         #[parallel]
         from i == 0 {
             ancilla j: i64 = 0 {
-                from j == 0 { a[i][j] += alpha * x[i] * y[j]; } loop { j += 1; } until j == N - 1;
+                from j == 0 {
+                    a[i][j] += alpha * x[i] * y[j];
+                } loop { j += 1; } until j == N - 1;
                 j -= N - 1;
             }
         } loop { i += 1; } until i == M - 1;
@@ -128,7 +140,7 @@ pub fn dtrmv<N>(x: &mut [f64; N], a: &[[f64; N]; N]) {
                 from j == 0 {
                     if j < N - 1 - k {
                         x[N - 1 - k] += a[N - 1 - k][j] * x[j];
-                    } else { } fi j < N - 1 - k;
+                    } fi j < N - 1 - k;
                 } loop { j += 1; } until j == N - 1;
                 j -= N - 1;
             }

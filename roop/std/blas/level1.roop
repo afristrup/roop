@@ -56,14 +56,22 @@ pub fn ddot<N>(result: &mut f64, x: &[f64; N], y: &[f64; N]) {
 // reverse routine restores it. Without a history, y must be zero first.
 pub fn icopy<N>(y: &mut [i64; N], x: &[i64; N], history: &mut Stack<i64, N>) {
     ancilla i: i64 = 0 {
-        from i == 0 { logged history { y[i] = x[i]; } } loop { i += 1; } until i == N - 1;
+        from i == 0 {
+            logged history {
+                y[i] = x[i];
+            }
+        } loop { i += 1; } until i == N - 1;
         i -= N - 1;
     }
 }
 
 pub fn dcopy<N>(y: &mut [f64; N], x: &[f64; N], history: &mut Stack<f64, N>) {
     ancilla i: i64 = 0 {
-        from i == 0 { logged history { y[i] = x[i]; } } loop { i += 1; } until i == N - 1;
+        from i == 0 {
+            logged history {
+                y[i] = x[i];
+            }
+        } loop { i += 1; } until i == N - 1;
         i -= N - 1;
     }
 }
@@ -90,7 +98,11 @@ pub fn dscal<N>(x: &mut [f64; N], alpha: &f64) {
 // x <- value, destroying x. Memory mode: the old x goes on the history.
 pub fn ifill<N>(x: &mut [i64; N], value: &i64, history: &mut Stack<i64, N>) {
     ancilla i: i64 = 0 {
-        from i == 0 { logged history { x[i] = value; } } loop { i += 1; } until i == N - 1;
+        from i == 0 {
+            logged history {
+                x[i] = value;
+            }
+        } loop { i += 1; } until i == N - 1;
         i -= N - 1;
     }
 }

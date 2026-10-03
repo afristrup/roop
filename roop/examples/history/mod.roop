@@ -5,7 +5,9 @@
 // still has an inverse; it takes the history as a parameter because that is
 // where the destroyed information lives.
 fn settle_to(balance: &mut i64, amount: &i64, h: &mut Stack<i64, 8>) {
-    logged h { balance = amount * 2; }
+    logged h {
+        balance = amount * 2;
+    }
 }
 
 // Compute, copy, uncompute: keep the quote, then undo the overwrite so the
@@ -31,7 +33,7 @@ fn transfer(
     try {
         payer -= amount;
         payee += amount;
-        if payer >= 0 { } fi payer >= 0;
+        if payer >= 0 {} fi payer >= 0;
     } catch_rollback {
         refusals += 1;
     } -> refused;

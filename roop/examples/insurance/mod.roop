@@ -27,32 +27,20 @@ fn settle(p: &mut Policy, amount: &i64) {
 }
 
 fn accrue(p: &mut Policy, months: &i64, i: &mut i64) {
-    from i == 0 {
-        p.reserve += p.premium;
-    } loop {
-        i += 1;
-    } until i == months;
+    from i == 0 { p.reserve += p.premium; } loop { i += 1; } until i == months;
 }
 
-enum Status {
-    Active,
-    Lapsed,
-    Closed,
-}
+enum Status { Active, Lapsed, Closed }
 
 fn apply(status: &Status, p: &mut Policy, amount: &i64) {
     match status {
         Status::Active => { p.reserve += amount; } assert status == Status::Active;
         Status::Lapsed => { p.claims += amount; } assert status == Status::Lapsed;
-        Status::Closed => { } assert status == Status::Closed;
+        Status::Closed => {} assert status == Status::Closed;
     }
 }
 
 fn accrue_all(reserves: &mut [i64; 4], premiums: &[i64; 4], i: &mut i64) {
     #[parallel]
-    from i == 0 {
-        reserves[i] += premiums[i];
-    } loop {
-        i += 1;
-    } until i == 3;
+    from i == 0 { reserves[i] += premiums[i]; } loop { i += 1; } until i == 3;
 }

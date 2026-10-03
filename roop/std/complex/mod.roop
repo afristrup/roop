@@ -47,7 +47,12 @@ pub fn zdotu<N>(result: &mut Complex, x: &[Complex; N], y: &[Complex; N]) {
 }
 
 // y <- alpha * A * x + y
-pub fn zgemv<M, N>(y: &mut [Complex; M], a: &[[Complex; N]; M], x: &[Complex; N], alpha: &Complex) {
+pub fn zgemv<M, N>(
+    y: &mut [Complex; M],
+    a: &[[Complex; N]; M],
+    x: &[Complex; N],
+    alpha: &Complex,
+) {
     ancilla i: i64 = 0 {
         #[parallel]
         from i == 0 {
@@ -72,7 +77,12 @@ pub fn zgemv<M, N>(y: &mut [Complex; M], a: &[[Complex; N]; M], x: &[Complex; N]
 }
 
 // A <- alpha * x * y^T + A (the unconjugated rank-1 update)
-pub fn zgeru<M, N>(a: &mut [[Complex; N]; M], x: &[Complex; M], y: &[Complex; N], alpha: &Complex) {
+pub fn zgeru<M, N>(
+    a: &mut [[Complex; N]; M],
+    x: &[Complex; M],
+    y: &[Complex; N],
+    alpha: &Complex,
+) {
     ancilla i: i64 = 0 {
         #[parallel]
         from i == 0 {
@@ -97,7 +107,12 @@ pub fn zgeru<M, N>(a: &mut [[Complex; N]; M], x: &[Complex; M], y: &[Complex; N]
 }
 
 // C <- alpha * A * B + C
-pub fn zgemm<M, N, K>(c: &mut [[Complex; N]; M], a: &[[Complex; K]; M], b: &[[Complex; N]; K], alpha: &Complex) {
+pub fn zgemm<M, N, K>(
+    c: &mut [[Complex; N]; M],
+    a: &[[Complex; K]; M],
+    b: &[[Complex; N]; K],
+    alpha: &Complex,
+) {
     ancilla i: i64 = 0 {
         #[parallel]
         from i == 0 {
@@ -107,12 +122,16 @@ pub fn zgemm<M, N, K>(c: &mut [[Complex; N]; M], a: &[[Complex; K]; M], b: &[[Co
                         from l == 0 {
                             ancilla tr: f64 = 0.0 {
                                 ancilla ti: f64 = 0.0 {
-                                    tr += a[i][l].re * b[l][j].re - a[i][l].im * b[l][j].im;
-                                    ti += a[i][l].re * b[l][j].im + a[i][l].im * b[l][j].re;
+                                    tr += a[i][l].re * b[l][j].re
+                                        - a[i][l].im * b[l][j].im;
+                                    ti += a[i][l].re * b[l][j].im
+                                        + a[i][l].im * b[l][j].re;
                                     c[i][j].re += alpha.re * tr - alpha.im * ti;
                                     c[i][j].im += alpha.re * ti + alpha.im * tr;
-                                    ti -= a[i][l].re * b[l][j].im + a[i][l].im * b[l][j].re;
-                                    tr -= a[i][l].re * b[l][j].re - a[i][l].im * b[l][j].im;
+                                    ti -= a[i][l].re * b[l][j].im
+                                        + a[i][l].im * b[l][j].re;
+                                    tr -= a[i][l].re * b[l][j].re
+                                        - a[i][l].im * b[l][j].im;
                                 }
                             }
                         } loop { l += 1; } until l == K - 1;
@@ -162,7 +181,12 @@ pub fn gdotu<N>(result: &mut Gaussian, x: &[Gaussian; N], y: &[Gaussian; N]) {
 }
 
 // y <- alpha * A * x + y
-pub fn ggemv<M, N>(y: &mut [Gaussian; M], a: &[[Gaussian; N]; M], x: &[Gaussian; N], alpha: &Gaussian) {
+pub fn ggemv<M, N>(
+    y: &mut [Gaussian; M],
+    a: &[[Gaussian; N]; M],
+    x: &[Gaussian; N],
+    alpha: &Gaussian,
+) {
     ancilla i: i64 = 0 {
         #[parallel]
         from i == 0 {
@@ -187,7 +211,12 @@ pub fn ggemv<M, N>(y: &mut [Gaussian; M], a: &[[Gaussian; N]; M], x: &[Gaussian;
 }
 
 // A <- alpha * x * y^T + A (the unconjugated rank-1 update)
-pub fn ggeru<M, N>(a: &mut [[Gaussian; N]; M], x: &[Gaussian; M], y: &[Gaussian; N], alpha: &Gaussian) {
+pub fn ggeru<M, N>(
+    a: &mut [[Gaussian; N]; M],
+    x: &[Gaussian; M],
+    y: &[Gaussian; N],
+    alpha: &Gaussian,
+) {
     ancilla i: i64 = 0 {
         #[parallel]
         from i == 0 {
@@ -212,7 +241,12 @@ pub fn ggeru<M, N>(a: &mut [[Gaussian; N]; M], x: &[Gaussian; M], y: &[Gaussian;
 }
 
 // C <- alpha * A * B + C
-pub fn ggemm<M, N, K>(c: &mut [[Gaussian; N]; M], a: &[[Gaussian; K]; M], b: &[[Gaussian; N]; K], alpha: &Gaussian) {
+pub fn ggemm<M, N, K>(
+    c: &mut [[Gaussian; N]; M],
+    a: &[[Gaussian; K]; M],
+    b: &[[Gaussian; N]; K],
+    alpha: &Gaussian,
+) {
     ancilla i: i64 = 0 {
         #[parallel]
         from i == 0 {
@@ -222,12 +256,16 @@ pub fn ggemm<M, N, K>(c: &mut [[Gaussian; N]; M], a: &[[Gaussian; K]; M], b: &[[
                         from l == 0 {
                             ancilla tr: i64 = 0 {
                                 ancilla ti: i64 = 0 {
-                                    tr += a[i][l].re * b[l][j].re - a[i][l].im * b[l][j].im;
-                                    ti += a[i][l].re * b[l][j].im + a[i][l].im * b[l][j].re;
+                                    tr += a[i][l].re * b[l][j].re
+                                        - a[i][l].im * b[l][j].im;
+                                    ti += a[i][l].re * b[l][j].im
+                                        + a[i][l].im * b[l][j].re;
                                     c[i][j].re += alpha.re * tr - alpha.im * ti;
                                     c[i][j].im += alpha.re * ti + alpha.im * tr;
-                                    ti -= a[i][l].re * b[l][j].im + a[i][l].im * b[l][j].re;
-                                    tr -= a[i][l].re * b[l][j].re - a[i][l].im * b[l][j].im;
+                                    ti -= a[i][l].re * b[l][j].im
+                                        + a[i][l].im * b[l][j].re;
+                                    tr -= a[i][l].re * b[l][j].re
+                                        - a[i][l].im * b[l][j].im;
                                 }
                             }
                         } loop { l += 1; } until l == K - 1;

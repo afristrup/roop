@@ -9,27 +9,31 @@
 
 use std::session::Negotiation;
 
-struct Conversation {
-    place: i64,
-    offer: i64,
-    taken: i64,
-}
+struct Conversation { place: i64, offer: i64, taken: i64 }
 
 // The place the client asked for: sea is 1 and mount is 2.
 fn receive(c: &mut Conversation, place: &i64, history: &mut Stack<i64, 8>) {
-    logged history { c.place = place; }
+    logged history {
+        c.place = place;
+    }
 }
 
 fn offer_house(c: &mut Conversation, history: &mut Stack<i64, 8>) {
-    logged history { c.offer = 1; }
+    logged history {
+        c.offer = 1;
+    }
 }
 
 fn offer_bung(c: &mut Conversation, history: &mut Stack<i64, 8>) {
-    logged history { c.offer = 2; }
+    logged history {
+        c.offer = 2;
+    }
 }
 
 fn take(c: &mut Conversation, history: &mut Stack<i64, 8>) {
-    logged history { c.taken = c.offer; }
+    logged history {
+        c.taken = c.offer;
+    }
 }
 
 // Offers a house, or, when a better offer turned up, rolls that step back and
@@ -40,12 +44,17 @@ fn answer(c: &mut Conversation, better: &i64, history: &mut Stack<i64, 8>) {
     if better > 0 {
         uncall offer_house(c, history);
         call offer_bung(c, history);
-    } else { } fi better > 0;
+    } fi better > 0;
 }
 
 // A whole conversation. Calling it backward is the client abandoning it: every
 // field and the history return to where they started.
-fn converse(c: &mut Conversation, place: &i64, better: &i64, history: &mut Stack<i64, 8>) {
+fn converse(
+    c: &mut Conversation,
+    place: &i64,
+    better: &i64,
+    history: &mut Stack<i64, 8>,
+) {
     call receive(c, place, history);
     call answer(c, better, history);
 }

@@ -30,7 +30,13 @@ fn force<N>(p: &mut [i64; N], w: &[[i64; N]; N], q: &[i64; N], b: &[i64; N], c: 
 }
 
 // One leapfrog step with step size h (a Q12 number).
-pub fn layer<N>(q: &mut [i64; N], p: &mut [i64; N], w: &[[i64; N]; N], b: &[i64; N], h: &i64) {
+pub fn layer<N>(
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    w: &[[i64; N]; N],
+    b: &[i64; N],
+    h: &i64,
+) {
     ancilla c: i64 = 0 {
         c -= h / 2;
         call force<N>(p, w, q, b, c);
@@ -42,8 +48,11 @@ pub fn layer<N>(q: &mut [i64; N], p: &mut [i64; N], w: &[[i64; N]; N], b: &[i64;
 
 // The network: L layers, each with its own W and b.
 pub fn forward<N, L>(
-    q: &mut [i64; N], p: &mut [i64; N],
-    ws: &[[[i64; N]; N]; L], bs: &[[i64; N]; L], h: &i64,
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    ws: &[[[i64; N]; N]; L],
+    bs: &[[i64; N]; L],
+    h: &i64,
 ) {
     ancilla k: i64 = 0 {
         from k == 0 {
@@ -56,9 +65,15 @@ pub fn forward<N, L>(
 // What the adjoint of p does to q, and to the parameters: with u the adjoint of
 // the momentum that `force` added to, adds the adjoint of q to aq and the
 // gradients of W and b to gw and gb.
-fn vjp<N>(
-    aq: &mut [i64; N], gw: &mut [[i64; N]; N], gb: &mut [i64; N],
-    u: &[i64; N], w: &[[i64; N]; N], q: &[i64; N], b: &[i64; N], c: &i64,
+pub fn vjp<N>(
+    aq: &mut [i64; N],
+    gw: &mut [[i64; N]; N],
+    gb: &mut [i64; N],
+    u: &[i64; N],
+    w: &[[i64; N]; N],
+    q: &[i64; N],
+    b: &[i64; N],
+    c: &i64,
 ) {
     ancilla z: [i64; N] = 0 {
         ancilla s: [i64; N] = 0 {
@@ -82,10 +97,16 @@ fn vjp<N>(
 }
 
 // The adjoints of one layer, from its output state back to its input state.
-fn layer_back<N>(
-    q: &mut [i64; N], p: &mut [i64; N], aq: &mut [i64; N], ap: &mut [i64; N],
-    gw: &mut [[i64; N]; N], gb: &mut [i64; N],
-    w: &[[i64; N]; N], b: &[i64; N], h: &i64,
+pub fn layer_back<N>(
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    aq: &mut [i64; N],
+    ap: &mut [i64; N],
+    gw: &mut [[i64; N]; N],
+    gb: &mut [i64; N],
+    w: &[[i64; N]; N],
+    b: &[i64; N],
+    h: &i64,
 ) {
     ancilla c: i64 = 0 {
         c -= h / 2;
@@ -103,13 +124,29 @@ fn layer_back<N>(
 // the adjoint of the loss there; on exit q and p are the input again, aq and ap
 // hold the adjoint of the input, and gw and gb have the gradients added.
 pub fn backward<N, L>(
-    q: &mut [i64; N], p: &mut [i64; N], aq: &mut [i64; N], ap: &mut [i64; N],
-    gw: &mut [[[i64; N]; N]; L], gb: &mut [[i64; N]; L],
-    ws: &[[[i64; N]; N]; L], bs: &[[i64; N]; L], h: &i64,
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    aq: &mut [i64; N],
+    ap: &mut [i64; N],
+    gw: &mut [[[i64; N]; N]; L],
+    gb: &mut [[i64; N]; L],
+    ws: &[[[i64; N]; N]; L],
+    bs: &[[i64; N]; L],
+    h: &i64,
 ) {
     ancilla k: i64 = 0 {
         from k == 0 {
-            call layer_back<N>(q, p, aq, ap, gw[L - 1 - k], gb[L - 1 - k], ws[L - 1 - k], bs[L - 1 - k], h);
+            call layer_back<N>(
+                q,
+                p,
+                aq,
+                ap,
+                gw[L - 1 - k],
+                gb[L - 1 - k],
+                ws[L - 1 - k],
+                bs[L - 1 - k],
+                h,
+            );
         } loop { k += 1; } until k == L - 1;
         k -= L - 1;
     }
@@ -136,9 +173,17 @@ pub fn seed<N, K>(aq: &mut [i64; N], q: &[i64; N], t: &[i64; K]) {
 // The loss of one sample and its gradients, with q holding the input and p
 // zero. Everything else is rebuilt, so on exit q and p are as they were.
 pub fn grad<N, L, K>(
-    total: &mut i64, q: &mut [i64; N], p: &mut [i64; N], aq: &mut [i64; N], ap: &mut [i64; N],
-    gw: &mut [[[i64; N]; N]; L], gb: &mut [[i64; N]; L],
-    ws: &[[[i64; N]; N]; L], bs: &[[i64; N]; L], h: &i64, t: &[i64; K],
+    total: &mut i64,
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    aq: &mut [i64; N],
+    ap: &mut [i64; N],
+    gw: &mut [[[i64; N]; N]; L],
+    gb: &mut [[i64; N]; L],
+    ws: &[[[i64; N]; N]; L],
+    bs: &[[i64; N]; L],
+    h: &i64,
+    t: &[i64; K],
 ) {
     call forward<N, L>(q, p, ws, bs, h);
     call loss<N, K>(total, q, t);
@@ -148,8 +193,11 @@ pub fn grad<N, L, K>(
 
 // ws -= lr * gw and bs -= lr * gb
 pub fn sgd<N, L>(
-    ws: &mut [[[i64; N]; N]; L], bs: &mut [[i64; N]; L],
-    gw: &[[[i64; N]; N]; L], gb: &[[i64; N]; L], lr: &i64,
+    ws: &mut [[[i64; N]; N]; L],
+    bs: &mut [[i64; N]; L],
+    gw: &[[[i64; N]; N]; L],
+    gb: &[[i64; N]; L],
+    lr: &i64,
 ) {
     ancilla l: i64 = 0 {
         #[parallel]
@@ -158,7 +206,9 @@ pub fn sgd<N, L>(
                 from j == 0 {
                     bs[l][j] -= lr * gb[l][j] / 4096;
                     ancilla i: i64 = 0 {
-                        from i == 0 { ws[l][j][i] -= lr * gw[l][j][i] / 4096; } loop { i += 1; } until i == N - 1;
+                        from i == 0 {
+                            ws[l][j][i] -= lr * gw[l][j][i] / 4096;
+                        } loop { i += 1; } until i == N - 1;
                         i -= N - 1;
                     }
                 } loop { j += 1; } until j == N - 1;

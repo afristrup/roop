@@ -19,7 +19,9 @@ pub irrev fn clear_grads<N, L>(gw: &mut [[[i64; N]; N]; L], gb: &mut [[i64; N]; 
                 from j == 0 {
                     gb[l][j] = 0;
                     ancilla i: i64 = 0 {
-                        from i == 0 { gw[l][j][i] = 0; } loop { i += 1; } until i == N - 1;
+                        from i == 0 {
+                            gw[l][j][i] = 0;
+                        } loop { i += 1; } until i == N - 1;
                         i -= N - 1;
                     }
                 } loop { j += 1; } until j == N - 1;
@@ -35,10 +37,18 @@ pub irrev fn clear_grads<N, L>(gw: &mut [[[i64; N]; N]; L], gb: &mut [[i64; N]; 
 // left at zero.
 pub irrev fn step<N, L, K, B>(
     total: &mut i64,
-    ws: &mut [[[i64; N]; N]; L], bs: &mut [[i64; N]; L],
-    gw: &mut [[[i64; N]; N]; L], gb: &mut [[i64; N]; L],
-    q: &mut [i64; N], p: &mut [i64; N], aq: &mut [i64; N], ap: &mut [i64; N],
-    xs: &[[i64; N]; B], ts: &[[i64; K]; B], h: &i64, lr: &i64,
+    ws: &mut [[[i64; N]; N]; L],
+    bs: &mut [[i64; N]; L],
+    gw: &mut [[[i64; N]; N]; L],
+    gb: &mut [[i64; N]; L],
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    aq: &mut [i64; N],
+    ap: &mut [i64; N],
+    xs: &[[i64; N]; B],
+    ts: &[[i64; K]; B],
+    h: &i64,
+    lr: &i64,
 ) {
     ancilla n: i64 = 0 {
         from n == 0 {

@@ -15,10 +15,7 @@
 // The travel agency of the paper. The client wants a house, or a bungalow at
 // sea, or a house in the mountains. Importing it checks the pair.
 pub session Booking {
-    client: offer {
-        sea: offer { house: end, bung: end },
-        mount: offer { house: end },
-    };
+    client: offer { sea: offer { house: end, bung: end }, mount: offer { house: end } };
 }
 
 // The same agency, where the server may change its mind: after offering a
@@ -60,18 +57,13 @@ pub session Stream {
 // before it asks, so a refusal can roll the whole round back.
 pub session TwoPhase {
     coordinator: checkpoint select {
-        prepare: offer {
-            yes: select { commit: end },
-            no: select { abort: end },
-        },
+        prepare: offer { yes: select { commit: end }, no: select { abort: end } },
     };
 }
 
 // A request that may be answered, refused or deferred, any number of times.
 pub session Request {
     client: rec ask {
-        checkpoint select {
-            request: offer { reply: end, refused: end, busy: ask },
-        }
+        checkpoint select { request: offer { reply: end, refused: end, busy: ask } }
     };
 }

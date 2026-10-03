@@ -11,7 +11,9 @@ pub fn affine<N>(z: &mut [i64; N], w: &[[i64; N]; N], q: &[i64; N], b: &[i64; N]
         from j == 0 {
             z[j] += b[j];
             ancilla i: i64 = 0 {
-                from i == 0 { z[j] += w[j][i] * q[i] / 4096; } loop { i += 1; } until i == N - 1;
+                from i == 0 {
+                    z[j] += w[j][i] * q[i] / 4096;
+                } loop { i += 1; } until i == N - 1;
                 i -= N - 1;
             }
         } loop { j += 1; } until j == N - 1;
@@ -25,7 +27,9 @@ pub fn matvec<N>(t: &mut [i64; N], w: &[[i64; N]; N], u: &[i64; N]) {
         #[parallel]
         from j == 0 {
             ancilla i: i64 = 0 {
-                from i == 0 { t[j] += w[j][i] * u[i] / 4096; } loop { i += 1; } until i == N - 1;
+                from i == 0 {
+                    t[j] += w[j][i] * u[i] / 4096;
+                } loop { i += 1; } until i == N - 1;
                 i -= N - 1;
             }
         } loop { j += 1; } until j == N - 1;
@@ -50,7 +54,8 @@ pub fn dsigma_of<N>(d: &mut [i64; N], z: &[i64; N]) {
     ancilla j: i64 = 0 {
         #[parallel]
         from j == 0 {
-            d[j] += (4096 - z[j] * z[j] / 4096) * 16777216
+            d[j] += (4096 - z[j] * z[j] / 4096)
+                * 16777216
                 / ((4096 + z[j] * z[j] / 4096) * (4096 + z[j] * z[j] / 4096));
         } loop { j += 1; } until j == N - 1;
         j -= N - 1;
@@ -92,7 +97,13 @@ pub fn add_vec<N>(x: &mut [i64; N], y: &[i64; N]) {
 }
 
 // aq += c * W^T (d * t), the adjoint of `kick` with respect to q
-pub fn adjoint_q<N>(aq: &mut [i64; N], w: &[[i64; N]; N], d: &[i64; N], t: &[i64; N], c: &i64) {
+pub fn adjoint_q<N>(
+    aq: &mut [i64; N],
+    w: &[[i64; N]; N],
+    d: &[i64; N],
+    t: &[i64; N],
+    c: &i64,
+) {
     ancilla i: i64 = 0 {
         #[parallel]
         from i == 0 {
@@ -109,15 +120,22 @@ pub fn adjoint_q<N>(aq: &mut [i64; N], w: &[[i64; N]; N], d: &[i64; N], t: &[i64
 
 // gw += c * (s u^T + (d * t) q^T), the gradient of `kick` with respect to W
 pub fn adjoint_w<N>(
-    gw: &mut [[i64; N]; N], s: &[i64; N], d: &[i64; N], t: &[i64; N],
-    u: &[i64; N], q: &[i64; N], c: &i64,
+    gw: &mut [[i64; N]; N],
+    s: &[i64; N],
+    d: &[i64; N],
+    t: &[i64; N],
+    u: &[i64; N],
+    q: &[i64; N],
+    c: &i64,
 ) {
     ancilla j: i64 = 0 {
         #[parallel]
         from j == 0 {
             ancilla i: i64 = 0 {
                 from i == 0 {
-                    gw[j][i] += c * (s[j] * u[i] / 4096 + d[j] * t[j] / 4096 * q[i] / 4096) / 4096;
+                    gw[j][i] += c
+                        * (s[j] * u[i] / 4096 + d[j] * t[j] / 4096 * q[i] / 4096)
+                        / 4096;
                 } loop { i += 1; } until i == N - 1;
                 i -= N - 1;
             }
@@ -130,7 +148,9 @@ pub fn adjoint_w<N>(
 pub fn adjoint_b<N>(gb: &mut [i64; N], d: &[i64; N], t: &[i64; N], c: &i64) {
     ancilla j: i64 = 0 {
         #[parallel]
-        from j == 0 { gb[j] += c * (d[j] * t[j] / 4096) / 4096; } loop { j += 1; } until j == N - 1;
+        from j == 0 {
+            gb[j] += c * (d[j] * t[j] / 4096) / 4096;
+        } loop { j += 1; } until j == N - 1;
         j -= N - 1;
     }
 }
