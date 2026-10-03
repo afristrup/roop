@@ -1,5 +1,5 @@
 use crate::{child_blocks, stmt_exprs};
-use roop_syntax::{Block, Expr, Place, Stmt, StmtKind};
+use roop_syntax::{Block, Expr, Place, Stmt, StmtKind, counted_loop};
 use std::collections::BTreeMap;
 
 /// A rough static profile of a block, used to estimate where it runs fastest.
@@ -53,8 +53,19 @@ fn visit_stmt(stmt: &Stmt, f: &mut BodyFeatures, cells: &mut Cells) {
     for expr in stmt_exprs(stmt) {
         visit_expr(expr, f, cells);
     }
+    let before = f.work;
     for child in child_blocks(stmt) {
         visit_block(child, f, cells);
+    }
+    if let StmtKind::From {
+        entry, step, until, ..
+    } = &stmt.kind
+        && let Some(counted) = counted_loop(entry, step, until)
+        && let (Expr::Int(lo), Expr::Int(hi)) = (counted.lo, counted.hi)
+        && hi >= lo
+    {
+        let trips = ((hi - lo) / counted.step + 1) as u64;
+        f.work += (f.work - before) * (trips - 1);
     }
 }
 

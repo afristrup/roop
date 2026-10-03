@@ -1,7 +1,7 @@
 use crate::{
-    Choice, CodegenError, Dialect, Dir, FnGen, choose_target, device_buffers, gen_parallel_cpu,
-    gen_parallel_gpu, has_f64, launch_cpu, launch_gpu, layout, mem_store, parallel_prologue,
-    static_trip,
+    Choice, CodegenError, Dialect, Dir, FnGen, choose_target, device_buffers, gen_from,
+    gen_parallel_cpu, gen_parallel_gpu, has_f64, launch_cpu, launch_gpu, layout, mem_store,
+    parallel_prologue, serial_is_faster, static_trip,
 };
 use roop_check::{body_effects, body_features};
 use roop_syntax::{Block, Expr, Target, counted_loop};
@@ -29,6 +29,12 @@ pub fn gen_parallel_auto(
         uses_f64 |= has_f64(g.ctx, &slot.ty);
     }
     let options = &g.ctx.options.parallel;
+    if let Some(trip) = static_trip(&counted)
+        && !features.has_call
+        && serial_is_faster(&options.cost, &features, trip)
+    {
+        return gen_from(g, entry, body, step, until, dir);
+    }
     let gpu = options.auto_gpus.iter().copied().find(|t| match t {
         Target::Metal => !features.has_call && !uses_f64,
         Target::Nvptx => !features.has_call,
