@@ -1,5 +1,7 @@
 mod auto;
+mod axpy;
 mod capture_env;
+mod gemm;
 mod gen_parallel_cpu;
 mod gpu;
 mod int_op;
@@ -9,9 +11,12 @@ mod outline_block;
 mod parallel_attr;
 mod parallel_loop;
 mod parallel_prologue;
+mod signed_factor;
 
 pub use auto::*;
+pub use axpy::*;
 pub use capture_env::*;
+pub use gemm::*;
 pub use gen_parallel_cpu::*;
 pub use gpu::*;
 pub use int_op::*;
@@ -21,3 +26,4 @@ pub use outline_block::*;
 pub use parallel_attr::*;
 pub use parallel_loop::*;
 pub use parallel_prologue::*;
+pub use signed_factor::*;

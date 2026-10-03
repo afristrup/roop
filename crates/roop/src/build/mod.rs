@@ -1,5 +1,6 @@
 mod build_dir;
 mod detect_cpu;
+mod detect_sme;
 mod find_roop_files;
 mod fixture;
 mod fixture_of;
@@ -24,6 +25,7 @@ mod trace_report;
 
 pub use build_dir::*;
 pub use detect_cpu::*;
+pub use detect_sme::*;
 pub use find_roop_files::*;
 pub use fixture::*;
 pub use fixture_of::*;

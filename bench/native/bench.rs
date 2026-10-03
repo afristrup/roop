@@ -20,7 +20,8 @@ fn time(reps: usize, mut f: impl FnMut()) -> f64 {
 }
 
 fn time_batched(reps: usize, inner: usize, f: &mut impl FnMut()) -> f64 {
-    for _ in 0..inner {
+    let warm = Instant::now();
+    while warm.elapsed().as_secs_f64() < 0.1 {
         f();
     }
     best((0..reps).map(|_| {

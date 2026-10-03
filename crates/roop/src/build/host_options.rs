@@ -1,4 +1,4 @@
-use crate::{detect_cpu, host_gpus, parse_target};
+use crate::{detect_cpu, detect_sme, host_gpus, parse_target};
 use roop_config::Config;
 use roop_llvm::{CostModel, Options, ParallelOptions};
 use roop_syntax::Target;
@@ -28,6 +28,7 @@ pub fn host_options(config: &Config) -> Options {
         triple: cfg!(all(target_os = "macos", target_arch = "aarch64"))
             .then(|| "arm64-apple-macosx".into()),
         cpu,
+        sme: config.parallel.sme && detect_sme(),
         parallel: ParallelOptions {
             allowed,
             auto_gpus,
