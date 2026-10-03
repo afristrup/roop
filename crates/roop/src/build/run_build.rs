@@ -1,6 +1,6 @@
 use crate::{
-    BuildArgs, CliError, Emit, build_metallib, build_ptx, clang, config_for, host_options,
-    load_source, run_tool, runtime_lib,
+    BuildArgs, BuildDir, CliError, Emit, build_metallib, build_ptx, clang, config_for,
+    host_options, load_source, run_tool, runtime_lib,
 };
 use roop_llvm::{compile_all, embed_blobs};
 use roop_opt::fuse_parallel;
@@ -18,12 +18,12 @@ pub fn build(args: &BuildArgs) -> Result<(), CliError> {
     if args.emit == Emit::Ir {
         return write_ir(args, &compiled);
     }
-    let dir = std::env::temp_dir().join(format!("roop-build-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).map_err(|e| CliError::Io("temp dir".into(), e))?;
+    let scratch = BuildDir::create()?;
+    let dir = scratch.path();
     let metallib = compiled
         .air
         .as_deref()
-        .map(|air| build_metallib(air, &dir))
+        .map(|air| build_metallib(air, dir))
         .transpose()?;
     let ptx = compiled
         .ptx

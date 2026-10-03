@@ -1,3 +1,4 @@
+mod build_dir;
 mod detect_cpu;
 mod find_roop_files;
 mod host_gpus;
@@ -8,6 +9,7 @@ mod run_build;
 mod run_fmt;
 mod run_lean;
 
+pub use build_dir::*;
 pub use detect_cpu::*;
 pub use find_roop_files::*;
 pub use host_gpus::*;
