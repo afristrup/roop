@@ -11,6 +11,12 @@ pub irrev fn clear<N>(v: &mut [i64; N]) {
     i -= N - 1;
 }
 
+pub irrev fn clear_mat<N, M>(g: &mut [[i64; N]; M]) {
+    ancilla j: i64 = 0;
+    from j == 0 { call clear<N>(g[j]); } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
+}
+
 pub irrev fn clear_grads<N, M, L>(gw: &mut [[[i64; N]; M]; L], gb: &mut [[i64; M]; L]) {
     ancilla l: i64 = 0;
     from l == 0 {
