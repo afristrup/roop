@@ -4,6 +4,7 @@ pub const USAGE: &str =
        roop lean <input.roop> [-o <output.lean>] [--check]
        roop test [<path>...] [--filter <text>] [--timeout <seconds>] [--lean]
        roop fmt [<path>...] [--check] [--width <columns>] [--stdin]
+       roop lsp
 
   build        compile to LLVM IR, an object, or an executable
     --emit ir    write LLVM IR (and AIR/PTX modules) for inspection
@@ -28,6 +29,9 @@ pub const USAGE: &str =
     --check      change nothing, list the files that would change, and fail if any
     --width N    line width, overriding max_width of [format]
     --stdin      format the text on stdin and write it to stdout
+
+  lsp          language server on stdin and stdout: syntax and check errors as
+               diagnostics, formatting, and an outline of the file
 
 Settings come from the nearest Roop.toml ([parallel] controls target choice,
 [format] sets max_width and indent).";

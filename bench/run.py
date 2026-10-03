@@ -10,7 +10,7 @@ several timed calls after one warm-up; small sizes time a batch of calls. The
 best, not the median, because on a laptop the scheduler moves a program between
 fast and slow cores and the median swings by a factor of two.
 """
-import os, pathlib, platform, subprocess, sys, tempfile
+import os, pathlib, platform, subprocess, sys, tempfile, time
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -30,7 +30,7 @@ def run(cmd, **kw):
 def roop_time(kind, n, reps, auto, work):
     toml = f'[modules]\nstd = "{STD}"\n\n[parallel]\nauto = {"true" if auto else "false"}\n'
     (work / "Roop.toml").write_text(toml)
-    src = (HERE / "roop" / f"{kind}.roop").read_text().replace("@N@", str(n))
+    src = (HERE / "roop" / f"{kind}.roop.in").read_text().replace("@N@", str(n))
     (work / "prog.roop").write_text(src)
     main = (HERE / "roop" / f"{kind}_main.c").read_text().replace("@N@", str(n)).replace("@REPS@", str(reps))
     (work / "main.c").write_text(main)
@@ -60,6 +60,7 @@ def main():
         one, many, blas = (flops / t / 1e9 for t in native_times("gemm", n, reps))
         print(f"| {n} | {auto:.1f} | {cpu:.1f} | {one:.1f} | {many:.1f} | {blas:.1f} |", flush=True)
 
+    time.sleep(30)  # the gemm runs leave the chip loaded; let it settle
     print("\n### daxpy, y += a x, f64, GB/s moved (higher is better)\n")
     print("| N | roop (auto) | roop (CPU threads) | Rust, 1 thread | Rust, all threads | Accelerate |")
     print("|---:|---:|---:|---:|---:|---:|")

@@ -17,7 +17,9 @@ things that are hard to get any other way.
   come back to zero, so a leak is a test failure.
 - **Training without storing activations.** [`weave`](docs/weave-memory.md) is a
   network of reversible layers whose backward pass recomputes by running the layers
-  backward, so its memory does not grow with depth.
+  backward, so its memory does not grow with depth. `roop-weave` compiles a
+  model of such layers, read from a torch `nn.Sequential`, to weave code and the
+  tests that check it against a reference.
 - **Parallel loops that are checked, not hoped for.** `#[parallel]` loops run on
   CPU threads, Metal or CUDA, and the checker proves the iterations touch disjoint
   places. Lean proves the iterations can run in any order.
@@ -84,7 +86,9 @@ in `editors/`.
 - Lean checks, for every reversible function, that it never fails on an
   unrestored ancilla and that `f_inv` undoes `f`. It also proves loops terminate
   and `#[parallel]` loops commute. `weave`'s forward and backward passes are
-  proved this way, for a width of 4 and three layers; 8 also passes.
+  proved this way, for a width of 4 and three layers; 8 also passes. At width
+  64 the kernel proofs time out in Lean (`subst_vars` over fully unrolled
+  64 by 64 state), so the proof does not yet scale with width.
 - `try` gets only `f_inv_f`, not the reverse. Sessions are checked as
   specifications, not matched against the task code. Floating point carries no
   round-trip claim, and GPU floating point can differ between runtimes.

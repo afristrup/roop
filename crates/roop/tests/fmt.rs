@@ -96,3 +96,13 @@ fn fmt_with_a_path_leaves_other_files_alone() {
         MESSY
     );
 }
+
+#[test]
+fn fmt_skips_a_repository_checked_out_inside_the_project() {
+    let dir = project("fmt-nested", "", TIDY);
+    let nested = dir.join("vendored");
+    std::fs::create_dir_all(nested.join(".git")).unwrap();
+    std::fs::write(nested.join("template.roop"), "fn f(x: &mut [i64; @N@]) {}").unwrap();
+    let out = roop(&dir, &["fmt", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+}

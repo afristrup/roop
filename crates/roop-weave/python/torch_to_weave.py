@@ -1,0 +1,148 @@
+"""Reads a torch model and writes the JSON that roop-weave compiles.
+
+weave layers are reversible, and most torch layers are not, so the model is
+read as a network of reversible blocks, found in an nn.Sequential:
+
+    Linear(N, M), act, Linear(M, N)   an "mlp" block: one half of the state takes
+                                      in a perceptron of the other (RevNet, NICE)
+    Linear(N, M), act                 a "leapfrog" layer: a step of the dynamics
+                                      whose force is W^T act(W q + b), with the
+                                      weight tied to its transpose
+
+The activations are Identity, ReLU, Tanh and Softsign. Everything else is
+refused, naming the layer, rather than turned into something that is not what
+the model computes. The compiled network is the network of these blocks, run
+on a state (q, p) with the input in q and p zero; it is not the original
+module run unchanged, and the Rust side tests it against its own reference.
+
+    python3 torch_to_weave.py pkg.module:factory --outputs 1 -o model.json
+"""
+
+import argparse
+import importlib
+import json
+import sys
+
+ACTIVATIONS = {"Identity": "identity", "ReLU": "relu", "Tanh": "tanh", "Softsign": "softsign"}
+
+
+class Unsupported(Exception):
+    """The model has a layer weave cannot run backward."""
+
+
+def flatten(module):
+    """The leaf modules of a model, in order."""
+    children = list(module.children())
+    if not children:
+        return [module]
+    return [leaf for child in children for leaf in flatten(child)]
+
+
+def kind(module):
+    return type(module).__name__
+
+
+def is_linear(module):
+    return kind(module) == "Linear"
+
+
+def numbers(tensor):
+    return tensor.detach().cpu().tolist()
+
+
+def bias_of(linear):
+    if linear.bias is None:
+        return [0.0] * linear.out_features
+    return numbers(linear.bias)
+
+
+def activation_of(module, position):
+    name = ACTIVATIONS.get(kind(module))
+    if name is None:
+        raise Unsupported(
+            f"layer {position}: {kind(module)} is not reversible; use one of "
+            + ", ".join(sorted(ACTIVATIONS))
+        )
+    return name
+
+
+def block_at(leaves, i, width):
+    """The block that starts at leaves[i], and how many leaves it takes."""
+    first = leaves[i]
+    if not is_linear(first):
+        raise Unsupported(f"layer {i}: {kind(first)} must follow a Linear")
+    if first.in_features != width:
+        raise Unsupported(
+            f"layer {i}: Linear takes {first.in_features} numbers, "
+            f"but the state is {width} wide"
+        )
+    if i + 1 >= len(leaves):
+        raise Unsupported(f"layer {i}: a Linear with no activation is not reversible")
+    act = activation_of(leaves[i + 1], i + 1)
+    hidden = first.out_features
+    closes = i + 2 < len(leaves) and is_linear(leaves[i + 2])
+    if closes and leaves[i + 2].in_features == hidden and leaves[i + 2].out_features == width:
+        second = leaves[i + 2]
+        block = {
+            "kind": "mlp",
+            "activation": act,
+            "w1": numbers(first.weight),
+            "b1": bias_of(first),
+            "w2": numbers(second.weight),
+            "b2": bias_of(second),
+        }
+        return block, 3
+    block = {
+        "kind": "leapfrog",
+        "activation": act,
+        "weight": numbers(first.weight),
+        "bias": bias_of(first),
+    }
+    return block, 2
+
+
+def export(model, outputs=None, step=0.25, name="model"):
+    """The roop-weave model for a torch module, as a dict."""
+    leaves = flatten(model)
+    linears = [m for m in leaves if is_linear(m)]
+    if not linears:
+        raise Unsupported("the model has no Linear layer")
+    width = linears[0].in_features
+    layers, i = [], 0
+    while i < len(leaves):
+        block, taken = block_at(leaves, i, width)
+        layers.append(block)
+        i += taken
+    return {
+        "name": name,
+        "width": width,
+        "outputs": width if outputs is None else outputs,
+        "step": step,
+        "layers": layers,
+    }
+
+
+def load(spec):
+    module_name, _, factory = spec.partition(":")
+    sys.path.insert(0, ".")
+    return getattr(importlib.import_module(module_name), factory)()
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("model", help="module:factory, which returns the nn.Module")
+    parser.add_argument("--outputs", type=int, help="how many outputs the loss reads")
+    parser.add_argument("--step", type=float, default=0.25, help="leapfrog step size")
+    parser.add_argument("--name", default="model", help="prefix of the roop functions")
+    parser.add_argument("-o", "--output", required=True)
+    args = parser.parse_args(argv)
+    try:
+        spec = export(load(args.model).eval(), args.outputs, args.step, args.name)
+    except Unsupported as why:
+        sys.exit(f"torch_to_weave: {why}")
+    with open(args.output, "w") as out:
+        json.dump(spec, out)
+
+
+if __name__ == "__main__":
+    main()

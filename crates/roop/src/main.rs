@@ -1,11 +1,13 @@
 mod build;
 mod cli;
 mod error;
+mod lsp;
 mod tools;
 
 use build::*;
 use cli::*;
 use error::*;
+use lsp::*;
 use tools::*;
 
 /// The parser and the checks recurse once per nesting level, so deeply nested
@@ -19,6 +21,8 @@ fn run() -> Result<(), CliError> {
         Command::Fmt(args) => run_fmt(&args),
         Command::Test(args) => run_test(&args),
         Command::Run(args) => run_run(&args),
+        Command::Lsp => serve(std::io::stdin().lock(), std::io::stdout().lock())
+            .map_err(|e| CliError::Io("the language server".into(), e)),
     }
 }
 

@@ -52,11 +52,17 @@ fn force(net: &Net, l: usize, p: &mut [i64], q: &[i64], c: i64, sign: i64) {
     let mut z = vec![0; n];
     affine(net, l, &mut z, q);
     let s: Vec<i64> = z.iter().map(|&z| sigma(z)).collect();
-    for i in 0..n {
-        for j in 0..n {
-            let term = mul(mul(c, net.w(l, j, i)) / Q, s[j]) / Q;
-            p[i] = p[i].wrapping_add(mul(sign, term));
+    kick(net, l, p, &s, c, sign);
+}
+
+/// p += sign * c * W^T s
+fn kick(net: &Net, l: usize, p: &mut [i64], s: &[i64], c: i64, sign: i64) {
+    for i in 0..net.n {
+        let mut t = 0i64;
+        for j in 0..net.n {
+            t = t.wrapping_add(mul(net.w(l, j, i), s[j]) / Q);
         }
+        p[i] = p[i].wrapping_add(mul(sign, mul(c, t) / Q));
     }
 }
 
@@ -85,19 +91,16 @@ fn vjp(net: &Net, l: usize, aq: &mut [i64], gw: &mut [i64], gb: &mut [i64], u: &
             t[j] = t[j].wrapping_add(mul(net.w(l, j, i), u[i]) / Q);
         }
     }
-    for i in 0..n {
-        for j in 0..n {
-            let term = mul(mul(c, net.w(l, j, i)) / Q, mul(d[j], t[j]) / Q) / Q;
-            aq[i] = aq[i].wrapping_add(term);
-        }
-    }
+    let dt: Vec<i64> = (0..n).map(|j| mul(d[j], t[j]) / Q).collect();
+    kick(net, l, aq, &dt, c, 1);
     for j in 0..n {
+        let cs = mul(c, s[j]) / Q;
+        let cdt = mul(c, dt[j]) / Q;
         for i in 0..n {
-            let inner = (mul(s[j], u[i]) / Q).wrapping_add(mul(mul(d[j], t[j]) / Q, q[i]) / Q);
             let at = (l * n + j) * n + i;
-            gw[at] = gw[at].wrapping_add(mul(c, inner) / Q);
+            gw[at] = gw[at].wrapping_add(mul(cs, u[i]) / Q).wrapping_add(mul(cdt, q[i]) / Q);
         }
-        gb[l * n + j] = gb[l * n + j].wrapping_add(mul(c, mul(d[j], t[j]) / Q) / Q);
+        gb[l * n + j] = gb[l * n + j].wrapping_add(cdt);
     }
 }
 

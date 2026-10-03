@@ -6,4 +6,5 @@ pub enum Command {
     Fmt(FmtArgs),
     Test(TestArgs),
     Run(RunArgs),
+    Lsp,
 }

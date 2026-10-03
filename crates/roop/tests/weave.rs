@@ -9,21 +9,21 @@ use weave::forward;
 use weave::grad;
 use weave::step;
 
-fn fwd(q: &mut [i64; 4], p: &mut [i64; 4], ws: &[[[i64; 4]; 4]; 2], bs: &[[i64; 4]; 2], h: &i64) {
-    call forward<4, 2>(q, p, ws, bs, h);
+fn fwd(q: &mut [i64; 4], p: &mut [i64; 4], ws: &[[[i64; 4]; 4]; 2], bs: &[[i64; 4]; 2], h: &i64, kind: &i64) {
+    call forward<4, 4, 2>(q, p, ws, bs, h, kind);
 }
 
 fn g(total: &mut i64, q: &mut [i64; 4], p: &mut [i64; 4], aq: &mut [i64; 4], ap: &mut [i64; 4],
      gw: &mut [[[i64; 4]; 4]; 2], gb: &mut [[i64; 4]; 2],
-     ws: &[[[i64; 4]; 4]; 2], bs: &[[i64; 4]; 2], h: &i64, t: &[i64; 1]) {
-    call grad<4, 2, 1>(total, q, p, aq, ap, gw, gb, ws, bs, h, t);
+     ws: &[[[i64; 4]; 4]; 2], bs: &[[i64; 4]; 2], h: &i64, kind: &i64, t: &[i64; 1]) {
+    call grad<4, 4, 2, 1>(total, q, p, aq, ap, gw, gb, ws, bs, h, kind, t);
 }
 
 irrev fn train(total: &mut i64, ws: &mut [[[i64; 4]; 4]; 2], bs: &mut [[i64; 4]; 2],
                gw: &mut [[[i64; 4]; 4]; 2], gb: &mut [[i64; 4]; 2],
                q: &mut [i64; 4], p: &mut [i64; 4], aq: &mut [i64; 4], ap: &mut [i64; 4],
-               xs: &[[i64; 4]; 4], ts: &[[i64; 1]; 4], h: &i64, lr: &i64) {
-    call step<4, 2, 1, 4>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr);
+               xs: &[[i64; 4]; 4], ts: &[[i64; 1]; 4], h: &i64, lr: &i64, kind: &i64) {
+    call step<4, 4, 2, 1, 4>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr, kind);
 }
 ";
 
@@ -39,12 +39,12 @@ const DRIVER: &str = r#"
 typedef int64_t W3[L][N][N];
 typedef int64_t B2[L][N];
 
-void fwd(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
-void fwd_inv(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void fwd(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void fwd_inv(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
 void g(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
-       int64_t*, int64_t*, int64_t*, int64_t*);
+       int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
 void train(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
-           int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+           int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
 
 static double sigma(double z) { return z / (1 + z * z); }
 
@@ -94,7 +94,8 @@ int main(void) {
         int64_t q[N], p[N] = {0}, aq[N] = {0}, ap[N] = {0}, t = llround(ts[n] * S);
         for (int i = 0; i < N; i++) q[i] = llround(xs[n][i] * S);
         int64_t q0[N]; memcpy(q0, q, sizeof q);
-        g(&total, q, p, aq, ap, (int64_t*)gw, (int64_t*)gb, (int64_t*)ws, (int64_t*)bs, &H, &t);
+        int64_t kind = 1;
+        g(&total, q, p, aq, ap, (int64_t*)gw, (int64_t*)gb, (int64_t*)ws, (int64_t*)bs, &H, &kind, &t);
         /* The activations were rebuilt, not stored: the input comes back bit for bit. */
         if (memcmp(q, q0, sizeof q) != 0) return 1;
         for (int i = 0; i < N; i++) if (p[i] != 0) return 2;
@@ -134,9 +135,10 @@ int main(void) {
     /* The forward pass alone reverses exactly. */
     int64_t q[N], p[N] = {0}, q0[N];
     for (int i = 0; i < N; i++) q[i] = q0[i] = llround(xs[1][i] * S);
-    fwd(q, p, (int64_t*)ws, (int64_t*)bs, &H);
+    int64_t kind = 1;
+    fwd(q, p, (int64_t*)ws, (int64_t*)bs, &H, &kind);
     if (memcmp(q, q0, sizeof q) == 0) return 5;
-    fwd_inv(q, p, (int64_t*)ws, (int64_t*)bs, &H);
+    fwd_inv(q, p, (int64_t*)ws, (int64_t*)bs, &H, &kind);
     if (memcmp(q, q0, sizeof q) != 0) return 6;
     for (int i = 0; i < N; i++) if (p[i] != 0) return 7;
     return 0;
@@ -154,13 +156,13 @@ const TRAIN: &str = r#"
 #define S 4096.0
 
 void train(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
-           int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+           int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
 
 static double rw(int l, int j, int i) { return (((l * 5 + j * 7 + i * 3) % 9) - 4) / 16.0; }
 static double rb(int l, int j) { return (((l * 3 + j * 2) % 5) - 2) / 16.0; }
 
 int main(void) {
-    int64_t H = llround(0.25 * S), LR = llround(LEARNING_RATE * S);
+    int64_t H = llround(0.25 * S), LR = llround(LEARNING_RATE * S), kind = 1;
     double xd[4][N] = {{1, 1, 1, 0}, {1, -1, 1, 0}, {-1, 1, 1, 0}, {-1, -1, 1, 0}};
     double td[4] = {-0.5, 0.5, 0.5, -0.5};
     int64_t xs[4][N], ts[4][1];
@@ -179,7 +181,7 @@ int main(void) {
     for (int epoch = 0; epoch < EPOCHS; epoch++) {
         int64_t total = 0;
         train(&total, (int64_t*)ws, (int64_t*)bs, (int64_t*)gw, (int64_t*)gb, q, p, aq, ap,
-              (int64_t*)xs, (int64_t*)ts, &H, &LR);
+              (int64_t*)xs, (int64_t*)ts, &H, &LR, &kind);
         last = total / S;
         if (epoch == 0) first = last;
     }
@@ -193,7 +195,11 @@ fn weave_dir() -> PathBuf {
 }
 
 fn config() -> String {
-    format!("[modules]\nweave = \"{}\"\n", weave_dir().display())
+    format!(
+        "[modules]\nweave = \"{}\"\neinsum = \"{}\"\n",
+        weave_dir().display(),
+        weave_dir().with_file_name("einsum").display()
+    )
 }
 
 fn run(name: &str, driver: &str) -> Option<i32> {
@@ -230,8 +236,8 @@ use weave::step;
 irrev fn train(total: &mut i64, ws: &mut [[[i64; 64]; 64]; 8], bs: &mut [[i64; 64]; 8],
                gw: &mut [[[i64; 64]; 64]; 8], gb: &mut [[i64; 64]; 8],
                q: &mut [i64; 64], p: &mut [i64; 64], aq: &mut [i64; 64], ap: &mut [i64; 64],
-               xs: &[[i64; 64]; 32], ts: &[[i64; 4]; 32], h: &i64, lr: &i64) {
-    call step<64, 8, 4, 32>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr);
+               xs: &[[i64; 64]; 32], ts: &[[i64; 4]; 32], h: &i64, lr: &i64, kind: &i64) {
+    call step<64, 64, 8, 4, 32>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr, kind);
 }
 ";
 
@@ -248,7 +254,7 @@ static int64_t ws[L][N][N], bs[L][N], gw[L][N][N], gb[L][N];
 static int64_t xs[B][N], ts[B][4], q[N], p[N], aq[N], ap[N];
 
 void train(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
-           int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+           int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
 
 int main(void) {
     for (int l = 0; l < L; l++)
@@ -260,13 +266,13 @@ int main(void) {
         for (int i = 0; i < N; i++) xs[n][i] = ((n * 3 + i) % 7 - 3) * 512;
         for (int k = 0; k < 4; k++) ts[n][k] = ((n + k) % 3 - 1) * 512;
     }
-    int64_t H = 1024, LR = 64, total = 0;
+    int64_t H = 1024, LR = 64, kind = 1, total = 0;
     struct timespec a, b;
     clock_gettime(CLOCK_MONOTONIC, &a);
     int steps = 50;
     for (int s = 0; s < steps; s++)
         train(&total, (int64_t*)ws, (int64_t*)bs, (int64_t*)gw, (int64_t*)gb, q, p, aq, ap,
-              (int64_t*)xs, (int64_t*)ts, &H, &LR);
+              (int64_t*)xs, (int64_t*)ts, &H, &LR, &kind);
     clock_gettime(CLOCK_MONOTONIC, &b);
     double secs = (b.tv_sec - a.tv_sec) + (b.tv_nsec - a.tv_nsec) / 1e9;
     fprintf(stderr, "weave: %d layers of width %d, %d samples a step: %.1f samples/s, %.2f ms a step\n",
@@ -296,11 +302,11 @@ fn lean_proves_the_forward_pass_exactly_reversible() {
 use weave::layer;
 use weave::forward;
 
-fn one(q: &mut [i64; 2], p: &mut [i64; 2], w: &[[i64; 2]; 2], b: &[i64; 2], h: &i64) {
-    call layer<2>(q, p, w, b, h);
+fn one(q: &mut [i64; 2], p: &mut [i64; 2], w: &[[i64; 2]; 2], b: &[i64; 2], h: &i64, kind: &i64) {
+    call layer<2, 2>(q, p, w, b, h, kind);
 }
-fn net(q: &mut [i64; 2], p: &mut [i64; 2], ws: &[[[i64; 2]; 2]; 2], bs: &[[i64; 2]; 2], h: &i64) {
-    call forward<2, 2>(q, p, ws, bs, h);
+fn net(q: &mut [i64; 2], p: &mut [i64; 2], ws: &[[[i64; 2]; 2]; 2], bs: &[[i64; 2]; 2], h: &i64, kind: &i64) {
+    call forward<2, 2, 2>(q, p, ws, bs, h, kind);
 }
 ";
     let dir = project("weave-lean", &config(), src);
@@ -308,8 +314,8 @@ fn net(q: &mut [i64; 2], p: &mut [i64; 2], ws: &[[[i64; 2]; 2]; 2], bs: &[[i64; 
     assert!(out.status.success(), "{}", stderr(&out));
     let report = String::from_utf8_lossy(&out.stdout).into_owned();
     for name in [
-        "weave__net__layer__2",
-        "weave__net__forward__2_2",
+        "weave__net__layer__2_2",
+        "weave__net__forward__2_2_2",
         "one",
         "net",
     ] {
@@ -325,13 +331,13 @@ use weave::layer_back;
 use weave::backward;
 
 fn one(q: &mut [i64; 4], p: &mut [i64; 4], aq: &mut [i64; 4], ap: &mut [i64; 4],
-       gw: &mut [[i64; 4]; 4], gb: &mut [i64; 4], w: &[[i64; 4]; 4], b: &[i64; 4], h: &i64) {
-    call layer_back<4>(q, p, aq, ap, gw, gb, w, b, h);
+       gw: &mut [[i64; 4]; 4], gb: &mut [i64; 4], w: &[[i64; 4]; 4], b: &[i64; 4], h: &i64, kind: &i64) {
+    call layer_back<4, 4>(q, p, aq, ap, gw, gb, w, b, h, kind);
 }
 fn net(q: &mut [i64; 4], p: &mut [i64; 4], aq: &mut [i64; 4], ap: &mut [i64; 4],
        gw: &mut [[[i64; 4]; 4]; 3], gb: &mut [[i64; 4]; 3],
-       ws: &[[[i64; 4]; 4]; 3], bs: &[[i64; 4]; 3], h: &i64) {
-    call backward<4, 3>(q, p, aq, ap, gw, gb, ws, bs, h);
+       ws: &[[[i64; 4]; 4]; 3], bs: &[[i64; 4]; 3], h: &i64, kind: &i64) {
+    call backward<4, 4, 3>(q, p, aq, ap, gw, gb, ws, bs, h, kind);
 }
 ";
     let dir = project("weave-lean-back", &config(), src);
@@ -339,11 +345,43 @@ fn net(q: &mut [i64; 4], p: &mut [i64; 4], aq: &mut [i64; 4], ap: &mut [i64; 4],
     assert!(out.status.success(), "{}", stderr(&out));
     let report = String::from_utf8_lossy(&out.stdout).into_owned();
     for name in [
-        "weave__net__vjp__4",
-        "weave__net__layer_back__4",
-        "weave__net__backward__4_3",
+        "weave__net__vjp__4_4",
+        "weave__net__layer_back__4_4",
+        "weave__net__backward__4_4_3",
         "one",
         "net",
+    ] {
+        assert!(report.contains(name), "{name} missing: {report}");
+    }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}
+
+#[test]
+fn lean_proves_the_reversible_mlp_block_and_its_backward_step() {
+    let src = "
+use weave::mlp;
+use weave::mlp_back;
+
+fn fwd(y: &mut [i64; 4], w1: &[[i64; 4]; 3], b1: &[i64; 3], w2: &[[i64; 3]; 4], b2: &[i64; 4],
+       x: &[i64; 4], kind: &i64) {
+    call mlp<4, 3>(y, w1, b1, w2, b2, x, kind);
+}
+fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
+        gw1: &mut [[i64; 4]; 3], gb1: &mut [i64; 3], gw2: &mut [[i64; 3]; 4], gb2: &mut [i64; 4],
+        w1: &[[i64; 4]; 3], b1: &[i64; 3], w2: &[[i64; 3]; 4], b2: &[i64; 4],
+        x: &[i64; 4], kind: &i64) {
+    call mlp_back<4, 3>(y, ay, ax, gw1, gb1, gw2, gb2, w1, b1, w2, b2, x, kind);
+}
+";
+    let dir = project("weave-lean-mlp", &config(), src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    for name in [
+        "weave__mlp__mlp__4_3",
+        "weave__mlp__mlp_back__4_3",
+        "fwd",
+        "back",
     ] {
         assert!(report.contains(name), "{name} missing: {report}");
     }
