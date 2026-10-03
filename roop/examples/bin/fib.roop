@@ -7,40 +7,56 @@ use std::math::fibpair;
 use std::process::*;
 use std::text::*;
 
-irrev fn main(status: &mut i64) {
+fn main(status: &mut i64) {
     ancilla argc: i64 = 0;
-    ancilla word: [u8; 32] = 0;
-    ancilla word_len: i64 = 0;
-    ancilla index: i64 = 0;
-    ancilla ok: i64 = 0;
     call arg_count(argc);
     if argc < 2 {
         call eprintln("usage: fib <n>");
-        status = 2;
+        status += 2;
     } else {
+        ancilla word: [u8; 32] = 0;
+        ancilla word_len: i64 = 0;
+        ancilla index: i64 = 0;
+        ancilla ok: i64 = 0;
         call arg(1, word, word_len);
         call parse_int(word, word_len, index, ok);
         if ok == 1 && index >= 0 && index <= 90 {
             call print_fib(index);
         } else {
             call eprintln("fib: the index must be from 0 to 90");
-            status = 2;
+            status += 2;
         } fi ok == 1 && index >= 0 && index <= 90;
+        keep word;
+        keep word_len;
+        keep index;
+        keep ok;
     } fi argc < 2;
+    uncall arg_count(argc);
 }
 
-irrev fn print_fib(index: &i64) {
+fn print_fib(index: &i64) {
     ancilla n: i64 = 0;
     ancilla a: i64 = 0;
     ancilla b: i64 = 0;
     ancilla number: i64 = 0;
     ancilla out: [u8; 64] = 0;
     ancilla len: i64 = 0;
-    n = index;
+    n += index;
     call fibpair(n, a, b);
     number += b;
     number -= a;
     call put_int(out, len, number);
     call put(out, len, "\n");
     call print_buf(out, len);
+    keep out;
+    keep len;
+    keep n;
+    keep a;
+    keep b;
+    keep number;
+}
+
+test fib_can_be_taken_back {
+    status: i64;
+    call main(status);
 }

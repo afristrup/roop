@@ -114,34 +114,42 @@ pub fn is_digit(c: &u8, yes: &mut i64) {
 }
 
 // Reads a number written in decimal, with an optional minus sign, from the
-// first len bytes of s. ok is 1 when that is all there is to it.
-pub irrev fn parse_int<N>(s: &[u8; N], len: &i64, value: &mut i64, ok: &mut i64) {
+// first len bytes of s. value is zero going in and gets the number, and ok gets
+// 1 when that is all there is to it. The number is built one digit at a time,
+// each step into a fresh place, and what is let go of is kept, so the reading
+// runs backward too.
+pub fn parse_int<N>(s: &[u8; N], len: &i64, value: &mut i64, ok: &mut i64) {
     ancilla start: i64 = 0;
     ancilla negative: i64 = 0;
+    ancilla bad: i64 = 0;
+    ancilla acc: i64 = 0;
+    ancilla next: i64 = 0;
     ancilla k: i64 = 0;
-    value = 0;
-    ok = 1;
     if len > 0 && s[0] == b'-' {
-        negative = 1;
-        start = 1;
+        negative += 1;
+        start += 1;
     } fi len > 0 && s[0] == b'-';
-    if len <= start { ok = 0; } fi len <= start;
+    if len <= start { bad += 1; } fi len <= start;
     from k == 0 {
         if k >= start && k < len {
             if s[k] >= b'0' && s[k] <= b'9' {
-                value = value * 10 + (s[k] - b'0') as i64;
+                next += acc * 10;
+                next += (s[k] - b'0') as i64;
+                keep acc;
+                acc <=> next;
             } else {
-                ok = 0;
+                bad += 1;
             } fi s[k] >= b'0' && s[k] <= b'9';
         } fi k >= start && k < len;
     } loop { k += 1; } until k == N - 1;
-    if negative == 1 { value = 0 - value; } fi negative == 1;
-}
-
-// Empties a text, so a buffer can be used again. Irreversible: the bytes are
-// lost, so reversible code does not do this, it runs its appends backward.
-pub irrev fn clear<N>(buf: &mut [u8; N], len: &mut i64) {
-    ancilla i: i64 = 0;
-    from i == 0 { buf[i] = 0; } loop { i += 1; } until i == N - 1;
-    len = 0;
+    k -= N - 1;
+    if bad == 0 {
+        if negative == 1 { value -= acc; } else { value += acc; } fi negative == 1;
+        ok += 1;
+    } fi bad == 0;
+    keep start;
+    keep negative;
+    keep bad;
+    keep acc;
+    keep next;
 }

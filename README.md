@@ -194,14 +194,15 @@ appending adds into zeros and running the append backward takes it off again.
 
 ## Programs
 
-A program starts at `main`. `irrev fn main(status: &mut i64)` leaves the exit
-status in `status`, and `irrev fn main()` exits with 0. `roop run` builds and
-runs it, and `roop build` makes an executable when there is a `main`:
+A program starts at `main`, and it is a reversible function like any other, with
+no `irrev`. `fn main(status: &mut i64)` leaves the exit status in `status`, and
+`fn main()` exits with 0. `roop run` builds and runs it, and `roop build` makes
+an executable when there is a `main`:
 
 ```rust
 use std::io::println;
 
-irrev fn main() {
+fn main() {
     call println("Hello, world!");
 }
 ```
@@ -261,11 +262,39 @@ put back.
 
 A result goes into a place that is zero, like a `pop` or a `recv`, because the
 old value would be lost and the inverse could not bring it back; the runtime
-refuses a place that is not zero. That is why a loop that reads lines clears its
-buffer, which is an irreversible act, in irrev code. A reversible loop keeps
-every line, in a row of an array. Parallel loops and concurrent tasks may not
-call anything that changes the world, since the world has an order and they
-have none; the checker rejects it.
+refuses a place that is not zero. So a loop that reads lines has to empty its
+buffer before the next read, and `keep` is how.
+
+**Letting go with `keep`.** `keep x;` hands the value of `x` to the world, which
+remembers it, and leaves `x` zero. Run backward it takes the value back, so
+nothing is destroyed: the information moved from the program to the world's
+history, a stack that lives until the process ends, which is when the operating
+system finally erases it. This is the log of Heunen and Karvonen's reversible
+monads, made general: any value can be a log entry, because each entry has its
+take-back. It is also what makes `main` reversible. An ancilla that starts at
+zero is released by a `keep` of the whole variable at the end of its block, or
+at the end of each round of a loop that touches it, wherever it was changed
+before, and the checker accepts that in place of an inverse. A loop that reads
+lines is then:
+
+```rust
+from lines == 0 {
+    call read_line(line, len, eof);
+    if eof == 0 { call print_buf(line, len); call print("\n"); } fi eof == 0;
+    keep line;
+    keep len;
+} loop { lines += 1; } until eof == 1;
+keep eof;
+keep lines;
+```
+
+The history is a stack, so a function is run backward by exactly reversing it:
+do not `uncall` something that kept values after other code has kept values of
+its own since, since the entries come back last in, first out. A kept value is
+one you are done with. Every `roop test` runs a test backward as well, which
+checks that the kept values come back. Parallel loops and
+concurrent tasks may not call anything that changes the world or `keep`, since
+the world has an order and they have none; the checker rejects it.
 
 ```rust
 fn announce() {
@@ -273,7 +302,7 @@ fn announce() {
     call println("step two");
 }
 
-irrev fn main() {
+fn main() {
     ancilla failed: bool = false;
     try {
         call announce();
@@ -281,6 +310,7 @@ irrev fn main() {
     } catch_rollback {
         call println("rolled back: nothing from announce was shown");
     } -> failed;
+    keep failed;
 }
 ```
 
