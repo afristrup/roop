@@ -157,7 +157,7 @@ def main():
     cleared = "\n[parallel]\nsme = false\nq12 = false\n\n[optimize]\nclear_ancillas = true\n"
     rows = []
     if args.baseline:
-        base = pathlib.Path(args.baseline)
+        base = pathlib.Path(args.baseline).resolve()
         rows.append(("before: one sample at a time (the commit given)", run(
             base / "target/release/roop", base / "target/release/libroop_rt.a", base / "roop/weave",
             base / "roop/einsum", PER_SAMPLE, "sample", proto(14), "")))

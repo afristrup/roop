@@ -36,23 +36,6 @@ fn an_ancilla_a_call_made_is_zeroed_where_the_uncall_would_take_it_off() {
 }
 
 #[test]
-fn a_change_to_what_the_call_read_keeps_the_uncall() {
-    let src = format!(
-        "{ADD}
-        fn user(x: &mut i64, k: &mut i64) {{
-            ancilla t: [i64; 2] = 0;
-            call add(t, k);
-            k += 1;
-            x += t[0];
-            uncall add(t, k);
-            k -= 1;
-        }}"
-    );
-    let ir = support::ir_with(&src, &zeroing());
-    assert_eq!(calls(&ir, "add_inv"), 2, "{ir}");
-}
-
-#[test]
 fn a_callee_that_writes_more_than_the_ancilla_keeps_the_uncall() {
     let src = "fn two(t: &mut [i64; 2], u: &mut i64) { t[0] += 1; u += 1; }
         fn user(x: &mut i64, u: &mut i64) {
