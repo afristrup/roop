@@ -1,6 +1,6 @@
 mod support;
 
-use support::{attention, compile, conv, leapfrog, mlp, model, project, roop, text};
+use support::{attention, compile, conv, leapfrog, mlp, mlp_norm, model, project, roop, text};
 
 fn check(name: &str, layers: Vec<serde_json::Value>, width: usize, outputs: usize) {
     let dir = project(name);
@@ -124,4 +124,24 @@ fn convolution_mixed_with_the_other_blocks_agrees_with_the_reference() {
         conv(3, 3, 5),
     ];
     check("conv_mixed", layers, 6, 3);
+}
+
+#[test]
+fn a_normalized_perceptron_of_each_activation_agrees_with_the_reference() {
+    for act in ["identity", "relu", "tanh", "gelu"] {
+        let layers = vec![mlp_norm(act, 4, 4, 2), mlp_norm(act, 3, 4, 5)];
+        check(&format!("norm_{act}"), layers, 4, 2);
+    }
+}
+
+#[test]
+fn a_normalized_perceptron_mixed_with_the_other_blocks_agrees_with_the_reference() {
+    let layers = vec![
+        mlp_norm("silu", 5, 6, 1),
+        conv(2, 3, 2),
+        mlp("tanh", 3, 6, 3),
+        mlp_norm("relu", 4, 6, 4),
+        attention(3, 2, 5),
+    ];
+    check("norm_mixed", layers, 6, 3);
 }

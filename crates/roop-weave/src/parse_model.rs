@@ -1,4 +1,4 @@
-use crate::{Activation, Layer, LossKind, Model, Optimizer, Tensor, WeaveError};
+use crate::{Activation, Layer, LossKind, Model, Norm, Optimizer, Tensor, WeaveError, quantize};
 use serde_json::Value;
 
 fn field<'a>(
@@ -166,6 +166,35 @@ fn parse_conv(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveE
     })
 }
 
+fn parse_norm(
+    layer: &Value,
+    path: &str,
+    index: usize,
+    hidden: usize,
+) -> Result<Option<Norm>, WeaveError> {
+    let Some(spec) = layer.get("norm") else {
+        return Ok(None);
+    };
+    let at = format!("{path}norm.");
+    let eps = field(spec, &at, "eps", "a number")?
+        .as_f64()
+        .filter(|e| quantize(*e) >= 1);
+    let eps = eps.ok_or_else(|| WeaveError::Field {
+        path: format!("{at}eps"),
+        expected: "a number of at least 1/4096, the smallest weave can hold",
+    })?;
+    let gain = vector(spec, &at, "gain", format!("gain_{index}"))?;
+    if gain.dims[0] != hidden {
+        let found = format!("{} numbers", gain.dims[0]);
+        return Err(WeaveError::Shape {
+            name: gain.name,
+            expected: format!("{hidden} numbers"),
+            found,
+        });
+    }
+    Ok(Some(Norm { eps, gain }))
+}
+
 fn parse_layer(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveError> {
     let path = format!("layers[{index}].");
     let kind = field(layer, &path, "kind", "a layer kind")?
@@ -205,12 +234,14 @@ fn parse_layer(index: usize, layer: &Value, width: usize) -> Result<Layer, Weave
                     found,
                 });
             }
+            let norm = parse_norm(layer, &path, index, m)?;
             Ok(Layer::Mlp {
                 act,
                 w1,
                 b1,
                 w2,
                 b2,
+                norm,
             })
         }
         other => Err(WeaveError::Layer {

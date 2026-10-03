@@ -29,11 +29,20 @@ fn mlp(layer: &Layer, y: &mut [f64], x: &[f64]) {
         b1,
         w2,
         b2,
+        norm,
     } = layer
     else {
         unreachable!("an mlp layer")
     };
-    let a: Vec<f64> = affine(w1, b1, x).into_iter().map(|z| act.eval(z)).collect();
+    let mut z = affine(w1, b1, x);
+    if let Some(norm) = norm {
+        let mean = z.iter().map(|z| z * z).sum::<f64>() / z.len() as f64;
+        let scale = 1.0 / (mean + norm.eps).sqrt();
+        z.iter_mut()
+            .zip(&norm.gain.data)
+            .for_each(|(z, g)| *z *= scale * g);
+    }
+    let a: Vec<f64> = z.into_iter().map(|z| act.eval(z)).collect();
     y.iter_mut()
         .zip(affine(w2, b2, &a))
         .for_each(|(y, f)| *y += f);

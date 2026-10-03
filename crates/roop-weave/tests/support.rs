@@ -106,6 +106,14 @@ pub fn mlp(act: &str, hidden: usize, width: usize, seed: usize) -> Value {
     })
 }
 
+/// A perceptron whose hidden layer is normalized by its root mean square.
+pub fn mlp_norm(act: &str, hidden: usize, width: usize, seed: usize) -> Value {
+    let mut layer = mlp(act, hidden, width, seed);
+    let gain: Vec<f64> = (0..hidden).map(|j| 0.8 + 0.1 * (j % 3) as f64).collect();
+    layer["norm"] = json!({ "eps": 0.01, "gain": gain });
+    layer
+}
+
 pub fn attention(seq: usize, dim: usize, seed: usize) -> Value {
     json!({
         "kind": "attention",

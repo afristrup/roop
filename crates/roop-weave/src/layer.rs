@@ -1,4 +1,4 @@
-use crate::{Activation, Tensor};
+use crate::{Activation, Norm, Tensor};
 
 /// One reversible layer of the network.
 #[derive(Clone, Debug, PartialEq)]
@@ -16,6 +16,7 @@ pub enum Layer {
         b1: Tensor,
         w2: Tensor,
         b2: Tensor,
+        norm: Option<Norm>,
     },
     /// Half of a coupling: one half of the state takes in linear attention over
     /// the other, read as `seq` rows.
@@ -40,7 +41,18 @@ impl Layer {
     pub fn tensors(&self) -> Vec<&Tensor> {
         match self {
             Self::Leapfrog { w, b, .. } => vec![w, b],
-            Self::Mlp { w1, b1, w2, b2, .. } => vec![w1, b1, w2, b2],
+            Self::Mlp {
+                w1,
+                b1,
+                w2,
+                b2,
+                norm,
+                ..
+            } => {
+                let mut all = vec![w1, b1, w2, b2];
+                all.extend(norm.iter().map(|n| &n.gain));
+                all
+            }
             Self::Attention { wq, wk, wv, .. } => vec![wq, wk, wv],
             Self::Conv { w, b, .. } => vec![w, b],
         }
@@ -49,7 +61,18 @@ impl Layer {
     pub fn tensors_mut(&mut self) -> Vec<&mut Tensor> {
         match self {
             Self::Leapfrog { w, b, .. } => vec![w, b],
-            Self::Mlp { w1, b1, w2, b2, .. } => vec![w1, b1, w2, b2],
+            Self::Mlp {
+                w1,
+                b1,
+                w2,
+                b2,
+                norm,
+                ..
+            } => {
+                let mut all = vec![w1, b1, w2, b2];
+                all.extend(norm.iter_mut().map(|n| &mut n.gain));
+                all
+            }
             Self::Attention { wq, wk, wv, .. } => vec![wq, wk, wv],
             Self::Conv { w, b, .. } => vec![w, b],
         }
