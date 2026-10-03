@@ -51,8 +51,10 @@ fn the_reference_gradients_are_the_gradients_torch_finds() {
         {
             for (e, (a, b)) in ours.iter().zip(theirs.as_array().unwrap()).enumerate() {
                 let b = b.as_f64().unwrap();
+                // Central differences are off by about eps where a unit starts on the
+                // kink of softsign, as the one with no bias does.
                 assert!(
-                    (a - b).abs() < 1e-6,
+                    (a - b).abs() < 1e-5,
                     "{name}: tensor {k} element {e}: {a} against torch {b}"
                 );
             }
