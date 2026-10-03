@@ -1,0 +1,128 @@
+========================================
+extern functions
+========================================
+
+pub extern fn roop_write<N>(fd: &i64, buf: &[u8; N], len: &i64, written: &mut i64);
+extern fn roop_close(fd: &i64);
+
+----------------------------------------
+
+(source_file
+  (extern_item
+    (visibility)
+    (identifier)
+    (generics
+      (identifier))
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type)))
+      (parameter
+        (identifier)
+        (reference_type
+          (array_type
+            (primitive_type)
+            (identifier))))
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type)))
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type)))))
+  (extern_item
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type))))))
+
+========================================
+strings, bytes and casts
+========================================
+
+irrev fn main(status: &mut i64) {
+    call println("Hello, \"world\"!\n");
+    c += b'a';
+    c += b'\n';
+    n += x as i64 + (y as u8) as i64;
+    f += -x as f64;
+}
+
+----------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type))))
+    (block
+      (call_statement
+        (identifier)
+        (arguments
+          (string_literal)))
+      (update_statement
+        (identifier)
+        (byte_literal))
+      (update_statement
+        (identifier)
+        (byte_literal))
+      (update_statement
+        (identifier)
+        (binary_expression
+          (cast_expression
+            (identifier)
+            (primitive_type))
+          (cast_expression
+            (parenthesized_expression
+              (cast_expression
+                (identifier)
+                (primitive_type)))
+            (primitive_type))))
+      (update_statement
+        (identifier)
+        (cast_expression
+          (unary_expression
+            (identifier))
+          (primitive_type))))))
+
+========================================
+ancilla declarations
+========================================
+
+fn f(a: &mut i64) {
+    ancilla i: i64 = 0;
+    ancilla buf: [u8; 64] = 0;
+    a += i;
+}
+
+----------------------------------------
+
+(source_file
+  (function_item
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (reference_type
+          (primitive_type))))
+    (block
+      (ancilla_declaration
+        (identifier)
+        (primitive_type)
+        (integer))
+      (ancilla_declaration
+        (identifier)
+        (array_type
+          (primitive_type)
+          (integer))
+        (integer))
+      (update_statement
+        (identifier)
+        (identifier)))))

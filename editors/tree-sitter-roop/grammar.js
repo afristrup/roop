@@ -11,7 +11,8 @@ const PREC = {
   compare: 4,
   add: 5,
   multiply: 6,
-  unary: 7,
+  cast: 7,
+  unary: 8,
 };
 
 function commaSep(rule) {
@@ -38,6 +39,8 @@ module.exports = grammar({
     integer: (_) => /[0-9]+/,
     float: (_) => /[0-9]+\.[0-9]+/,
     boolean: (_) => choice("true", "false"),
+    string_literal: (_) => token(seq('"', repeat(choice(/[^"\\\n]/, /\\./)), '"')),
+    byte_literal: (_) => token(seq("b'", choice(/[^'\\\n]/, /\\./), "'")),
 
     // Items
 
@@ -48,6 +51,7 @@ module.exports = grammar({
         $.enum_item,
         $.struct_item,
         $.function_item,
+        $.extern_item,
         $.test_item,
         $.bennett_item,
         $.session_item,
@@ -110,6 +114,17 @@ module.exports = grammar({
         optional($.generics),
         $.parameters,
         field("body", $.block),
+      ),
+
+    extern_item: ($) =>
+      seq(
+        optional($.visibility),
+        "extern",
+        "fn",
+        field("name", $.identifier),
+        optional($.generics),
+        $.parameters,
+        ";",
       ),
 
     generics: ($) => seq("<", commaSep($.identifier), ">"),
@@ -183,7 +198,7 @@ module.exports = grammar({
         $.stack_type,
       ),
 
-    primitive_type: (_) => choice("i64", "f64", "bool"),
+    primitive_type: (_) => choice("i64", "f64", "u8", "bool"),
 
     type_identifier: ($) => $.identifier,
 
@@ -230,6 +245,7 @@ module.exports = grammar({
           $.from_statement,
           $.match_statement,
           $.ancilla_statement,
+          $.ancilla_declaration,
           $.borrow_statement,
           $.call_statement,
           $.chan_statement,
@@ -314,6 +330,17 @@ module.exports = grammar({
         field("body", $.block),
       ),
 
+    ancilla_declaration: ($) =>
+      seq(
+        "ancilla",
+        field("name", $.identifier),
+        ":",
+        field("type", $._type),
+        "=",
+        field("init", $._expression),
+        ";",
+      ),
+
     borrow_statement: ($) =>
       seq(
         "borrow",
@@ -386,11 +413,14 @@ module.exports = grammar({
       choice(
         $.integer,
         $.float,
+        $.string_literal,
+        $.byte_literal,
         $.boolean,
         $.empty,
         $.variant_path,
         $._place,
         $.unary_expression,
+        $.cast_expression,
         $.binary_expression,
         $.parenthesized_expression,
       ),
@@ -405,6 +435,9 @@ module.exports = grammar({
       ),
 
     parenthesized_expression: ($) => seq("(", $._expression, ")"),
+
+    cast_expression: ($) =>
+      prec.left(PREC.cast, seq($._expression, "as", field("type", $._type))),
 
     unary_expression: ($) =>
       prec(PREC.unary, seq(choice("-", "!"), $._expression)),

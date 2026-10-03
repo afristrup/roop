@@ -4,6 +4,12 @@
   "fn" @context
   name: (_) @name) @item
 
+(extern_item
+  (visibility)? @context
+  "extern" @context
+  "fn" @context
+  name: (_) @name) @item
+
 (test_item
   "test" @context
   name: (_) @name) @item

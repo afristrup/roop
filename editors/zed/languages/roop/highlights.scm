@@ -4,12 +4,14 @@
 
 (integer) @number
 (float) @number
+(string_literal) @string
+(byte_literal) @string
 (boolean) @boolean
 (empty) @constant
 
 ; Keywords
 [
-  "mod" "use" "as" "irrev" "enum" "struct" "fn" "build" "unbuild" "mut"
+  "mod" "use" "as" "extern" "irrev" "enum" "struct" "fn" "build" "unbuild" "mut"
   "if" "else" "fi" "from" "loop" "until" "match" "assert" "expect"
   "ancilla" "borrow" "call" "uncall" "chan" "send" "recv" "push" "pop"
   "logged" "try" "catch_rollback"
@@ -43,6 +45,7 @@
 
 ; Functions and tests
 (function_item name: (identifier) @function)
+(extern_item name: (identifier) @function)
 (test_item name: (identifier) @function)
 (bennett_item name: (identifier) @function target: (identifier) @function)
 (call_statement function: (identifier) @function)
@@ -50,6 +53,7 @@
 ; Names
 (parameter name: (identifier) @variable.special)
 (ancilla_statement name: (identifier) @variable.special)
+(ancilla_declaration name: (identifier) @variable.special)
 (borrow_statement name: (identifier) @variable.special)
 (chan_statement name: (identifier) @variable.special)
 (field_declaration name: (identifier) @property)
