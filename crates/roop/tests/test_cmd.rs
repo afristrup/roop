@@ -159,3 +159,28 @@ fn lean_runs_the_same_tests_on_the_model() {
     );
     assert!(text.contains("2 passed, 1 failed"), "{text}");
 }
+
+#[test]
+fn a_test_that_keeps_values_reports_the_history_peak() {
+    let src = "
+test keeps_a_number {
+    x: i64;
+    x += 5;
+    keep x;
+}
+
+test keeps_nothing {
+    x: i64;
+    x += 5;
+}
+";
+    let dir = project("test-history", "", src);
+    let out = roop(&dir, &["test"]);
+    let text = stdout(&out);
+    assert!(out.status.success(), "{text}{}", stderr(&out));
+    assert!(
+        text.contains("test keeps_a_number ... ok (history peak "),
+        "{text}"
+    );
+    assert!(text.contains("test keeps_nothing ... ok\n"), "{text}");
+}

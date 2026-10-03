@@ -12,6 +12,7 @@ pub unsafe extern "C" fn roop_unkeep(ptr: *mut u8, size: i64) {
     if kept.size != size.max(0) as usize {
         refuse("the value taken back is not the size of the one kept last");
     }
+    world().kept_bytes -= kept.cost();
     unsafe {
         require_zero(ptr, kept.size, "the place a kept value returns to");
         std::ptr::copy_nonoverlapping(kept.bytes.as_ptr(), ptr, kept.bytes.len());

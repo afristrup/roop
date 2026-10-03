@@ -201,12 +201,17 @@ fn translate_fn(
                 .iter()
                 .any(|p| p.construct == Construct::Try || p.one_way);
             fn_one_way = one_way;
-            if let Some(theorems) = lean_theorems(def, deps, &known, ancillas, one_way) {
+            if let Some(theorems) = lean_theorems(def, deps, &known, modular, ancillas, one_way) {
                 text.push_str(&theorems);
                 let (callable, names) = call_lemmas(def, ancillas, one_way);
                 text.push_str(&callable);
                 if ancillas {
                     call_names = Some(names);
+                    text.push_str(&format!(
+                        "attribute [irreducible] {} {}\n\n",
+                        esc_fn(&def.name),
+                        esc_fn(&format!("{}_inv", def.name))
+                    ));
                 }
             }
         }

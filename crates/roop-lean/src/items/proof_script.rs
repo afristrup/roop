@@ -1,6 +1,6 @@
 use crate::LoopLemmas;
 
-const BASE: &str = "beq_iff_eq, Prod.eta, Vector.getElem_set_self, Vector.set_set, Vector.set_getElem_self, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel, Roop.divOk_mul, Roop.sdiv_mul, Roop.mulOk_div, Roop.mul_sdiv";
+pub const SIMP_BASE: &str = "beq_iff_eq, Prod.eta, Vector.getElem_set_self, Vector.set_set, Vector.set_getElem_self, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel, Roop.neg_add_self, Roop.add_neg_self, Roop.divOk_mul, Roop.sdiv_mul, Roop.mulOk_div, Roop.mul_sdiv";
 
 /// Calls in sequence feed each other's results, one loop per round. A function
 /// with many calls gets a round for each, up to a limit.
@@ -13,7 +13,7 @@ const MOST_ROUNDS: usize = 24;
 /// bit-vector arithmetic, a SAT call on the bit-blasted goal, or
 /// extensionality for arrays and structs.
 pub fn proof_script(loop_lemmas: &LoopLemmas, calls: usize) -> String {
-    let mut simp = BASE.to_string();
+    let mut simp = SIMP_BASE.to_string();
     for lemma in &loop_lemmas.rewrite {
         simp.push_str(", ");
         simp.push_str(lemma);

@@ -6,7 +6,7 @@ use roop_syntax::{Item, Program};
 
 /// The C `main`: records the arguments for the runtime, runs `roop_main`, and
 /// returns the status it leaves.
-fn main_shim(params: usize, declare_commit: bool) -> String {
+fn main_shim(params: usize, declare_commit: bool, history_limit: Option<u64>) -> String {
     let (arg, passed) = if params == 0 {
         ("", "")
     } else {
@@ -30,8 +30,15 @@ fn main_shim(params: usize, declare_commit: bool) -> String {
     } else {
         ""
     };
+    let (declare_limit, set_limit) = match history_limit {
+        Some(limit) => (
+            "declare void @roop_set_history_limit(i64)\n\n".to_string(),
+            format!("  call void @roop_set_history_limit(i64 {limit})\n"),
+        ),
+        None => (String::new(), String::new()),
+    };
     format!(
-        "{declare}define i32 @main(i32 %argc, ptr %argv) {{\nentry:\n  call void @roop_set_args(i32 %argc, ptr %argv)\n{arg}  call void @roop_main({passed})\n{load}  call void @roop_commit()\n  ret i32 {ret}\n}}\n\n"
+        "{declare}{declare_limit}define i32 @main(i32 %argc, ptr %argv) {{\nentry:\n  call void @roop_set_args(i32 %argc, ptr %argv)\n{set_limit}{arg}  call void @roop_main({passed})\n{load}  call void @roop_commit()\n  ret i32 {ret}\n}}\n\n"
     )
 }
 
@@ -149,7 +156,11 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
             .items
             .iter()
             .any(|item| matches!(item, Item::Fn(f) if f.external && f.name == "roop_commit"));
-        host.push_str(&main_shim(main.params.len(), !declared));
+        host.push_str(&main_shim(
+            main.params.len(),
+            !declared,
+            options.history_limit,
+        ));
     }
     let pick = |dialect: Dialect| -> Vec<&Kernel> {
         kernels.iter().filter(|k| k.dialect == dialect).collect()

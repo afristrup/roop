@@ -55,10 +55,15 @@ pub fn run_test(args: &TestArgs) -> Result<(), CliError> {
             let verdict = run_one_test(&exe, index, timeout)
                 .map_err(|e| CliError::Io(format!("running {}", test.name), e))?;
             match verdict {
-                Verdict::Passed => {
+                Verdict::Passed(peak) => {
                     native.push((test.name.clone(), true));
                     passed += 1;
-                    println!("test {} ... ok", test.name);
+                    match peak {
+                        Some(bytes) => {
+                            println!("test {} ... ok (history peak {bytes} bytes)", test.name)
+                        }
+                        None => println!("test {} ... ok", test.name),
+                    }
                 }
                 other => {
                     failed += 1;

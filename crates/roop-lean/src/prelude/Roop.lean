@@ -938,4 +938,41 @@ not recover from, into an ordinary failure. -/
 elab "roop_catch " t:tactic : tactic =>
   tryCatchRuntimeEx (evalTactic t) fun _ => throwError "recursion limit"
 
+theorem neg_add_self (x : BitVec 64) : -x + x = 0 := by bv_omega
+
+theorem add_neg_self (x : BitVec 64) : x + -x = 0 := by bv_omega
+
+/-- A bind that ends in the ancilla failure either failed in its first part, or
+went on and failed after it. Peeling a chain of calls with this, one at a time,
+lets each call's own lemma settle it, with no case splits. -/
+theorem bind_ancilla {α β : Type} {x : Res α} {f : α → Res β}
+    (h : (x >>= f) = Except.error Fail.ancilla) :
+    x = Except.error Fail.ancilla ∨ ∃ a, x = Except.ok a ∧ f a = Except.error Fail.ancilla := by
+  cases x with
+  | error e =>
+    left
+    have : e = Fail.ancilla := by simpa [bind, Except.bind] using h
+    rw [this]
+  | ok a => exact Or.inr ⟨a, rfl, h⟩
+
+/-- A bind that succeeded: its first part did, and the rest did on its result. -/
+theorem bind_ok {α β : Type} {x : Res α} {f : α → Res β} {b : β}
+    (h : (x >>= f) = Except.ok b) : ∃ a, x = Except.ok a ∧ f a = Except.ok b := by
+  cases x with
+  | error e => simp [bind, Except.bind] at h
+  | ok a => exact ⟨a, rfl, h⟩
+
+theorem check_ok {c : Bool} {f : Fail} (h : check c f = Except.ok ()) : c = true := by
+  unfold check at h
+  split at h <;> simp_all
+
+
+/-- A guard that holds is no failure: the rest runs as if it were not there. -/
+theorem guard_ok {c : Bool} {f : Fail} {β : Type} {g : Unit → Res β} (hc : c = true) :
+    (check c f >>= g) = g () := by
+  simp [check, hc, bind, Except.bind]
+
+theorem ok_bind {α β : Type} (a : α) (f : α → Res β) :
+    ((Except.ok a : Res α) >>= f) = f a := rfl
+
 end Roop

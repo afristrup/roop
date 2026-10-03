@@ -1,0 +1,5 @@
+use std::blas::level3::dgemm;
+
+fn gemm(c: &mut [[f64; @N@]; @N@], a: &[[f64; @N@]; @N@], b: &[[f64; @N@]; @N@], alpha: &f64) {
+    call dgemm<@N@, @N@, @N@>(c, a, b, alpha);
+}

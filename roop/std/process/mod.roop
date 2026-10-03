@@ -12,6 +12,14 @@ pub irrev fn exit(code: &i64) {
     call roop_exit(code);
 }
 
+// Lets go of everything the world remembers, for good: the values `keep` handed
+// over, the input read, the clock and the changes to files. A program that runs
+// for long calls it once per request or batch, so the history stays bounded; the
+// memory is only erased here. Nothing before it can be run backward afterwards.
+pub irrev fn forget() {
+    call roop_forget();
+}
+
 // How many arguments the program got, its own name first.
 pub fn arg_count(count: &mut i64) {
     call roop_arg_count(count);

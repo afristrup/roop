@@ -1,0 +1,5 @@
+use std::blas::level1::daxpy;
+
+fn axpy(y: &mut [f64; @N@], x: &[f64; @N@], alpha: &f64) {
+    call daxpy<@N@>(y, x, alpha);
+}

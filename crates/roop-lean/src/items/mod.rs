@@ -1,6 +1,10 @@
 mod call_lemmas;
+mod chain_calls;
+mod chain_proof;
+mod chain_roundtrip;
 mod coded_type;
 mod fn_text;
+mod guarded_proof;
 mod hypothesis;
 mod is_mut_ref;
 mod lean_behaviour;
@@ -25,8 +29,12 @@ mod translation;
 mod unfold_simp;
 
 pub use call_lemmas::*;
+pub use chain_calls::*;
+pub use chain_proof::*;
+pub use chain_roundtrip::*;
 pub use coded_type::*;
 pub use fn_text::*;
+pub use guarded_proof::*;
 pub use hypothesis::*;
 pub use is_mut_ref::*;
 pub use lean_behaviour::*;
