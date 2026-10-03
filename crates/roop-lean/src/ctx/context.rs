@@ -11,6 +11,8 @@ pub struct Ctx<'a> {
     pub translated: HashSet<String>,
     /// Structs with an `f64` inside, whose arithmetic is not exact.
     pub float_structs: HashSet<String>,
+    /// Which parameters of each function it may write.
+    pub mutability: roop_check::Mutability<'a>,
 }
 
 impl<'a> Ctx<'a> {
@@ -21,6 +23,7 @@ impl<'a> Ctx<'a> {
             fns: HashMap::new(),
             translated: HashSet::new(),
             float_structs: HashSet::new(),
+            mutability: roop_check::fn_mutability(program),
         };
         for item in &program.items {
             match item {

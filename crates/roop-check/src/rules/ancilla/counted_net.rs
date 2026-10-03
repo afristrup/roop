@@ -17,7 +17,9 @@ pub fn counted_net(stmt: &Stmt, name: &str) -> Option<Stmt> {
     };
     let counted = counted_loop(entry, step, until).filter(|c| c.var == name)?;
     let mut writes = HashSet::new();
-    body.stmts.iter().for_each(|s| stmt_writes(s, &mut writes));
+    body.stmts
+        .iter()
+        .for_each(|s| stmt_writes(s, &mut writes, None));
     if writes.contains(name) {
         return None;
     }

@@ -1,3 +1,4 @@
+mod call_lemmas;
 mod fn_text;
 mod hypothesis;
 mod is_mut_ref;
@@ -20,6 +21,7 @@ mod translate;
 mod translation;
 mod unfold_simp;
 
+pub use call_lemmas::*;
 pub use fn_text::*;
 pub use hypothesis::*;
 pub use is_mut_ref::*;

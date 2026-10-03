@@ -1,4 +1,4 @@
-use crate::Facts;
+use crate::{Facts, Mutability};
 use std::collections::HashSet;
 
 /// What the code being checked may do: whether it is irreversible code (a
@@ -12,6 +12,8 @@ pub struct Scope<'a> {
     pub irreversible_fns: &'a HashSet<&'a str>,
     /// Functions a failed `try` could not roll back.
     pub non_atomic_fns: &'a HashSet<&'a str>,
+    /// Which parameters of each function it may write.
+    pub mutability: &'a Mutability<'a>,
     /// What the enclosing `if` conditions guarantee.
     pub facts: Option<&'a Facts<'a>>,
 }

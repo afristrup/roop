@@ -457,18 +457,27 @@ open Lean Elab Tactic Meta in
 /-- Applies a loop lemma to every hypothesis that mentions the same loop pieces
 as the lemma's premise, and keeps the results. -/
 elab "roop_loop " l:ident : tactic => withMainContext do
-  let needed ← forallTelescope (← getConstInfo l.getId).type fun xs _ => do
+  let info ← getConstInfo l.getId
+  let needed ← forallTelescope info.type fun xs _ => do
     return (← inferType xs.back!).getUsedConstants.filter fun c => c.getRoot == `Fn || (`Roop.Stack).isPrefixOf c
   for decl in (← getLCtx) do
     if decl.isImplementationDetail then continue
     let present := decl.type.getUsedConstants
     unless needed.all present.contains do continue
     try
-      let app ← mkAppM l.getId #[decl.toExpr]
+      -- Unify the lemma's premise with the hypothesis without unfolding any
+      -- function, so a hypothesis that does not match fails at once.
+      let (xs, infos, _) ← forallMetaTelescope info.type
+      let premise := xs.back!
+      unless ← withReducible (isDefEq (← inferType premise) decl.type) do continue
+      premise.mvarId!.assign decl.toExpr
+      for (m, info) in xs.zip infos do
+        if info == BinderInfo.instImplicit && !(← m.mvarId!.isAssigned) then
+          m.mvarId!.assign (← synthInstance (← instantiateMVars (← inferType m)))
+      let app ← instantiateMVars (mkAppN (← mkConstWithFreshMVarLevels l.getId) xs)
       let ty ← instantiateMVars (← inferType app)
-      unless (← getLCtx).any (fun d => !d.isImplementationDetail && d.type == ty) ||
-          (← withReducible ((← getLCtx).anyM fun d => do
-            return !d.isImplementationDetail && (← isDefEq d.type ty))) do
+      if ty.hasMVar then continue
+      unless (← getLCtx).any (fun d => !d.isImplementationDetail && d.type.hash == ty.hash && d.type == ty) do
         liftMetaTactic fun g => do
           let (_, g) ← (← g.assert `this ty app).intro1
           return [g]

@@ -87,7 +87,7 @@ pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
             }
             StmtKind::Ancilla { name, body, .. } => {
                 if !scope.irrev {
-                    check_ancilla(name, body, stmt.span)?;
+                    check_ancilla(name, body, stmt.span, scope.mutability)?;
                 }
                 check_block(body, scope)?;
             }

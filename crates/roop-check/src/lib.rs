@@ -12,8 +12,9 @@ pub use rules::check_parallel_body;
 pub use rules::{TaskItem, task_groups};
 pub use rules::{compliant, dual, unfold, well_formed};
 pub use stmts::{
-    BodyEffects, BodyFeatures, body_effects, body_features, calls_in, channels_used,
-    contains_irrev, irreversible_fns, is_irreversible_fn, non_atomic_fns,
+    BodyEffects, BodyFeatures, Mutability, body_effects, body_features, calls_in, channels_used,
+    contains_irrev, fn_mutability, irreversible_fns, is_irreversible_fn, non_atomic_fns,
+    precise_writes,
 };
 
 use driver::*;

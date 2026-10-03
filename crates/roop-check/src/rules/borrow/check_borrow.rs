@@ -16,7 +16,7 @@ pub fn check_borrow(
     check_borrowed_access(source, body)?;
     let mut writes = HashSet::new();
     for stmt in &body.stmts {
-        stmt_writes(stmt, &mut writes);
+        stmt_writes(stmt, &mut writes, None);
     }
     let mut selectors = Vec::new();
     place_index_reads(source, &mut selectors);

@@ -1,10 +1,11 @@
 use crate::{
-    Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, SESSION_PRELUDE, Translation, esc_fn,
-    lean_commute, lean_enum, lean_fn, lean_loop_lemmas, lean_session, lean_struct, lean_theorems,
-    lean_try_lemmas,
+    Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, SESSION_PRELUDE, Translation, call_lemmas,
+    esc_fn, lean_commute, lean_enum, lean_fn, lean_loop_lemmas, lean_session, lean_struct,
+    lean_theorems, lean_try_lemmas,
 };
-use roop_check::is_irreversible_fn;
+use roop_check::{calls_in, is_irreversible_fn};
 use roop_syntax::{FnDef, Item, Program};
+use std::collections::HashMap;
 
 /// Translates what it can. A function that uses something not modelled yet is
 /// skipped and reported, so the rest of the file stays valid Lean.
@@ -50,21 +51,26 @@ pub fn translate(program: &Program) -> Translation {
         .collect();
     let mut deps: Vec<String> = Vec::new();
     let mut lemmas = LoopLemmas::default();
+    let mut modular: HashMap<String, LoopLemmas> = HashMap::new();
     while !pending.is_empty() {
         let mut waiting = Vec::new();
         let mut progressed = false;
         for def in pending {
-            match translate_fn(&cx, def, &deps, &lemmas) {
+            match translate_fn(&cx, def, &deps, &lemmas, &modular) {
                 Ok(piece) => {
                     progressed = true;
                     lean.push_str(&piece.text);
                     cx.translated.insert(def.name.clone());
-                    deps.push(esc_fn(&def.name));
+                    if piece.modular.is_none() {
+                        deps.push(esc_fn(&def.name));
+                    }
                     if piece.reversible && piece.inexact {
                         deps.push(esc_fn(&format!("{}_inv", def.name)));
                         result.inexact.push(def.name.clone());
                     } else if piece.reversible {
-                        deps.push(esc_fn(&format!("{}_inv", def.name)));
+                        if piece.modular.is_none() {
+                            deps.push(esc_fn(&format!("{}_inv", def.name)));
+                        }
                         result.reversible.push(def.name.clone());
                     } else {
                         result.forward_only.push(def.name.clone());
@@ -75,7 +81,12 @@ pub fn translate(program: &Program) -> Translation {
                     if piece.parallel {
                         result.parallel.push(def.name.clone());
                     }
-                    lemmas.extend(piece.lemmas);
+                    match piece.modular {
+                        Some(call) => {
+                            modular.insert(def.name.clone(), call);
+                        }
+                        None => lemmas.extend(piece.lemmas),
+                    }
                 }
                 Err(LeanError::Unknown(what)) if what.starts_with("function") => {
                     waiting.push(def);
@@ -111,6 +122,9 @@ struct Piece {
     one_way: bool,
     /// Lemmas about the function's loops, for the proofs that come after.
     lemmas: LoopLemmas,
+    /// What a caller can use instead of unfolding the function, when its
+    /// theorems were stated.
+    modular: Option<LoopLemmas>,
 }
 
 fn translate_fn(
@@ -118,11 +132,17 @@ fn translate_fn(
     def: &FnDef,
     deps: &[String],
     lemmas: &LoopLemmas,
+    modular: &HashMap<String, LoopLemmas>,
 ) -> Result<Piece, LeanError> {
     let forward = lean_fn(cx, def, Dir::Forward)?;
     let reversible = !is_irreversible_fn(def);
     let mut text = format!("{}{}", forward.lifted, forward.text);
     let mut known = lemmas.clone();
+    for (callee, _) in calls_in(&def.body, false) {
+        if let Some(call) = modular.get(&callee) {
+            known.extend(call.clone());
+        }
+    }
     if text.contains("Roop.Stack") {
         known
             .chain
@@ -134,13 +154,18 @@ fn translate_fn(
     let mut fresh = LoopLemmas::default();
     let mut parallel = false;
     let mut fn_one_way = false;
+    let mut call_names: Option<LoopLemmas> = None;
     let mut inexact = text.contains("Float") || mentions_float_struct(cx, &text);
     if reversible {
         let backward = lean_fn(cx, def, Dir::Backward)?;
         inexact |= backward.lifted.contains("Float") || mentions_float_struct(cx, &backward.lifted);
         text.push_str(&backward.lifted);
         text.push_str(&backward.text);
-        let ancillas = forward.ancillas > 0 || backward.ancillas > 0;
+        // A function with calls is itself called through its theorems, which
+        // include never failing on an unrestored ancilla. A plain leaf is
+        // unfolded where it is called instead.
+        let ancillas =
+            forward.ancillas > 0 || backward.ancillas > 0 || !calls_in(&def.body, false).is_empty();
         if !inexact {
             for info in &forward.pieces {
                 let (lemma_text, names) = match info.construct {
@@ -162,6 +187,11 @@ fn translate_fn(
             fn_one_way = one_way;
             if let Some(theorems) = lean_theorems(def, deps, &known, ancillas, one_way) {
                 text.push_str(&theorems);
+                let (callable, names) = call_lemmas(def, ancillas, one_way);
+                text.push_str(&callable);
+                if ancillas {
+                    call_names = Some(names);
+                }
             }
         }
     }
@@ -172,6 +202,7 @@ fn translate_fn(
         parallel,
         one_way: reversible && !inexact && fn_one_way,
         lemmas: fresh,
+        modular: call_names,
     })
 }
 

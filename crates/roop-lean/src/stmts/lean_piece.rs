@@ -51,7 +51,7 @@ pub fn lean_piece(
     out.pieces.extend(inner.pieces);
     out.ancillas += inner.ancillas;
     out.lifted.push_str(&format!(
-        "def {name} {} (s : {state_type}) : Roop.Res {result} := do\n{}\n",
+        "def {name} {} (__st : {state_type}) : Roop.Res {result} := do\n{}\n",
         captures.join(" "),
         inner.text
     ));

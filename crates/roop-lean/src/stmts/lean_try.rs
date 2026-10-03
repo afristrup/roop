@@ -2,7 +2,7 @@ use crate::{
     Construct, Ctx, Dir, Env, LeanError, Lifted, Out, Piece, assign_place, esc, esc_fn, is_bool,
     lean_piece, lean_zero, place_type, read_place, tuple_expr, tuple_proj,
 };
-use roop_check::{body_effects, place_root};
+use roop_check::{place_root, precise_writes};
 use roop_syntax::{Block, Place};
 
 /// `try { body } catch_rollback { handler } -> outcome;` as the prelude's
@@ -20,8 +20,8 @@ pub fn lean_try(
     outcome: &Place,
     dir: Dir,
 ) -> Result<(), LeanError> {
-    let mut written = body_effects(body).writes;
-    written.extend(body_effects(handler).writes);
+    let mut written = precise_writes(body, &cx.mutability);
+    written.extend(precise_writes(handler, &cx.mutability));
     written.extend(env.logged.iter().map(|h| place_root(h).to_string()));
     let outcome_root = place_root(outcome);
     let (state, captures): (Vec<_>, Vec<_>) = env
