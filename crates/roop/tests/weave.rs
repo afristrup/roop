@@ -324,14 +324,14 @@ fn lean_proves_the_backward_pass_exactly_reversible() {
 use weave::layer_back;
 use weave::backward;
 
-fn one(q: &mut [i64; 2], p: &mut [i64; 2], aq: &mut [i64; 2], ap: &mut [i64; 2],
-       gw: &mut [[i64; 2]; 2], gb: &mut [i64; 2], w: &[[i64; 2]; 2], b: &[i64; 2], h: &i64) {
-    call layer_back<2>(q, p, aq, ap, gw, gb, w, b, h);
+fn one(q: &mut [i64; 4], p: &mut [i64; 4], aq: &mut [i64; 4], ap: &mut [i64; 4],
+       gw: &mut [[i64; 4]; 4], gb: &mut [i64; 4], w: &[[i64; 4]; 4], b: &[i64; 4], h: &i64) {
+    call layer_back<4>(q, p, aq, ap, gw, gb, w, b, h);
 }
-fn net(q: &mut [i64; 2], p: &mut [i64; 2], aq: &mut [i64; 2], ap: &mut [i64; 2],
-       gw: &mut [[[i64; 2]; 2]; 2], gb: &mut [[i64; 2]; 2],
-       ws: &[[[i64; 2]; 2]; 2], bs: &[[i64; 2]; 2], h: &i64) {
-    call backward<2, 2>(q, p, aq, ap, gw, gb, ws, bs, h);
+fn net(q: &mut [i64; 4], p: &mut [i64; 4], aq: &mut [i64; 4], ap: &mut [i64; 4],
+       gw: &mut [[[i64; 4]; 4]; 3], gb: &mut [[i64; 4]; 3],
+       ws: &[[[i64; 4]; 4]; 3], bs: &[[i64; 4]; 3], h: &i64) {
+    call backward<4, 3>(q, p, aq, ap, gw, gb, ws, bs, h);
 }
 ";
     let dir = project("weave-lean-back", &config(), src);
@@ -339,9 +339,9 @@ fn net(q: &mut [i64; 2], p: &mut [i64; 2], aq: &mut [i64; 2], ap: &mut [i64; 2],
     assert!(out.status.success(), "{}", stderr(&out));
     let report = String::from_utf8_lossy(&out.stdout).into_owned();
     for name in [
-        "weave__net__vjp__2",
-        "weave__net__layer_back__2",
-        "weave__net__backward__2_2",
+        "weave__net__vjp__4",
+        "weave__net__layer_back__4",
+        "weave__net__backward__4_3",
         "one",
         "net",
     ] {

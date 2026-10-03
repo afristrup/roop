@@ -503,7 +503,7 @@ precision copy of the network (they agree to about 1%, which is the 4096 grid)
 and that the input comes back bit for bit. Another trains XOR to a 50x lower
 loss. Lean proves the forward pass and the backward pass exactly reversible, layer
 by layer and through the loop over layers (`layer_back` and `backward`, checked at
-width 2): each call's own lemma settles it, so a function of eleven calls takes
+widths 2, 4 and 8 with up to three layers): each call's own lemma settles it, so a function of eleven calls takes
 seconds, not a case split of every outcome.
 
 This is a research library, not a framework. It has one layer type, one loss and
