@@ -1,4 +1,4 @@
-use crate::{EinsumError, Spec, length_name, loop_over, operand_type, parse_spec};
+use crate::{EinsumError, Spec, length_name, loop_over, number_spans, operand_type, parse_spec};
 use roop_syntax::{
     Attr, BinOp, Block, Expr, FnDef, Param, Place, Span, Stmt, StmtKind, Type, UpdateOp,
 };
@@ -96,7 +96,8 @@ pub fn build_einsum(def: &FnDef) -> Result<FnDef, EinsumError> {
     });
     let mut order = spec.output.clone();
     order.extend(spec.reduced());
-    let body = nest(&order, !spec.output.is_empty(), vec![update]);
+    let mut body = nest(&order, !spec.output.is_empty(), vec![update]);
+    number_spans(&mut body, &mut 1);
     Ok(FnDef {
         name: name.clone(),
         generics: spec.labels().into_iter().map(length_name).collect(),
