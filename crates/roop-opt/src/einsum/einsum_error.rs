@@ -24,7 +24,7 @@ impl fmt::Display for EinsumError {
                 f,
                 "`{name}`: `{label}` is twice in the output, which would write one place twice"
             ),
-            Self::BadType(name) => write!(f, "`{name}`: the numbers must be i64 or f64"),
+            Self::BadType(name) => write!(f, "`{name}`: the numbers must be i64, f64 or q12"),
         }
     }
 }

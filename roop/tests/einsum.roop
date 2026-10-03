@@ -913,3 +913,35 @@ test dattend_matches_the_sums {
         && out[1][2][0] == 0.0 - 0.875;
     expect out[1][2][1] == 0.375 && out[1][2][2] == 0.0 - 0.375;
 }
+
+// ij,j->i in Q12: 2.0 * 0.5 + 1.0 * 0.25 = 1.25
+test qmatvec_stays_on_the_grid {
+    out: [i64; 1], x0: [[i64; 2]; 1], x1: [i64; 2];
+    x0[0][0] += 8192;
+    x0[0][1] += 4096;
+    x1[0] += 2048;
+    x1[1] += 1024;
+    call qmatvec(out, x0, x1);
+    expect out[0] == 5120;
+}
+
+// ji,j->i in Q12: the matrix is read transposed.
+test qmatvec_t_reads_the_transpose {
+    out: [i64; 2], x0: [[i64; 2]; 1], x1: [i64; 1];
+    x0[0][0] += 8192;
+    x0[0][1] += 4096;
+    x1[0] += 2048;
+    call qmatvec_t(out, x0, x1);
+    expect out[0] == 4096 && out[1] == 2048;
+}
+
+// i,j->ij in Q12
+test qouter_stays_on_the_grid {
+    out: [[i64; 2]; 2], x0: [i64; 2], x1: [i64; 2];
+    x0[0] += 8192;
+    x0[1] += 4096;
+    x1[0] += 2048;
+    x1[1] += 4096;
+    call qouter(out, x0, x1);
+    expect out[0][0] == 4096 && out[0][1] == 8192 && out[1][0] == 2048 && out[1][1] == 4096;
+}

@@ -149,3 +149,25 @@ pub einsum fn iattend: i64 = "bqk,bkd->bqd";
 
 // Attention output, the weights times the values.
 pub einsum fn dattend: f64 = "bqk,bkd->bqd";
+
+// The fixed-point (Q12) contractions of weave: a number x is stored as the
+// integer x * 4096, and every product is divided by 4096 to stay on that grid.
+// The rounding is the same going forward and back, so these reverse exactly.
+
+// A matrix times a vector.
+pub einsum fn qmatvec: q12 = "ij,j->i";
+
+// The transpose of a matrix times a vector.
+pub einsum fn qmatvec_t: q12 = "ji,j->i";
+
+// The outer product of two vectors.
+pub einsum fn qouter: q12 = "i,j->ij";
+
+// The elementwise product of two vectors.
+pub einsum fn qhadamard: q12 = "i,i->i";
+
+// A matrix times a matrix.
+pub einsum fn qmatmul: q12 = "ij,jk->ik";
+
+// A matrix times the transpose of another.
+pub einsum fn qmatmul_nt: q12 = "ij,kj->ik";

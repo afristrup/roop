@@ -52,9 +52,15 @@ pub fn build_einsum(def: &FnDef) -> Result<FnDef, EinsumError> {
     let Type::Named(elem) = &einsum.elem else {
         return Err(EinsumError::BadType(name.clone()));
     };
-    if elem != "i64" && elem != "f64" {
+    if !matches!(elem.as_str(), "i64" | "f64" | "q12") {
         return Err(EinsumError::BadType(name.clone()));
     }
+    let fixed = elem == "q12";
+    let storage = if fixed {
+        Type::Named("i64".into())
+    } else {
+        einsum.elem.clone()
+    };
     let spec: Spec = parse_spec(name, &einsum.spec)?;
     let by_ref = |ty: Type, mutable: bool| Type::Ref {
         mutable,
@@ -62,12 +68,12 @@ pub fn build_einsum(def: &FnDef) -> Result<FnDef, EinsumError> {
     };
     let mut params = vec![Param {
         name: "out".into(),
-        ty: by_ref(operand_type(&einsum.elem, &spec.output), true),
+        ty: by_ref(operand_type(&storage, &spec.output), true),
     }];
     for (k, labels) in spec.inputs.iter().enumerate() {
         params.push(Param {
             name: format!("x{k}"),
-            ty: by_ref(operand_type(&einsum.elem, labels), false),
+            ty: by_ref(operand_type(&storage, labels), false),
         });
     }
     let product = spec
@@ -75,7 +81,13 @@ pub fn build_einsum(def: &FnDef) -> Result<FnDef, EinsumError> {
         .iter()
         .enumerate()
         .map(|(k, labels)| Expr::Place(element(&format!("x{k}"), labels)))
-        .reduce(|a, b| Expr::Binary(Box::new(a), BinOp::Mul, Box::new(b)))
+        .reduce(|a, b| {
+            let product = Expr::Binary(Box::new(a), BinOp::Mul, Box::new(b));
+            match fixed {
+                true => Expr::Binary(Box::new(product), BinOp::Div, Box::new(Expr::Int(4096))),
+                false => product,
+            }
+        })
         .expect("at least one operand");
     let update = stmt(StmtKind::Update {
         target: element("out", &spec.output),
