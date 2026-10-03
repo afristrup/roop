@@ -1,0 +1,151 @@
+// Tensor contractions written as subscripts, as in NumPy's einsum. Each is a
+// generic function that adds into `out` the sum, over the indices that are not
+// in the output, of the product of the elements of its operands. The lengths
+// come from the arguments: `call imatmul(c, a, b)` needs no `<..>`.
+//
+// `out` is added to, so a zero `out` ends up holding the result, and running a
+// function backward takes the result off again. The loops over the output
+// indices are parallel: each iteration writes its own part of `out`.
+//
+// An `i` prefix is 64-bit integers, which are exact, and a `d` prefix is f64.
+// To write another, use the item itself: `einsum fn name: T = "subscripts";`.
+// Its lengths, `n_i`, `n_j`, and so on, are named after the labels, in order of
+// first appearance, for a call that spells them out: `call imatmul<2, 3, 4>`.
+
+// The inner product of two vectors.
+pub einsum fn idot: i64 = "i,i->";
+
+// The inner product of two vectors.
+pub einsum fn ddot: f64 = "i,i->";
+
+// The sum of a vector.
+pub einsum fn isum: i64 = "i->";
+
+// The sum of a vector.
+pub einsum fn dsum: f64 = "i->";
+
+// The outer product of two vectors.
+pub einsum fn iouter: i64 = "i,j->ij";
+
+// The outer product of two vectors.
+pub einsum fn douter: f64 = "i,j->ij";
+
+// The elementwise product of two vectors.
+pub einsum fn ihadamard: i64 = "i,i->i";
+
+// The elementwise product of two vectors.
+pub einsum fn dhadamard: f64 = "i,i->i";
+
+// The elementwise product of two matrices.
+pub einsum fn ihadamard2: i64 = "ij,ij->ij";
+
+// The elementwise product of two matrices.
+pub einsum fn dhadamard2: f64 = "ij,ij->ij";
+
+// The sum of the elementwise products of two matrices.
+pub einsum fn ifrobenius: i64 = "ij,ij->";
+
+// The sum of the elementwise products of two matrices.
+pub einsum fn dfrobenius: f64 = "ij,ij->";
+
+// A matrix times a vector.
+pub einsum fn imatvec: i64 = "ij,j->i";
+
+// A matrix times a vector.
+pub einsum fn dmatvec: f64 = "ij,j->i";
+
+// A vector times a matrix.
+pub einsum fn ivecmat: i64 = "i,ij->j";
+
+// A vector times a matrix.
+pub einsum fn dvecmat: f64 = "i,ij->j";
+
+// A matrix times a matrix.
+pub einsum fn imatmul: i64 = "ij,jk->ik";
+
+// A matrix times a matrix.
+pub einsum fn dmatmul: f64 = "ij,jk->ik";
+
+// A matrix times the transpose of another.
+pub einsum fn imatmul_nt: i64 = "ij,kj->ik";
+
+// A matrix times the transpose of another.
+pub einsum fn dmatmul_nt: f64 = "ij,kj->ik";
+
+// The transpose of a matrix times another.
+pub einsum fn imatmul_tn: i64 = "ji,jk->ik";
+
+// The transpose of a matrix times another.
+pub einsum fn dmatmul_tn: f64 = "ji,jk->ik";
+
+// The transpose of a matrix.
+pub einsum fn itranspose: i64 = "ij->ji";
+
+// The transpose of a matrix.
+pub einsum fn dtranspose: f64 = "ij->ji";
+
+// The trace of a square matrix.
+pub einsum fn itrace: i64 = "ii->";
+
+// The trace of a square matrix.
+pub einsum fn dtrace: f64 = "ii->";
+
+// The diagonal of a square matrix.
+pub einsum fn idiagonal: i64 = "ii->i";
+
+// The diagonal of a square matrix.
+pub einsum fn ddiagonal: f64 = "ii->i";
+
+// The sum of each row.
+pub einsum fn irow_sums: i64 = "ij->i";
+
+// The sum of each row.
+pub einsum fn drow_sums: f64 = "ij->i";
+
+// The sum of each column.
+pub einsum fn icol_sums: i64 = "ij->j";
+
+// The sum of each column.
+pub einsum fn dcol_sums: f64 = "ij->j";
+
+// The sum of a matrix.
+pub einsum fn itotal: i64 = "ij->";
+
+// The sum of a matrix.
+pub einsum fn dtotal: f64 = "ij->";
+
+// A bilinear form, x a y.
+pub einsum fn ibilinear: i64 = "i,ij,j->";
+
+// A bilinear form, x a y.
+pub einsum fn dbilinear: f64 = "i,ij,j->";
+
+// A matrix product for each batch.
+pub einsum fn ibatched_matmul: i64 = "bij,bjk->bik";
+
+// A matrix product for each batch.
+pub einsum fn dbatched_matmul: f64 = "bij,bjk->bik";
+
+// A tensor of three indices times a matrix.
+pub einsum fn icontract3: i64 = "ijk,kl->ijl";
+
+// A tensor of three indices times a matrix.
+pub einsum fn dcontract3: f64 = "ijk,kl->ijl";
+
+// A tensor with its indices reversed.
+pub einsum fn ipermute3: i64 = "ijk->kji";
+
+// A tensor with its indices reversed.
+pub einsum fn dpermute3: f64 = "ijk->kji";
+
+// Attention scores, the inner product of each query and key.
+pub einsum fn iscores: i64 = "bqd,bkd->bqk";
+
+// Attention scores, the inner product of each query and key.
+pub einsum fn dscores: f64 = "bqd,bkd->bqk";
+
+// Attention output, the weights times the values.
+pub einsum fn iattend: i64 = "bqk,bkd->bqd";
+
+// Attention output, the weights times the values.
+pub einsum fn dattend: f64 = "bqk,bkd->bqd";

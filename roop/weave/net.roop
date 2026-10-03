@@ -18,15 +18,13 @@ use super::kernels::*;
 
 // p += -h/2 * W^T sigma(W q + b), with the intermediates computed and undone.
 fn force<N>(p: &mut [i64; N], w: &[[i64; N]; N], q: &[i64; N], b: &[i64; N], c: &i64) {
-    ancilla z: [i64; N] = 0 {
-        ancilla s: [i64; N] = 0 {
-            call affine<N>(z, w, q, b);
-            call sigma_of<N>(s, z);
-            call kick<N>(p, w, s, c);
-            uncall sigma_of<N>(s, z);
-            uncall affine<N>(z, w, q, b);
-        }
-    }
+    ancilla z: [i64; N] = 0;
+    ancilla s: [i64; N] = 0;
+    call affine<N>(z, w, q, b);
+    call sigma_of<N>(s, z);
+    call kick<N>(p, w, s, c);
+    uncall sigma_of<N>(s, z);
+    uncall affine<N>(z, w, q, b);
 }
 
 // One leapfrog step with step size h (a Q12 number).
@@ -37,13 +35,12 @@ pub fn layer<N>(
     b: &[i64; N],
     h: &i64,
 ) {
-    ancilla c: i64 = 0 {
-        c -= h / 2;
-        call force<N>(p, w, q, b, c);
-        call drift<N>(q, p, h);
-        call force<N>(p, w, q, b, c);
-        c += h / 2;
-    }
+    ancilla c: i64 = 0;
+    c -= h / 2;
+    call force<N>(p, w, q, b, c);
+    call drift<N>(q, p, h);
+    call force<N>(p, w, q, b, c);
+    c += h / 2;
 }
 
 // The network: L layers, each with its own W and b.
@@ -54,12 +51,11 @@ pub fn forward<N, L>(
     bs: &[[i64; N]; L],
     h: &i64,
 ) {
-    ancilla k: i64 = 0 {
-        from k == 0 {
-            call layer<N>(q, p, ws[k], bs[k], h);
-        } loop { k += 1; } until k == L - 1;
-        k -= L - 1;
-    }
+    ancilla k: i64 = 0;
+    from k == 0 {
+        call layer<N>(q, p, ws[k], bs[k], h);
+    } loop { k += 1; } until k == L - 1;
+    k -= L - 1;
 }
 
 // What the adjoint of p does to q, and to the parameters: with u the adjoint of
@@ -75,25 +71,21 @@ pub fn vjp<N>(
     b: &[i64; N],
     c: &i64,
 ) {
-    ancilla z: [i64; N] = 0 {
-        ancilla s: [i64; N] = 0 {
-            ancilla d: [i64; N] = 0 {
-                ancilla t: [i64; N] = 0 {
-                    call affine<N>(z, w, q, b);
-                    call sigma_of<N>(s, z);
-                    call dsigma_of<N>(d, z);
-                    call matvec<N>(t, w, u);
-                    call adjoint_q<N>(aq, w, d, t, c);
-                    call adjoint_w<N>(gw, s, d, t, u, q, c);
-                    call adjoint_b<N>(gb, d, t, c);
-                    uncall matvec<N>(t, w, u);
-                    uncall dsigma_of<N>(d, z);
-                    uncall sigma_of<N>(s, z);
-                    uncall affine<N>(z, w, q, b);
-                }
-            }
-        }
-    }
+    ancilla z: [i64; N] = 0;
+    ancilla s: [i64; N] = 0;
+    ancilla d: [i64; N] = 0;
+    ancilla t: [i64; N] = 0;
+    call affine<N>(z, w, q, b);
+    call sigma_of<N>(s, z);
+    call dsigma_of<N>(d, z);
+    call matvec<N>(t, w, u);
+    call adjoint_q<N>(aq, w, d, t, c);
+    call adjoint_w<N>(gw, s, d, t, u, q, c);
+    call adjoint_b<N>(gb, d, t, c);
+    uncall matvec<N>(t, w, u);
+    uncall dsigma_of<N>(d, z);
+    uncall sigma_of<N>(s, z);
+    uncall affine<N>(z, w, q, b);
 }
 
 // The adjoints of one layer, from its output state back to its input state.
@@ -108,16 +100,15 @@ pub fn layer_back<N>(
     b: &[i64; N],
     h: &i64,
 ) {
-    ancilla c: i64 = 0 {
-        c -= h / 2;
-        call vjp<N>(aq, gw, gb, ap, w, q, b, c);
-        uncall force<N>(p, w, q, b, c);
-        call drift<N>(ap, aq, h);
-        uncall drift<N>(q, p, h);
-        call vjp<N>(aq, gw, gb, ap, w, q, b, c);
-        uncall force<N>(p, w, q, b, c);
-        c += h / 2;
-    }
+    ancilla c: i64 = 0;
+    c -= h / 2;
+    call vjp<N>(aq, gw, gb, ap, w, q, b, c);
+    uncall force<N>(p, w, q, b, c);
+    call drift<N>(ap, aq, h);
+    uncall drift<N>(q, p, h);
+    call vjp<N>(aq, gw, gb, ap, w, q, b, c);
+    uncall force<N>(p, w, q, b, c);
+    c += h / 2;
 }
 
 // The backward pass. On entry q and p are the network's output and aq, ap hold
@@ -134,40 +125,37 @@ pub fn backward<N, L>(
     bs: &[[i64; N]; L],
     h: &i64,
 ) {
-    ancilla k: i64 = 0 {
-        from k == 0 {
-            call layer_back<N>(
-                q,
-                p,
-                aq,
-                ap,
-                gw[L - 1 - k],
-                gb[L - 1 - k],
-                ws[L - 1 - k],
-                bs[L - 1 - k],
-                h,
-            );
-        } loop { k += 1; } until k == L - 1;
-        k -= L - 1;
-    }
+    ancilla k: i64 = 0;
+    from k == 0 {
+        call layer_back<N>(
+            q,
+            p,
+            aq,
+            ap,
+            gw[L - 1 - k],
+            gb[L - 1 - k],
+            ws[L - 1 - k],
+            bs[L - 1 - k],
+            h,
+        );
+    } loop { k += 1; } until k == L - 1;
+    k -= L - 1;
 }
 
 // loss += |q - t|^2 / 2 over the first K outputs
 pub fn loss<N, K>(total: &mut i64, q: &[i64; N], t: &[i64; K]) {
-    ancilla k: i64 = 0 {
-        from k == 0 {
-            total += (q[k] - t[k]) * (q[k] - t[k]) / 8192;
-        } loop { k += 1; } until k == K - 1;
-        k -= K - 1;
-    }
+    ancilla k: i64 = 0;
+    from k == 0 {
+        total += (q[k] - t[k]) * (q[k] - t[k]) / 8192;
+    } loop { k += 1; } until k == K - 1;
+    k -= K - 1;
 }
 
 // aq += q - t over the first K outputs: the adjoint of the loss
 pub fn seed<N, K>(aq: &mut [i64; N], q: &[i64; N], t: &[i64; K]) {
-    ancilla k: i64 = 0 {
-        from k == 0 { aq[k] += q[k] - t[k]; } loop { k += 1; } until k == K - 1;
-        k -= K - 1;
-    }
+    ancilla k: i64 = 0;
+    from k == 0 { aq[k] += q[k] - t[k]; } loop { k += 1; } until k == K - 1;
+    k -= K - 1;
 }
 
 // The loss of one sample and its gradients, with q holding the input and p
@@ -199,22 +187,19 @@ pub fn sgd<N, L>(
     gb: &[[i64; N]; L],
     lr: &i64,
 ) {
-    ancilla l: i64 = 0 {
-        #[parallel]
-        from l == 0 {
-            ancilla j: i64 = 0 {
-                from j == 0 {
-                    bs[l][j] -= lr * gb[l][j] / 4096;
-                    ancilla i: i64 = 0 {
-                        from i == 0 {
-                            ws[l][j][i] -= lr * gw[l][j][i] / 4096;
-                        } loop { i += 1; } until i == N - 1;
-                        i -= N - 1;
-                    }
-                } loop { j += 1; } until j == N - 1;
-                j -= N - 1;
-            }
-        } loop { l += 1; } until l == L - 1;
-        l -= L - 1;
-    }
+    ancilla l: i64 = 0;
+    #[parallel]
+    from l == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            bs[l][j] -= lr * gb[l][j] / 4096;
+            ancilla i: i64 = 0;
+            from i == 0 {
+                ws[l][j][i] -= lr * gw[l][j][i] / 4096;
+            } loop { i += 1; } until i == N - 1;
+            i -= N - 1;
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    } loop { l += 1; } until l == L - 1;
+    l -= L - 1;
 }
