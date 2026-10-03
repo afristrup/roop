@@ -634,3 +634,10 @@ fn forgetting_each_round_keeps_the_history_under_the_limit() {
     let out = limited("history-forget", Some(2000), &source);
     assert!(out.status.success(), "{}", stderr(&out));
 }
+
+#[test]
+fn bank_rolls_a_failed_transfer_back() {
+    let out = example("bank", &[], "");
+    assert!(out.status.success(), "{}", stderr(&out));
+    assert_eq!(stdout(&out), "not enough money: rolled back\n100 0\n");
+}

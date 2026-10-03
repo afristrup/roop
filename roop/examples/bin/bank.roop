@@ -1,0 +1,33 @@
+// A transfer that fails halfway is undone, not patched up: the `try` runs the
+// work it did backward, so no snapshot is taken and nothing is left half done.
+
+use std::io::*;
+
+fn transfer(src: &mut i64, dst: &mut i64, amount: &i64) {
+    src -= amount;
+    dst += amount;
+    expect src >= 0;
+}
+
+fn main() {
+    auto ancilla alice: i64 = 0;
+    auto ancilla bob: i64 = 0;
+    auto ancilla failed: bool = false;
+    alice += 100;
+    try {
+        call transfer(alice, bob, 150);
+        call println("sent");
+    } catch_rollback {
+        call println("not enough money: rolled back");
+    } -> failed;
+    call print_int(alice);
+    call print(" ");
+    call println_int(bob);
+}
+
+test transfer_undoes_itself {
+    a: i64, b: i64;
+    a += 10;
+    call transfer(a, b, 4);
+    expect a == 6 && b == 4;
+}

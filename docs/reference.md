@@ -1,5 +1,6 @@
-# roop
-The reversible, parallel programming language. See more at [uncompute.ai](https://www.uncompute.ai)
+# roop reference
+
+The whole language, one section at a time. For what roop is and why, start at the [README](../README.md).
 
 ## Reversible by default
 
