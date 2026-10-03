@@ -1,0 +1,59 @@
+// The contractions of a layer for a batch of samples: each is one matrix
+// product, so the weights are read once for all of the rows. They are the
+// per-sample functions of `kernels` with the products summed in the same terms,
+// so what they add is the sum of what B samples would add one at a time.
+
+use einsum::icol_sums;
+use einsum::qhadamard2;
+use einsum::qmatmul;
+use einsum::qmatmul_nt;
+use einsum::qmatmul_tn;
+use super::rows::*;
+
+// z += W q + b for each row
+pub fn affine_batch<N, M, B>(
+    z: &mut [[i64; M]; B],
+    w: &[[i64; N]; M],
+    q: &[[i64; N]; B],
+    b: &[i64; M],
+) {
+    call bias_rows<M, B>(z, b);
+    call qmatmul_nt(z, q, w);
+}
+
+// p += c * W^T s for each row
+pub fn kick_batch<N, M, B>(
+    p: &mut [[i64; N]; B],
+    w: &[[i64; N]; M],
+    s: &[[i64; M]; B],
+    c: &i64,
+) {
+    ancilla t: [[i64; N]; B] = 0;
+    call qmatmul(t, s, w);
+    call drift_rows<N, B>(p, t, c);
+    uncall qmatmul(t, s, w);
+}
+
+// The adjoints of `kick_batch`: the sum over the rows of what `adjoint` adds.
+pub fn adjoint_batch<N, M, B>(
+    aq: &mut [[i64; N]; B],
+    gw: &mut [[i64; N]; M],
+    gb: &mut [i64; M],
+    s: &[[i64; M]; B],
+    dt: &[[i64; M]; B],
+    u: &[[i64; N]; B],
+    w: &[[i64; N]; M],
+    q: &[[i64; N]; B],
+    c: &i64,
+) {
+    ancilla cs: [[i64; M]; B] = 0;
+    ancilla cdt: [[i64; M]; B] = 0;
+    call drift_rows<M, B>(cs, s, c);
+    call drift_rows<M, B>(cdt, dt, c);
+    call kick_batch<N, M, B>(aq, w, dt, c);
+    call qmatmul_tn(gw, cs, u);
+    call qmatmul_tn(gw, cdt, q);
+    call icol_sums(gb, cdt);
+    uncall drift_rows<M, B>(cdt, dt, c);
+    uncall drift_rows<M, B>(cs, s, c);
+}

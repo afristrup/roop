@@ -174,3 +174,26 @@ pub einsum fn qmatmul_nt: q12 = "ij,kj->ik";
 
 // The transpose of a matrix times another.
 pub einsum fn qmatmul_tn: q12 = "ji,jk->ik";
+
+// The elementwise product of two matrices.
+pub einsum fn qhadamard2: q12 = "ij,ij->ij";
+
+// A batch of matrices, each times the transpose of a shared one: the rows of a
+// sequence read through a weight.
+pub einsum fn qproject: q12 = "bsd,ed->bse";
+
+// A batch of matrices, each times a shared one.
+pub einsum fn qunproject: q12 = "bsd,de->bse";
+
+// The gradient of a shared weight: the sum, over a batch of matrices, of the
+// transpose of the first times the second.
+pub einsum fn qweight_grad: q12 = "bsi,bsk->ik";
+
+// Attention scores for a batch, the inner product of each query and key.
+pub einsum fn qscores: q12 = "bqd,bkd->bqk";
+
+// Attention output for a batch, the weights times the values.
+pub einsum fn qattend: q12 = "bqk,bkd->bqd";
+
+// The transpose of each matrix of a batch times another.
+pub einsum fn qattend_t: q12 = "bji,bjk->bik";

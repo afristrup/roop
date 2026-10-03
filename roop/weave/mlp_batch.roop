@@ -1,0 +1,91 @@
+// The perceptron block of `mlp` on a batch of samples: the state is B rows of N
+// numbers and every contraction is one matrix product over the rows. The
+// gradients added are the sums of what each row adds, term for term.
+
+use einsum::icol_sums;
+use einsum::qhadamard2;
+use einsum::qmatmul;
+use einsum::qmatmul_nt;
+use einsum::qmatmul_tn;
+use super::act::*;
+use super::kernels_batch::*;
+use super::rows::*;
+
+// y += W2 f(W1 x + b1) + b2 for each row, with the intermediates undone.
+pub fn mlp_batch<N, M, B>(
+    y: &mut [[i64; N]; B],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    x: &[[i64; N]; B],
+    kind: &i64,
+) {
+    ancilla z: [[i64; M]; B] = 0;
+    ancilla a: [[i64; M]; B] = 0;
+    call affine_batch<N, M, B>(z, w1, x, b1);
+    call act_rows<M, B>(a, z, kind);
+    call bias_rows<N, B>(y, b2);
+    call qmatmul_nt(y, a, w2);
+    uncall act_rows<M, B>(a, z, kind);
+    uncall affine_batch<N, M, B>(z, w1, x, b1);
+}
+
+// With u the adjoint of what `mlp_batch` added to, adds the adjoint of x to ax
+// and the gradients of the four parameters, summed over the rows.
+pub fn mlp_vjp_batch<N, M, B>(
+    ax: &mut [[i64; N]; B],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    u: &[[i64; N]; B],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    x: &[[i64; N]; B],
+    kind: &i64,
+) {
+    ancilla z: [[i64; M]; B] = 0;
+    ancilla a: [[i64; M]; B] = 0;
+    ancilla d: [[i64; M]; B] = 0;
+    ancilla ta: [[i64; M]; B] = 0;
+    ancilla tz: [[i64; M]; B] = 0;
+    call affine_batch<N, M, B>(z, w1, x, b1);
+    call act_rows<M, B>(a, z, kind);
+    call dact_rows<M, B>(d, z, kind);
+    call qmatmul(ta, u, w2);
+    call qhadamard2(tz, d, ta);
+    call icol_sums(gb2, u);
+    call qmatmul_tn(gw2, u, a);
+    call icol_sums(gb1, tz);
+    call qmatmul_tn(gw1, tz, x);
+    call qmatmul(ax, tz, w1);
+    uncall qhadamard2(tz, d, ta);
+    uncall qmatmul(ta, u, w2);
+    uncall dact_rows<M, B>(d, z, kind);
+    uncall act_rows<M, B>(a, z, kind);
+    uncall affine_batch<N, M, B>(z, w1, x, b1);
+}
+
+// The backward step of `mlp_batch`: on entry y is the output and ay its
+// adjoint; on exit y is what it was before, and ax and the gradients have been
+// added to.
+pub fn mlp_back_batch<N, M, B>(
+    y: &mut [[i64; N]; B],
+    ay: &[[i64; N]; B],
+    ax: &mut [[i64; N]; B],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    x: &[[i64; N]; B],
+    kind: &i64,
+) {
+    call mlp_vjp_batch<N, M, B>(ax, gw1, gb1, gw2, gb2, ay, w1, b1, w2, x, kind);
+    uncall mlp_batch<N, M, B>(y, w1, b1, w2, b2, x, kind);
+}

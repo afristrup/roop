@@ -1,14 +1,26 @@
 // weave: neural networks that run backward.
 mod act;
 mod attention;
+mod attention_batch;
 mod kernels;
+mod kernels_batch;
 mod mlp;
+mod mlp_batch;
 mod net;
+mod net_batch;
+mod rows;
 mod train;
+mod train_batch;
 
 pub use act::*;
 pub use attention::*;
+pub use attention_batch::*;
 pub use kernels::*;
+pub use kernels_batch::*;
 pub use mlp::*;
+pub use mlp_batch::*;
 pub use net::*;
+pub use net_batch::*;
+pub use rows::*;
 pub use train::*;
+pub use train_batch::*;
