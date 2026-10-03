@@ -14,46 +14,58 @@
 // `uncall`, carrying the adjoints of q and p along. No activation is kept, so
 // memory does not grow with depth.
 
+use super::act::*;
 use super::kernels::*;
+use einsum::qhadamard;
+use einsum::qmatvec;
 
-// p += -h/2 * W^T sigma(W q + b), with the intermediates computed and undone.
-fn force<N>(p: &mut [i64; N], w: &[[i64; N]; N], q: &[i64; N], b: &[i64; N], c: &i64) {
-    ancilla z: [i64; N] = 0;
-    ancilla s: [i64; N] = 0;
-    call affine<N>(z, w, q, b);
-    call sigma_of<N>(s, z);
-    call kick<N>(p, w, s, c);
-    uncall sigma_of<N>(s, z);
-    uncall affine<N>(z, w, q, b);
+// p += -h/2 * W^T f(W q + b), with the intermediates computed and undone.
+fn force<N, M>(
+    p: &mut [i64; N],
+    w: &[[i64; N]; M],
+    q: &[i64; N],
+    b: &[i64; M],
+    c: &i64,
+    kind: &i64,
+) {
+    ancilla z: [i64; M] = 0;
+    ancilla s: [i64; M] = 0;
+    call affine<N, M>(z, w, q, b);
+    call act<M>(s, z, kind);
+    call kick<N, M>(p, w, s, c);
+    uncall act<M>(s, z, kind);
+    uncall affine<N, M>(z, w, q, b);
 }
 
 // One leapfrog step with step size h (a Q12 number).
-pub fn layer<N>(
+pub fn layer<N, M>(
     q: &mut [i64; N],
     p: &mut [i64; N],
-    w: &[[i64; N]; N],
-    b: &[i64; N],
+    w: &[[i64; N]; M],
+    b: &[i64; M],
     h: &i64,
+    kind: &i64,
 ) {
     ancilla c: i64 = 0;
     c -= h / 2;
-    call force<N>(p, w, q, b, c);
+    call force<N, M>(p, w, q, b, c, kind);
     call drift<N>(q, p, h);
-    call force<N>(p, w, q, b, c);
+    call force<N, M>(p, w, q, b, c, kind);
     c += h / 2;
 }
 
 // The network: L layers, each with its own W and b.
-pub fn forward<N, L>(
+pub fn forward<N, M, L>(
     q: &mut [i64; N],
     p: &mut [i64; N],
-    ws: &[[[i64; N]; N]; L],
-    bs: &[[i64; N]; L],
+    ws: &[[[i64; N]; M]; L],
+    bs: &[[i64; M]; L],
     h: &i64,
+    kind: &i64,
 ) {
     ancilla k: i64 = 0;
     from k == 0 {
-        call layer<N>(q, p, ws[k], bs[k], h);
+        call layer<N, M>(q, p, ws[k], bs[k], h, kind);
     } loop { k += 1; } until k == L - 1;
     k -= L - 1;
 }
@@ -61,73 +73,77 @@ pub fn forward<N, L>(
 // What the adjoint of p does to q, and to the parameters: with u the adjoint of
 // the momentum that `force` added to, adds the adjoint of q to aq and the
 // gradients of W and b to gw and gb.
-pub fn vjp<N>(
+pub fn vjp<N, M>(
     aq: &mut [i64; N],
-    gw: &mut [[i64; N]; N],
-    gb: &mut [i64; N],
+    gw: &mut [[i64; N]; M],
+    gb: &mut [i64; M],
     u: &[i64; N],
-    w: &[[i64; N]; N],
+    w: &[[i64; N]; M],
     q: &[i64; N],
-    b: &[i64; N],
+    b: &[i64; M],
     c: &i64,
+    kind: &i64,
 ) {
-    ancilla z: [i64; N] = 0;
-    ancilla s: [i64; N] = 0;
-    ancilla d: [i64; N] = 0;
-    ancilla t: [i64; N] = 0;
-    call affine<N>(z, w, q, b);
-    call sigma_of<N>(s, z);
-    call dsigma_of<N>(d, z);
-    call matvec<N>(t, w, u);
-    call adjoint_q<N>(aq, w, d, t, c);
-    call adjoint_w<N>(gw, s, d, t, u, q, c);
-    call adjoint_b<N>(gb, d, t, c);
-    uncall matvec<N>(t, w, u);
-    uncall dsigma_of<N>(d, z);
-    uncall sigma_of<N>(s, z);
-    uncall affine<N>(z, w, q, b);
+    ancilla z: [i64; M] = 0;
+    ancilla s: [i64; M] = 0;
+    ancilla d: [i64; M] = 0;
+    ancilla t: [i64; M] = 0;
+    ancilla dt: [i64; M] = 0;
+    call affine<N, M>(z, w, q, b);
+    call act<M>(s, z, kind);
+    call dact<M>(d, z, kind);
+    call qmatvec(t, w, u);
+    call qhadamard(dt, d, t);
+    call adjoint<N, M>(aq, gw, gb, s, dt, u, w, q, c);
+    uncall qhadamard(dt, d, t);
+    uncall qmatvec(t, w, u);
+    uncall dact<M>(d, z, kind);
+    uncall act<M>(s, z, kind);
+    uncall affine<N, M>(z, w, q, b);
 }
 
 // The adjoints of one layer, from its output state back to its input state.
-pub fn layer_back<N>(
+pub fn layer_back<N, M>(
     q: &mut [i64; N],
     p: &mut [i64; N],
     aq: &mut [i64; N],
     ap: &mut [i64; N],
-    gw: &mut [[i64; N]; N],
-    gb: &mut [i64; N],
-    w: &[[i64; N]; N],
-    b: &[i64; N],
+    gw: &mut [[i64; N]; M],
+    gb: &mut [i64; M],
+    w: &[[i64; N]; M],
+    b: &[i64; M],
     h: &i64,
+    kind: &i64,
 ) {
     ancilla c: i64 = 0;
     c -= h / 2;
-    call vjp<N>(aq, gw, gb, ap, w, q, b, c);
-    uncall force<N>(p, w, q, b, c);
+    call vjp<N, M>(aq, gw, gb, ap, w, q, b, c, kind);
+    uncall force<N, M>(p, w, q, b, c, kind);
     call drift<N>(ap, aq, h);
     uncall drift<N>(q, p, h);
-    call vjp<N>(aq, gw, gb, ap, w, q, b, c);
-    uncall force<N>(p, w, q, b, c);
+    call vjp<N, M>(aq, gw, gb, ap, w, q, b, c, kind);
+    uncall force<N, M>(p, w, q, b, c, kind);
     c += h / 2;
 }
 
 // The backward pass. On entry q and p are the network's output and aq, ap hold
 // the adjoint of the loss there; on exit q and p are the input again, aq and ap
 // hold the adjoint of the input, and gw and gb have the gradients added.
-pub fn backward<N, L>(
+pub fn backward<N, M, L>(
     q: &mut [i64; N],
     p: &mut [i64; N],
     aq: &mut [i64; N],
     ap: &mut [i64; N],
-    gw: &mut [[[i64; N]; N]; L],
-    gb: &mut [[i64; N]; L],
-    ws: &[[[i64; N]; N]; L],
-    bs: &[[i64; N]; L],
+    gw: &mut [[[i64; N]; M]; L],
+    gb: &mut [[i64; M]; L],
+    ws: &[[[i64; N]; M]; L],
+    bs: &[[i64; M]; L],
     h: &i64,
+    kind: &i64,
 ) {
     ancilla k: i64 = 0;
     from k == 0 {
-        call layer_back<N>(
+        call layer_back<N, M>(
             q,
             p,
             aq,
@@ -137,6 +153,7 @@ pub fn backward<N, L>(
             ws[L - 1 - k],
             bs[L - 1 - k],
             h,
+            kind,
         );
     } loop { k += 1; } until k == L - 1;
     k -= L - 1;
@@ -160,46 +177,60 @@ pub fn seed<N, K>(aq: &mut [i64; N], q: &[i64; N], t: &[i64; K]) {
 
 // The loss of one sample and its gradients, with q holding the input and p
 // zero. Everything else is rebuilt, so on exit q and p are as they were.
-pub fn grad<N, L, K>(
+pub fn grad<N, M, L, K>(
     total: &mut i64,
     q: &mut [i64; N],
     p: &mut [i64; N],
     aq: &mut [i64; N],
     ap: &mut [i64; N],
-    gw: &mut [[[i64; N]; N]; L],
-    gb: &mut [[i64; N]; L],
-    ws: &[[[i64; N]; N]; L],
-    bs: &[[i64; N]; L],
+    gw: &mut [[[i64; N]; M]; L],
+    gb: &mut [[i64; M]; L],
+    ws: &[[[i64; N]; M]; L],
+    bs: &[[i64; M]; L],
     h: &i64,
+    kind: &i64,
     t: &[i64; K],
 ) {
-    call forward<N, L>(q, p, ws, bs, h);
+    call forward<N, M, L>(q, p, ws, bs, h, kind);
     call loss<N, K>(total, q, t);
     call seed<N, K>(aq, q, t);
-    call backward<N, L>(q, p, aq, ap, gw, gb, ws, bs, h);
+    call backward<N, M, L>(q, p, aq, ap, gw, gb, ws, bs, h, kind);
+}
+
+// w -= lr * g
+pub fn sgd_mat<N, M>(w: &mut [[i64; N]; M], g: &[[i64; N]; M], lr: &i64) {
+    ancilla j: i64 = 0;
+    #[parallel]
+    from j == 0 {
+        ancilla i: i64 = 0;
+        from i == 0 {
+            w[j][i] -= lr * g[j][i] / 4096;
+        } loop { i += 1; } until i == N - 1;
+        i -= N - 1;
+    } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
+}
+
+// b -= lr * g
+pub fn sgd_vec<M>(b: &mut [i64; M], g: &[i64; M], lr: &i64) {
+    ancilla j: i64 = 0;
+    #[parallel]
+    from j == 0 { b[j] -= lr * g[j] / 4096; } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
 }
 
 // ws -= lr * gw and bs -= lr * gb
-pub fn sgd<N, L>(
-    ws: &mut [[[i64; N]; N]; L],
-    bs: &mut [[i64; N]; L],
-    gw: &[[[i64; N]; N]; L],
-    gb: &[[i64; N]; L],
+pub fn sgd<N, M, L>(
+    ws: &mut [[[i64; N]; M]; L],
+    bs: &mut [[i64; M]; L],
+    gw: &[[[i64; N]; M]; L],
+    gb: &[[i64; M]; L],
     lr: &i64,
 ) {
     ancilla l: i64 = 0;
-    #[parallel]
     from l == 0 {
-        ancilla j: i64 = 0;
-        from j == 0 {
-            bs[l][j] -= lr * gb[l][j] / 4096;
-            ancilla i: i64 = 0;
-            from i == 0 {
-                ws[l][j][i] -= lr * gw[l][j][i] / 4096;
-            } loop { i += 1; } until i == N - 1;
-            i -= N - 1;
-        } loop { j += 1; } until j == N - 1;
-        j -= N - 1;
+        call sgd_mat<N, M>(ws[l], gw[l], lr);
+        call sgd_vec<M>(bs[l], gb[l], lr);
     } loop { l += 1; } until l == L - 1;
     l -= L - 1;
 }

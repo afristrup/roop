@@ -3,70 +3,21 @@
 // computes to a place it does not read), so every one has an exact inverse, and
 // the rounding in the products does not matter: it is the same rounding going
 // forward and back.
+//
+// The contractions are the Q12 einsums of the `einsum` package. A layer has a
+// state of width N and a hidden layer of width M, so W is M by N.
 
-// z += W q + b
-pub fn affine<N>(z: &mut [i64; N], w: &[[i64; N]; N], q: &[i64; N], b: &[i64; N]) {
-    ancilla j: i64 = 0;
-    #[parallel]
-    from j == 0 {
-        z[j] += b[j];
-        ancilla i: i64 = 0;
-        from i == 0 {
-            z[j] += w[j][i] * q[i] / 4096;
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    } loop { j += 1; } until j == N - 1;
-    j -= N - 1;
-}
+use einsum::qhadamard;
+use einsum::qmatvec;
+use einsum::qmatvec_t;
+use einsum::qouter;
+use super::act::*;
 
-// t += W u
-pub fn matvec<N>(t: &mut [i64; N], w: &[[i64; N]; N], u: &[i64; N]) {
-    ancilla j: i64 = 0;
-    #[parallel]
-    from j == 0 {
-        ancilla i: i64 = 0;
-        from i == 0 {
-            t[j] += w[j][i] * u[i] / 4096;
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    } loop { j += 1; } until j == N - 1;
-    j -= N - 1;
-}
-
-// s += sigma(z), where sigma(z) = z / (1 + z^2). It is the force of the
-// potential log(1 + z^2) / 2, so the layers below are a Hamiltonian system.
-pub fn sigma_of<N>(s: &mut [i64; N], z: &[i64; N]) {
-    ancilla j: i64 = 0;
-    #[parallel]
-    from j == 0 {
-        s[j] += z[j] * 4096 / (4096 + z[j] * z[j] / 4096);
-    } loop { j += 1; } until j == N - 1;
-    j -= N - 1;
-}
-
-// d += sigma'(z) = (1 - z^2) / (1 + z^2)^2
-pub fn dsigma_of<N>(d: &mut [i64; N], z: &[i64; N]) {
-    ancilla j: i64 = 0;
-    #[parallel]
-    from j == 0 {
-        d[j] += (4096 - z[j] * z[j] / 4096)
-            * 16777216
-            / ((4096 + z[j] * z[j] / 4096) * (4096 + z[j] * z[j] / 4096));
-    } loop { j += 1; } until j == N - 1;
-    j -= N - 1;
-}
-
-// p += c * W^T s
-pub fn kick<N>(p: &mut [i64; N], w: &[[i64; N]; N], s: &[i64; N], c: &i64) {
+// x += y
+pub fn add_vec<N>(x: &mut [i64; N], y: &[i64; N]) {
     ancilla i: i64 = 0;
     #[parallel]
-    from i == 0 {
-        ancilla j: i64 = 0;
-        from j == 0 {
-            p[i] += c * w[j][i] / 4096 * s[j] / 4096;
-        } loop { j += 1; } until j == N - 1;
-        j -= N - 1;
-    } loop { i += 1; } until i == N - 1;
+    from i == 0 { x[i] += y[i]; } loop { i += 1; } until i == N - 1;
     i -= N - 1;
 }
 
@@ -78,64 +29,42 @@ pub fn drift<N>(x: &mut [i64; N], y: &[i64; N], h: &i64) {
     i -= N - 1;
 }
 
-// x += y
-pub fn add_vec<N>(x: &mut [i64; N], y: &[i64; N]) {
-    ancilla i: i64 = 0;
-    #[parallel]
-    from i == 0 { x[i] += y[i]; } loop { i += 1; } until i == N - 1;
-    i -= N - 1;
+// z += W q + b
+pub fn affine<N, M>(z: &mut [i64; M], w: &[[i64; N]; M], q: &[i64; N], b: &[i64; M]) {
+    call add_vec<M>(z, b);
+    call qmatvec(z, w, q);
 }
 
-// aq += c * W^T (d * t), the adjoint of `kick` with respect to q
-pub fn adjoint_q<N>(
+// p += c * W^T s
+pub fn kick<N, M>(p: &mut [i64; N], w: &[[i64; N]; M], s: &[i64; M], c: &i64) {
+    ancilla t: [i64; N] = 0;
+    call qmatvec_t(t, w, s);
+    call drift<N>(p, t, c);
+    uncall qmatvec_t(t, w, s);
+}
+
+// The adjoints of `kick`: with u the adjoint of what kick added to, aq += c W^T
+// (f' * W u), gw += c (f u^T + (f' * W u) q^T) and gb += c (f' * W u), where f
+// and f' are the force s and its slope d at z = W q + b.
+pub fn adjoint<N, M>(
     aq: &mut [i64; N],
-    w: &[[i64; N]; N],
-    d: &[i64; N],
-    t: &[i64; N],
-    c: &i64,
-) {
-    ancilla i: i64 = 0;
-    #[parallel]
-    from i == 0 {
-        ancilla j: i64 = 0;
-        from j == 0 {
-            aq[i] += c * w[j][i] / 4096 * (d[j] * t[j] / 4096) / 4096;
-        } loop { j += 1; } until j == N - 1;
-        j -= N - 1;
-    } loop { i += 1; } until i == N - 1;
-    i -= N - 1;
-}
-
-// gw += c * (s u^T + (d * t) q^T), the gradient of `kick` with respect to W
-pub fn adjoint_w<N>(
-    gw: &mut [[i64; N]; N],
-    s: &[i64; N],
-    d: &[i64; N],
-    t: &[i64; N],
+    gw: &mut [[i64; N]; M],
+    gb: &mut [i64; M],
+    s: &[i64; M],
+    dt: &[i64; M],
     u: &[i64; N],
+    w: &[[i64; N]; M],
     q: &[i64; N],
     c: &i64,
 ) {
-    ancilla j: i64 = 0;
-    #[parallel]
-    from j == 0 {
-        ancilla i: i64 = 0;
-        from i == 0 {
-            gw[j][i] += c
-                * (s[j] * u[i] / 4096 + d[j] * t[j] / 4096 * q[i] / 4096)
-                / 4096;
-        } loop { i += 1; } until i == N - 1;
-        i -= N - 1;
-    } loop { j += 1; } until j == N - 1;
-    j -= N - 1;
-}
-
-// gb += c * (d * t)
-pub fn adjoint_b<N>(gb: &mut [i64; N], d: &[i64; N], t: &[i64; N], c: &i64) {
-    ancilla j: i64 = 0;
-    #[parallel]
-    from j == 0 {
-        gb[j] += c * (d[j] * t[j] / 4096) / 4096;
-    } loop { j += 1; } until j == N - 1;
-    j -= N - 1;
+    ancilla cs: [i64; M] = 0;
+    ancilla cdt: [i64; M] = 0;
+    call drift<M>(cs, s, c);
+    call drift<M>(cdt, dt, c);
+    call kick<N, M>(aq, w, dt, c);
+    call qouter(gw, cs, u);
+    call qouter(gw, cdt, q);
+    call add_vec<M>(gb, cdt);
+    uncall drift<M>(cdt, dt, c);
+    uncall drift<M>(cs, s, c);
 }

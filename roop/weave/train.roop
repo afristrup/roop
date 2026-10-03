@@ -11,7 +11,7 @@ pub irrev fn clear<N>(v: &mut [i64; N]) {
     i -= N - 1;
 }
 
-pub irrev fn clear_grads<N, L>(gw: &mut [[[i64; N]; N]; L], gb: &mut [[i64; N]; L]) {
+pub irrev fn clear_grads<N, M, L>(gw: &mut [[[i64; N]; M]; L], gb: &mut [[i64; M]; L]) {
     ancilla l: i64 = 0;
     from l == 0 {
         ancilla j: i64 = 0;
@@ -20,8 +20,8 @@ pub irrev fn clear_grads<N, L>(gw: &mut [[[i64; N]; N]; L], gb: &mut [[i64; N]; 
             ancilla i: i64 = 0;
             from i == 0 { gw[l][j][i] = 0; } loop { i += 1; } until i == N - 1;
             i -= N - 1;
-        } loop { j += 1; } until j == N - 1;
-        j -= N - 1;
+        } loop { j += 1; } until j == M - 1;
+        j -= M - 1;
     } loop { l += 1; } until l == L - 1;
     l -= L - 1;
 }
@@ -29,12 +29,12 @@ pub irrev fn clear_grads<N, L>(gw: &mut [[[i64; N]; N]; L], gb: &mut [[i64; N]; 
 // One step of gradient descent on a batch of B samples. `total` collects the
 // loss, and the buffers q, p, aq, ap and the gradients start at zero and are
 // left at zero.
-pub irrev fn step<N, L, K, B>(
+pub irrev fn step<N, M, L, K, B>(
     total: &mut i64,
-    ws: &mut [[[i64; N]; N]; L],
-    bs: &mut [[i64; N]; L],
-    gw: &mut [[[i64; N]; N]; L],
-    gb: &mut [[i64; N]; L],
+    ws: &mut [[[i64; N]; M]; L],
+    bs: &mut [[i64; M]; L],
+    gw: &mut [[[i64; N]; M]; L],
+    gb: &mut [[i64; M]; L],
     q: &mut [i64; N],
     p: &mut [i64; N],
     aq: &mut [i64; N],
@@ -43,17 +43,18 @@ pub irrev fn step<N, L, K, B>(
     ts: &[[i64; K]; B],
     h: &i64,
     lr: &i64,
+    kind: &i64,
 ) {
     ancilla n: i64 = 0 {
         from n == 0 {
             call add_vec<N>(q, xs[n]);
-            call grad<N, L, K>(total, q, p, aq, ap, gw, gb, ws, bs, h, ts[n]);
+            call grad<N, M, L, K>(total, q, p, aq, ap, gw, gb, ws, bs, h, kind, ts[n]);
             uncall add_vec<N>(q, xs[n]);
             call clear<N>(aq);
             call clear<N>(ap);
         } loop { n += 1; } until n == B - 1;
         n -= B - 1;
     }
-    call sgd<N, L>(ws, bs, gw, gb, lr);
-    call clear_grads<N, L>(gw, gb);
+    call sgd<N, M, L>(ws, bs, gw, gb, lr);
+    call clear_grads<N, M, L>(gw, gb);
 }
