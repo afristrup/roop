@@ -13,6 +13,7 @@ pub fn test_driver(tests: &[&FnDef]) -> Result<String, CliError> {
     let mut out = String::from(
         "#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n\
          void roop_pending(int64_t *len);\n\
+         void roop_history_peak(int64_t *peak);\n\
          static int zero(const void *p, size_t n) {\n    const unsigned char *b = p;\n    \
          for (size_t i = 0; i < n; i++) if (b[i]) return 0;\n    return 1;\n}\n",
     );
@@ -55,6 +56,10 @@ pub fn test_driver(tests: &[&FnDef]) -> Result<String, CliError> {
         body.push_str(
             "        { int64_t pending = 0; roop_pending(&pending); \
              if (pending) { printf(\"output is still pending\\n\"); return 3; } }\n",
+        );
+        body.push_str(
+            "        { int64_t peak = 0; roop_history_peak(&peak); \
+             if (peak) printf(\"history peak %lld\\n\", (long long)peak); }\n",
         );
         cases.push_str(&format!(
             "    case {k}: {{\n{body}        return 0;\n    }}\n"

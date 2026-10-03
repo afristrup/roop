@@ -76,6 +76,8 @@ pub struct World {
     pub kept: Vec<Kept>,
     /// The bytes the kept values hold, counted against the history limit.
     pub kept_bytes: usize,
+    /// The most the history of kept values has held.
+    pub kept_peak: usize,
 }
 
 static WORLD: Mutex<World> = Mutex::new(World {
@@ -87,6 +89,7 @@ static WORLD: Mutex<World> = Mutex::new(World {
     journal: Vec::new(),
     kept: Vec::new(),
     kept_bytes: 0,
+    kept_peak: 0,
 });
 
 /// The world, locked for the length of one operation.

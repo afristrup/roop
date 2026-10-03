@@ -28,6 +28,7 @@ pub unsafe extern "C" fn roop_keep(ptr: *mut u8, size: i64) {
         ));
     }
     world.kept_bytes += kept.cost();
+    world.kept_peak = world.kept_peak.max(world.kept_bytes);
     world.kept.push(kept);
     bytes.fill(0);
 }

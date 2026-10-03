@@ -625,12 +625,10 @@ fn a_keep_over_the_history_limit_stops_the_program() {
 
 #[test]
 fn forgetting_each_round_keeps_the_history_under_the_limit() {
-    let source = KEEPER
-        .replace("big[399] += 1;\n    }", "big[399] += 1;\n    }")
-        .replace(
-            "big[399] += 1;",
-            "big[399] += 1;\n        irrev { call forget(); }",
-        );
+    let source = KEEPER.replace(
+        "big[399] += 1;",
+        "big[399] += 1;\n        irrev { call forget(); }",
+    );
     let out = limited("history-forget", Some(2000), &source);
     assert!(out.status.success(), "{}", stderr(&out));
 }
