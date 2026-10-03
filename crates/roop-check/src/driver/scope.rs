@@ -14,6 +14,8 @@ pub struct Scope<'a> {
     pub non_atomic_fns: &'a HashSet<&'a str>,
     /// Functions that change the world outside the program.
     pub world_fns: &'a HashSet<&'a str>,
+    /// Functions that keep values, directly or through what they call.
+    pub keeping_fns: &'a HashSet<&'a str>,
     /// Which parameters of each function it may write.
     pub mutability: &'a Mutability<'a>,
     /// What the enclosing `if` conditions guarantee.
