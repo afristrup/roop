@@ -22,6 +22,7 @@ mod param_list;
 mod parse_model;
 mod quantize;
 mod reference;
+mod sample;
 mod tensor;
 mod weave_error;
 
@@ -45,5 +46,6 @@ pub use param_list::*;
 pub use parse_model::*;
 pub use quantize::*;
 pub use reference::*;
+pub use sample::*;
 pub use tensor::*;
 pub use weave_error::*;

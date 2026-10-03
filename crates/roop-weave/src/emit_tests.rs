@@ -1,4 +1,4 @@
-use crate::{Model, decl, forward, gradients, loss, names, quantize};
+use crate::{Model, decl, forward, gradients, loss, names, quantize, sample};
 
 /// `a - e` for a number a and an integer e, as roop writes it.
 fn difference(a: &str, e: i64) -> String {
@@ -11,17 +11,6 @@ fn difference(a: &str, e: i64) -> String {
 fn near(a: &str, e: i64, tolerance: i64) -> String {
     let d = difference(a, e);
     format!("    expect {d} * {d} <= {};\n", tolerance * tolerance)
-}
-
-/// A fixed input and target, on the grid.
-fn sample(model: &Model) -> (Vec<f64>, Vec<f64>) {
-    let x = (0..model.width)
-        .map(|i| ((i * 3 + 1) % 7) as f64 / 4.0 - 0.75)
-        .collect();
-    let t = (0..model.outputs)
-        .map(|k| ((k * 2 + 1) % 3) as f64 / 4.0 - 0.25)
-        .collect();
-    (x, t)
 }
 
 /// A test that loads the model, and checks its forward pass, its loss and every
