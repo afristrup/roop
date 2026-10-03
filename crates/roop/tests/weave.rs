@@ -355,3 +355,30 @@ fn net(q: &mut [i64; 4], p: &mut [i64; 4], aq: &mut [i64; 4], ap: &mut [i64; 4],
     }
     assert!(report.contains("Lean accepted the file"), "{report}");
 }
+
+#[test]
+fn lean_proves_the_reversible_mlp_block_and_its_backward_step() {
+    let src = "
+use weave::mlp;
+use weave::mlp_back;
+
+fn fwd(y: &mut [i64; 4], w1: &[[i64; 4]; 3], b1: &[i64; 3], w2: &[[i64; 3]; 4], b2: &[i64; 4],
+       x: &[i64; 4], kind: &i64) {
+    call mlp<4, 3>(y, w1, b1, w2, b2, x, kind);
+}
+fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
+        gw1: &mut [[i64; 4]; 3], gb1: &mut [i64; 3], gw2: &mut [[i64; 3]; 4], gb2: &mut [i64; 4],
+        w1: &[[i64; 4]; 3], b1: &[i64; 3], w2: &[[i64; 3]; 4], b2: &[i64; 4],
+        x: &[i64; 4], kind: &i64) {
+    call mlp_back<4, 3>(y, ay, ax, gw1, gb1, gw2, gb2, w1, b1, w2, b2, x, kind);
+}
+";
+    let dir = project("weave-lean-mlp", &config(), src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    for name in ["weave__mlp__mlp__4_3", "weave__mlp__mlp_back__4_3", "fwd", "back"] {
+        assert!(report.contains(name), "{name} missing: {report}");
+    }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}

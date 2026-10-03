@@ -1,0 +1,92 @@
+// A reversible block for any two-layer perceptron, from RevNets and NICE: the
+// state is split in two, and each half takes in a function of the other,
+//
+//     q += F(p)        p += G(q)        F(x) = W2 f(W1 x + b1) + b2
+//
+// F need not be invertible, since the half it reads is left alone. W1 is M by N
+// and W2 is N by M, so any torch `Linear, activation, Linear` fits.
+
+use einsum::qhadamard;
+use einsum::qmatvec;
+use einsum::qmatvec_t;
+use einsum::qouter;
+use super::act::*;
+use super::kernels::*;
+
+// y += W2 f(W1 x + b1) + b2, with the intermediates computed and undone.
+pub fn mlp<N, M>(
+    y: &mut [i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    x: &[i64; N],
+    kind: &i64,
+) {
+    ancilla z: [i64; M] = 0;
+    ancilla a: [i64; M] = 0;
+    call affine<N, M>(z, w1, x, b1);
+    call act<M>(a, z, kind);
+    call add_vec<N>(y, b2);
+    call qmatvec(y, w2, a);
+    uncall act<M>(a, z, kind);
+    uncall affine<N, M>(z, w1, x, b1);
+}
+
+// With u the adjoint of what `mlp` added to, adds the adjoint of x to ax and the
+// gradients of the four parameters.
+pub fn mlp_vjp<N, M>(
+    ax: &mut [i64; N],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    u: &[i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    x: &[i64; N],
+    kind: &i64,
+) {
+    ancilla z: [i64; M] = 0;
+    ancilla a: [i64; M] = 0;
+    ancilla d: [i64; M] = 0;
+    ancilla ta: [i64; M] = 0;
+    ancilla tz: [i64; M] = 0;
+    call affine<N, M>(z, w1, x, b1);
+    call act<M>(a, z, kind);
+    call dact<M>(d, z, kind);
+    call qmatvec_t(ta, w2, u);
+    call qhadamard(tz, d, ta);
+    call add_vec<N>(gb2, u);
+    call qouter(gw2, u, a);
+    call add_vec<M>(gb1, tz);
+    call qouter(gw1, tz, x);
+    call qmatvec_t(ax, w1, tz);
+    uncall qhadamard(tz, d, ta);
+    uncall qmatvec_t(ta, w2, u);
+    uncall dact<M>(d, z, kind);
+    uncall act<M>(a, z, kind);
+    uncall affine<N, M>(z, w1, x, b1);
+}
+
+// The backward step of `mlp`: on entry y is the output and ay its adjoint; on
+// exit y is what it was before, and ax and the gradients have been added to.
+pub fn mlp_back<N, M>(
+    y: &mut [i64; N],
+    ay: &[i64; N],
+    ax: &mut [i64; N],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    x: &[i64; N],
+    kind: &i64,
+) {
+    call mlp_vjp<N, M>(ax, gw1, gb1, gw2, gb2, ay, w1, b1, w2, x, kind);
+    uncall mlp<N, M>(y, w1, b1, w2, b2, x, kind);
+}
