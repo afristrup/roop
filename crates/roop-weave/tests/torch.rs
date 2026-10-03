@@ -5,10 +5,11 @@ use std::path::PathBuf;
 use std::process::Command;
 use support::{compile, project, roop, roop_binary, runtime_library, text};
 
-const MODELS: [&str; 7] = [
+const MODELS: [&str; 8] = [
     "attention_and_mlp",
     "conv_blocks",
     "mlp_then_leapfrog",
+    "rmsnorm_blocks",
     "sigmoid_head",
     "smooth_activations",
     "softmax_head",

@@ -3,6 +3,8 @@
 weave layers are reversible, and most torch layers are not, so the model is
 read as a network of reversible blocks, found in an nn.Sequential:
 
+    Linear(N, M), RMSNorm(M), act, Linear(M, N)
+                                      the same with the hidden layer normalized
     Linear(N, M), act, Linear(M, N)   an "mlp" block: one half of the state takes
                                       in a perceptron of the other (RevNet, NICE)
     Conv1d(C, C, K, padding=K // 2)   a "conv" block, a half of a coupling like the
@@ -139,6 +141,18 @@ def attention_block(module, i, width):
     }
 
 
+def norm_of(module, i, hidden):
+    eps = module.eps if module.eps is not None else 1.1920929e-07
+    if eps * 4096 < 1:
+        raise Unsupported(
+            f"layer {i}: RMSNorm eps {eps} is below 1/4096, the smallest weave holds; give it eps=1e-3"
+        )
+    if tuple(module.normalized_shape) != (hidden,):
+        raise Unsupported(f"layer {i}: RMSNorm must normalize the {hidden} hidden units")
+    weight = module.weight
+    return {"eps": eps, "gain": [1.0] * hidden if weight is None else numbers(weight)}
+
+
 def conv_block(module, i, width):
     if module.in_channels != module.out_channels:
         raise Unsupported(f"layer {i}: Conv1d must keep its channels, as the state keeps its width")
@@ -177,11 +191,17 @@ def block_at(leaves, i, width):
         )
     if i + 1 >= len(leaves):
         raise Unsupported(f"layer {i}: a Linear with no activation is not reversible")
-    act = activation_of(leaves[i + 1], i + 1)
     hidden = first.out_features
-    closes = i + 2 < len(leaves) and is_linear(leaves[i + 2])
-    if closes and leaves[i + 2].in_features == hidden and leaves[i + 2].out_features == width:
-        second = leaves[i + 2]
+    normed = kind(leaves[i + 1]) == "RMSNorm"
+    at = i + 2 if normed else i + 1
+    if at >= len(leaves):
+        raise Unsupported(f"layer {i}: a Linear and a norm with no activation is not reversible")
+    act = activation_of(leaves[at], at)
+    closes = at + 1 < len(leaves) and is_linear(leaves[at + 1])
+    if normed and not (closes and leaves[at + 1].in_features == hidden):
+        raise Unsupported(f"layer {i}: RMSNorm must be in a Linear, RMSNorm, activation, Linear block")
+    if closes and leaves[at + 1].in_features == hidden and leaves[at + 1].out_features == width:
+        second = leaves[at + 1]
         block = {
             "kind": "mlp",
             "activation": act,
@@ -190,7 +210,9 @@ def block_at(leaves, i, width):
             "w2": numbers(second.weight),
             "b2": bias_of(second),
         }
-        return block, 3
+        if normed:
+            block["norm"] = norm_of(leaves[i + 1], i + 1, hidden)
+        return block, at + 2 - i
     block = {
         "kind": "leapfrog",
         "activation": act,
@@ -209,8 +231,10 @@ def parameters(block, leaves, i):
     first = leaves[i]
     if block["kind"] in ("leapfrog", "conv"):
         return [first.weight, first.bias]
-    second = leaves[i + 2]
-    return [first.weight, first.bias, second.weight, second.bias]
+    normed = "norm" in block
+    second = leaves[i + 3] if normed else leaves[i + 2]
+    bound = [first.weight, first.bias, second.weight, second.bias]
+    return bound + [leaves[i + 1].weight] if normed else bound
 
 
 def export_bound(model, outputs=None, step=0.25, name="model", loss="mse", optimizer=None,

@@ -75,7 +75,10 @@ def leapfrog(layer, h, q, p):
 
 
 def perceptron(layer, x):
-    hidden = activate(layer["activation"], layer["w1"] @ x + layer["b1"])
+    z = layer["w1"] @ x + layer["b1"]
+    if layer.get("g") is not None:
+        z = z * torch.rsqrt((z * z).mean() + layer["eps"]) * layer["g"]
+    hidden = activate(layer["activation"], z)
     return layer["w2"] @ hidden + layer["b2"]
 
 
@@ -99,6 +102,21 @@ HALVES = {"attention": lambda layer, x: attention(layer, x),
           "conv": lambda layer, x: convolve(layer, x)}
 
 
+def build_layer(raw, make):
+    """The layer of a spec with each tensor made by `make`, and those tensors in the
+    order roop-weave keeps them."""
+    layer = {"kind": raw["kind"], "activation": raw.get("activation"), "seq": raw.get("seq"),
+             "channels": raw.get("channels"), "kernel": raw.get("kernel")}
+    made = []
+    for ours, theirs in KEYS[raw["kind"]]:
+        layer[ours] = make(raw[theirs])
+        made.append(layer[ours])
+    if raw.get("norm"):
+        layer["g"], layer["eps"] = make(raw["norm"]["gain"]), raw["norm"]["eps"]
+        made.append(layer["g"])
+    return layer, made
+
+
 def run_layers(layers, h, x):
     q, p, into_q = x, torch.zeros_like(x), True
     for layer in layers:
@@ -117,10 +135,7 @@ def run_layers(layers, h, x):
 def evaluate(spec, xs, ts):
     """The loss, summed over the samples, of the model as it is, in doubles. This
     is what the training of weave reports, in fixed point."""
-    layers = [dict(raw, **{ours: snap(raw[theirs]) for ours, theirs in KEYS[raw["kind"]]},
-                   activation=raw.get("activation"), seq=raw.get("seq"),
-                   channels=raw.get("channels"), kernel=raw.get("kernel"))
-              for raw in spec["layers"]]
+    layers = [build_layer(raw, snap)[0] for raw in spec["layers"]]
     h, total = float(snap(spec["step"])), 0.0
     for x, t in zip(xs, ts):
         q = run_layers(layers, h, snap(x))[: spec["outputs"]]
@@ -135,12 +150,9 @@ def mirror(spec):
     width, h = spec["width"], float(snap(spec["step"]))
     layers, leaves = [], []
     for raw in spec["layers"]:
-        layer = {"kind": raw["kind"], "activation": raw.get("activation"), "seq": raw.get("seq"),
-                 "channels": raw.get("channels"), "kernel": raw.get("kernel")}
-        for ours, theirs in KEYS[raw["kind"]]:
-            layer[ours] = leaf(raw[theirs])
-            leaves.append(layer[ours])
+        layer, made = build_layer(raw, leaf)
         layers.append(layer)
+        leaves.extend(made)
     loss_kind = spec.get("loss", "mse")
     x, t = sample(width, spec["outputs"], loss_kind)
     x = snap(x)

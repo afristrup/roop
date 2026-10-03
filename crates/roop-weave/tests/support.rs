@@ -29,9 +29,10 @@ pub fn project(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("roop-weave-{name}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let config = format!(
-        "[modules]\nweave = \"{}\"\neinsum = \"{}\"\n",
+        "[modules]\nweave = \"{}\"\neinsum = \"{}\"\nstd = \"{}\"\n",
         root("weave").display(),
-        root("einsum").display()
+        root("einsum").display(),
+        root("std").display()
     );
     std::fs::write(dir.join("Roop.toml"), config).unwrap();
     dir

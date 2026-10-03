@@ -35,6 +35,8 @@ def tensors(spec):
         for key in KEYS[layer["kind"]]:
             value = layer[key]
             out.append(value if not isinstance(value[0], list) else [x for row in value for x in row])
+        if layer.get("norm"):
+            out.append(layer["norm"]["gain"])
     return out
 
 
