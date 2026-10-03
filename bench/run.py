@@ -30,7 +30,7 @@ def run(cmd, **kw):
 def roop_time(kind, n, reps, auto, work):
     toml = f'[modules]\nstd = "{STD}"\n\n[parallel]\nauto = {"true" if auto else "false"}\n'
     (work / "Roop.toml").write_text(toml)
-    src = (HERE / "roop" / f"{kind}.roop").read_text().replace("@N@", str(n))
+    src = (HERE / "roop" / f"{kind}.roop.in").read_text().replace("@N@", str(n))
     (work / "prog.roop").write_text(src)
     main = (HERE / "roop" / f"{kind}_main.c").read_text().replace("@N@", str(n)).replace("@REPS@", str(reps))
     (work / "main.c").write_text(main)
