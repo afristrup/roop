@@ -540,7 +540,9 @@ unfolded input, so it is a Q12 einsum like the rest (`weave::conv`, `conv_back`)
 the hidden layer is `gain * z / sqrt(mean(z^2) + eps)` before the activation. weave has no
 square root that adds into a zero place, so `1 / sqrt(s)` is Newton's method run as a chain of
 21 cells, each from the one before. It starts from 1/4 and converges for `s` up to 48, and a
-larger one traps; `eps` cannot be below 1/4096. This is RMSNorm. LayerNorm subtracts a mean
+larger one traps; `eps` cannot be below 1/4096. Lean did not accept this block within 30 minutes
+(its other tests and the finite-difference check against the reference do pass), so unlike the
+other blocks it is not proved reversible. This is RMSNorm. LayerNorm subtracts a mean
 as well, which is left out.
 
 ```rust
