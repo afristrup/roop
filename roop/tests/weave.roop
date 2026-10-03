@@ -165,3 +165,27 @@ test gelu_of_one_is_close {
     call dact_at(d, z, kind);
     expect s > 3300 && s < 3500 && d > 4300 && d < 4900;
 }
+
+// With the weights the identity and x = (1, 0; 0, 1), Q = K = V = X, so A = I and y = x.
+test attention_of_identity_weights_returns_its_input {
+    y: [i64; 4], x: [i64; 4], wq: [[i64; 2]; 2], wk: [[i64; 2]; 2], wv: [[i64; 2]; 2];
+    wq[0][0] += 4096;
+    wq[1][1] += 4096;
+    wk[0][0] += 4096;
+    wk[1][1] += 4096;
+    wv[0][0] += 4096;
+    wv[1][1] += 4096;
+    x[0] += 4096;
+    x[3] += 4096;
+    call attn<2, 2, 4>(y, wq, wk, wv, x);
+    expect y[0] == 4096 && y[1] == 0 && y[2] == 0 && y[3] == 4096;
+}
+
+test fold_and_unfold_are_the_same_numbers_in_two_shapes {
+    x: [i64; 6], m: [[i64; 3]; 2], z: [i64; 6];
+    x[4] += 7;
+    call fold<2, 3, 6>(m, x);
+    expect m[1][1] == 7;
+    call unfold<2, 3, 6>(z, m);
+    expect z[4] == 7;
+}
