@@ -412,7 +412,10 @@ The `einsum` package, `roop/einsum`, has `dot`, `outer`, `matvec`, `matmul`,
 `transpose`, `trace`, sums, a bilinear form, batched matrix products, the
 contraction of three indices with a matrix, and the two products of attention,
 `scores` (`"bqd,bkd->bqk"`) and `attend` (`"bqk,bkd->bqd"`), each with an `i` (64-bit
-integer) and a `d` (f64) version. Their tests are checked against sums worked out by
+integer) and a `d` (f64) version. The element type `q12` is fixed point for weave: the
+numbers are `i64` holding x * 4096, and each product is divided by 4096, so a
+contraction stays on that grid (`qmatvec`, `qmatvec_t`, `qouter`, `qhadamard`,
+`qmatmul`, `qmatmul_nt`). Their tests are checked against sums worked out by
 hand, in `roop/tests/einsum.roop`. Because a contraction is reversible, so is its
 gradient: the vector-jacobian product of an einsum is another einsum with the
 labels moved, such as `"ik,jk->ij"` for the gradient of `matmul` with respect to
@@ -466,18 +469,28 @@ back with `uncall` and offers something else.
 
 weave is a small neural-network library written in roop, built on one fact: a
 leapfrog step is exactly invertible, whatever force it uses. A network is a
-stack of leapfrog layers on a state `(q, p)`, and backpropagation walks the
+stack of reversible layers on a state `(q, p)`, and backpropagation walks the
 layers backward, rebuilding each layer's input from its output with `uncall`
 while it carries the adjoints along. Nothing is stored for the backward pass, so
 memory does not grow with depth.
 
-A layer is one step of the Hamiltonian `|p|^2 / 2 + V(q)` with
-`V(q) = sum log(1 + z^2) / 2` and `z = W q + b`:
+Its contractions are the `q12` einsums of the `einsum` package, so a project
+that uses weave lists both in `Roop.toml`:
+
+```toml
+[modules]
+weave = "weave"
+einsum = "einsum"
+```
+
+**The leapfrog layer** is one step of the Hamiltonian `|p|^2 / 2 + V(q)` with
+`V'(z) = f(z)` and `z = W q + b`, where the state has width `N`, the hidden layer
+has width `M` and `W` is `M` by `N`:
 
 ```
-p += -h/2 * W^T sigma(W q + b)      sigma(z) = z / (1 + z^2)
+p += -h/2 * W^T f(W q + b)
 q += h * p
-p += -h/2 * W^T sigma(W q + b)
+p += -h/2 * W^T f(W q + b)
 ```
 
 Every line adds something to a place it does not read, so it has an exact
@@ -485,12 +498,37 @@ inverse. Numbers are fixed point (an integer is the value times 4096), which
 makes the reversal exact to the bit and lets Lean prove it; the rounding in a
 product is the same going forward and back.
 
+**The activation** `f` is chosen at run time by a kind number that is only read,
+so the branch on it is undone by the same test going back:
+
+| kind | `f(z)` |
+| --- | --- |
+| 0 | identity |
+| 1 | `z / (1 + z^2)`, the force of `log(1 + z^2) / 2` |
+| 2 | softsign, `z / (1 + abs(z))` |
+| 3 | relu |
+| 4 | tanh, as the Pade approximation `z (27 + z^2) / (27 + 9 z^2)` up to 3, then 1 |
+
+The slope of each is in `weave::dact`. The tanh is smooth where it joins 1: its
+slope `((9 - z^2) / (3 (3 + z^2)))^2` is zero there.
+
+**The perceptron block** is the other reversible layer, from RevNets and NICE:
+the state is split in two, and each half takes in a function of the other,
+
+```
+q += F(p)        p += G(q)        F(x) = W2 f(W1 x + b1) + b2
+```
+
+`F` need not be invertible, since the half it reads is left alone, so any
+`Linear, activation, Linear` fits. `weave::mlp` adds one half, and `weave::mlp_back`
+runs it backward with the gradients of all four parameters.
+
 ```rust
 use weave::step;
 
 // One step of gradient descent on a batch of B samples through L layers of
-// width N, with K outputs.
-call step<N, L, K, B>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr);
+// state width N and hidden width M, with K outputs, and kind 1 for the force.
+call step<N, M, L, K, B>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr, kind);
 ```
 
 `weave::grad` is the reversible core: the loss and the gradients of one sample,
@@ -503,15 +541,60 @@ precision copy of the network (they agree to about 1%, which is the 4096 grid)
 and that the input comes back bit for bit. Another trains XOR to a 50x lower
 loss. Lean proves the forward pass and the backward pass exactly reversible, layer
 by layer and through the loop over layers (`layer_back` and `backward`, checked at
-widths 2, 4 and 8 with up to three layers; width 64 with eight layers, the size of
-the benchmark, was not accepted within 30 minutes): each call's own lemma settles it, so a function of eleven calls takes
+widths 2, 4 and 8 with up to three layers, and the perceptron block at 4 by 3; width
+64 with eight layers, the size of the benchmark, was not accepted within 30
+minutes): each call's own lemma settles it, so a function of eleven calls takes
 seconds, not a case split of every outcome.
 
-This is a research library, not a framework. It has one layer type, one loss and
-a fixed activation, because roop has no function arguments to build a graph
-from, and no automatic differentiation: each layer's adjoint is written out. A
-test measures throughput: `cargo test -p roop --test weave --release --
---ignored --nocapture`.
+This is a research library, not a framework. There is no automatic
+differentiation: each layer's adjoint is written out, and roop has no function
+arguments to build a graph from. A test measures throughput: `cargo test -p roop
+--test weave --release -- --ignored --nocapture`.
+
+### From torch
+
+`roop-weave` compiles a model of these layers to roop code. A model is JSON: the
+state width, the number of outputs the loss reads, the step size and the layers,
+each with its activation and its weights. A layer may have its own hidden width
+and activation, which is why the compiler writes straight-line code for the
+model, instead of calling the stack of `weave::forward`:
+
+```json
+{ "name": "net", "width": 4, "outputs": 1, "step": 0.25, "layers": [
+  { "kind": "mlp", "activation": "tanh", "w1": [[...]], "b1": [...], "w2": [[...]], "b2": [...] },
+  { "kind": "leapfrog", "activation": "relu", "weight": [[...]], "bias": [...] } ] }
+```
+
+```
+cargo run -p roop-weave -- model.json -o net.roop --tests --batch 8
+roop test net.roop
+```
+
+The output has `net_load` (the weights, rounded to 1/4096), `net_forward`,
+`net_backward`, `net_grad` (the loss of a sample and its gradients, with the input
+rebuilt at the end) and `net_step<B>`, which is the training step. With `--batch B`
+it also has `net_train`, a step of B samples with the length filled in, which C
+can call. With `--tests` it adds a test that runs the forward pass and the
+gradient and compares them with a reference in doubles, whose gradients are
+central differences, so it checks the compiler and weave together. Like every roop
+test it also runs backward. A model that is not well formed is refused with the
+name of the field, or the tensor, that is wrong.
+
+`roop-weave/python/torch_to_weave.py` writes that JSON from a torch `nn.Sequential`:
+
+```
+python3 torch_to_weave.py pkg.module:factory --outputs 1 -o model.json
+```
+
+Most torch layers lose information, so it reads the model as blocks that do not.
+`Linear(N, M), act, Linear(M, N)` is a perceptron block, and `Linear(N, M), act`
+alone is a leapfrog layer whose weight is tied to its transpose. The activations
+are `Identity`, `ReLU`, `Tanh` and `Softsign`; any other layer is refused, naming
+it, since turning it into something else would not be the model. The compiled
+network is the network of those blocks run on `(q, p)` with the input in `q` and
+`p` zero, so it is a reversible network trained like the torch one, and not the
+same module run unchanged. The exporter is tested against stand-ins for
+`torch.nn`; it has not been run with torch itself.
 
 ## Sessions
 
