@@ -999,6 +999,68 @@
     }
   },
   {
+    "type": "einsum_item",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "subscripts": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string_literal",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "array_type",
+            "named": true
+          },
+          {
+            "type": "primitive_type",
+            "named": true
+          },
+          {
+            "type": "reference_type",
+            "named": true
+          },
+          {
+            "type": "stack_type",
+            "named": true
+          },
+          {
+            "type": "type_identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "visibility",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "enum_item",
     "named": true,
     "fields": {
@@ -2389,6 +2451,10 @@
           "named": true
         },
         {
+          "type": "einsum_item",
+          "named": true
+        },
+        {
           "type": "enum_item",
           "named": true
         },
@@ -3188,6 +3254,10 @@
     "extra": true
   },
   {
+    "type": "einsum",
+    "named": false
+  },
+  {
     "type": "else",
     "named": false
   },
@@ -3354,6 +3424,10 @@
   {
     "type": "wildcard",
     "named": true
+  },
+  {
+    "type": "world",
+    "named": false
   },
   {
     "type": "{",

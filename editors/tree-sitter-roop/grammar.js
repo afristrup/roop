@@ -54,6 +54,7 @@ module.exports = grammar({
         $.extern_item,
         $.test_item,
         $.bennett_item,
+        $.einsum_item,
         $.session_item,
       ),
 
@@ -120,6 +121,7 @@ module.exports = grammar({
       seq(
         optional($.visibility),
         "extern",
+        optional("world"),
         "fn",
         field("name", $.identifier),
         optional($.generics),
@@ -152,6 +154,19 @@ module.exports = grammar({
         field("name", $.identifier),
         "=",
         field("target", $.identifier),
+        ";",
+      ),
+
+    einsum_item: ($) =>
+      seq(
+        optional($.visibility),
+        "einsum",
+        "fn",
+        field("name", $.identifier),
+        ":",
+        field("type", $._type),
+        "=",
+        field("subscripts", $.string_literal),
         ";",
       ),
 

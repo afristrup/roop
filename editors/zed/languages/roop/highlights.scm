@@ -11,7 +11,7 @@
 
 ; Keywords
 [
-  "mod" "use" "as" "extern" "irrev" "enum" "struct" "fn" "build" "unbuild" "mut"
+  "mod" "use" "as" "extern" "world" "einsum" "irrev" "enum" "struct" "fn" "build" "unbuild" "mut"
   "if" "else" "fi" "from" "loop" "until" "match" "assert" "expect"
   "ancilla" "borrow" "call" "uncall" "chan" "send" "recv" "push" "pop"
   "logged" "try" "catch_rollback"
@@ -48,6 +48,7 @@
 (extern_item name: (identifier) @function)
 (test_item name: (identifier) @function)
 (bennett_item name: (identifier) @function target: (identifier) @function)
+(einsum_item name: (identifier) @function)
 (call_statement function: (identifier) @function)
 
 ; Names

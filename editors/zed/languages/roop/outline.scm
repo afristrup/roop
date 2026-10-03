@@ -20,6 +20,12 @@
   "fn" @context
   name: (_) @name) @item
 
+(einsum_item
+  (visibility)? @context
+  "einsum" @context
+  "fn" @context
+  name: (_) @name) @item
+
 (struct_item
   (visibility)? @context
   "struct" @context
