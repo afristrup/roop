@@ -25,7 +25,7 @@ int main(void) {
     }
     int reps = @REPS@;
     static double times[4096];
-    gemm(c, a, b, &alpha);
+    for (double t = now(); now() - t < 0.1;) gemm(c, a, b, &alpha);
     for (int r = 0; r < reps; r++) {
         double t0 = now();
         gemm(c, a, b, &alpha);

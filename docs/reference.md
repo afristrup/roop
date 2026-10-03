@@ -833,7 +833,17 @@ roop build prog.roop --link main.c -o prog
 [parallel]
 auto = true
 targets = ["cpu", "metal", "cuda"]
+sme = true
 ```
+
+On an Apple M4 or later (the chips with the SME matrix unit), a `#[parallel]`
+loop that is exactly a matrix product, `c[i][j] += alpha * a[i][l] * b[l][j]`
+over loops of `i`, `l` and `j`, or a `y[i] += alpha * x[i]` loop of 2048 or more
+`f64`s, runs on a kernel in the runtime instead of as compiled loops; this is
+what `std::blas::level3::dgemm` and `std::blas::level1::daxpy` are. Backward
+the kernel subtracts, so reversal works as for the loops. The results can
+differ from the loops in the last bits, since the kernel fuses the
+multiply and the add. `sme = false` under `[parallel]` turns it off.
 
 Metal kernels are emitted as AIR and built with Apple's `metal` tools; NVPTX
 kernels go through LLVM's PTX backend and need a CUDA driver at run time. The

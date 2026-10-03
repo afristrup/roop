@@ -6,7 +6,7 @@
 roop is built twice: with the compiler free to pick a GPU for a bare
 `#[parallel]` loop (the default), and with `auto = false`, so loops run on CPU
 threads. Every figure is the best of three runs of the program, each the best of
-several timed calls after one warm-up; small sizes time a batch of calls. The
+several timed calls after a tenth of a second of warm-up calls; small sizes time a batch of calls. The
 best, not the median, because on a laptop the scheduler moves a program between
 fast and slow cores and the median swings by a factor of two.
 """

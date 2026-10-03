@@ -1,63 +1,123 @@
 # Benchmarks
 
-What roop's generated code costs next to hand-written code, on the two kernels
-the standard library's BLAS covers best: `dgemm` (compute-bound) and `daxpy`
-(memory-bound). Run them with
+What roop's generated code costs next to hand-written code and Apple's
+Accelerate, on the two kernels the standard library's BLAS covers best:
+`dgemm` (compute-bound) and `daxpy` (memory-bound). Run them with
 
 ```
 cargo build --release -p roop -p roop-rt
-python3 bench/run.py
+python3 bench/run.py            # or: python3 bench/run.py gemm | axpy
 ```
 
 `bench/run.py` builds each program with the roop compiler, links a small C
 driver, and times it; the Rust baselines are in `bench/native/bench.rs` and use
 iterators, so they vectorize. Each figure is the best of three runs of the
-program, each the best of several timed calls after one warm-up, and small
-sizes time a batch of calls. The best, not the median, because on a laptop the
-scheduler moves a program between fast and slow cores and a median swings by a
-factor of two. Everything is from one machine, an Apple M4 with 10 cores, so
-read the figures as the shape and not as exact ratios.
+program, each the best of several hundred timed calls after a tenth of a second
+of warm-up calls, with small sizes timing a batch of calls. The best, not the
+median, because on a laptop the scheduler moves a program between fast and slow
+cores and a median swings by a factor of two. The warm-up is there because the
+SME matrix unit starts slow: the same `dgemm` call has a median of 76 GFLOP/s
+over its first 400 calls and 320 over 4000. Everything is from one machine, an Apple M4 with 10 cores that other
+work was also using, so read the figures as the shape and not as exact ratios:
+Accelerate's `dgemm` figures at 512 and 1024 moved between runs by up to 40 per
+cent, roop's by 10.
 
 roop is measured twice. **auto** is the default: a bare `#[parallel]` loop runs
 serially, on CPU threads or on the GPU, whichever the cost model estimates is
-fastest. **CPU threads** is `auto = false` in `Roop.toml`. Neither can use the
-GPU here, since Metal has no double precision.
+fastest, and a `dgemm` or `daxpy` loop runs on the SME kernels (below).
+**CPU threads** is `auto = false` in `Roop.toml`; the SME kernels are used there
+too. Neither can use the GPU here, since Metal has no double precision.
 
 ## dgemm, `C += A B`, f64, GFLOP/s (higher is better)
 
 | N | roop (auto) | roop (CPU threads) | Rust, 1 thread | Rust, all threads | Accelerate |
 |---:|---:|---:|---:|---:|---:|
-| 128 | 14.4 | 14.3 | 4.2 | 15.0 | 399.5 |
-| 256 | 14.1 | 14.8 | 3.4 | 16.6 | 459.1 |
-| 512 | 11.5 | 9.2 | 2.6 | 12.2 | 438.6 |
-| 1024 | 5.1 | 4.8 | 2.4 | 6.8 | 379.9 |
+| 128 | 349.5 | 349.5 | 4.8 | 16.1 | 435.8 |
+| 256 | 404.3 | 404.3 | 3.4 | 16.6 | 460.2 |
+| 512 | 500.8 | 469.3 | 2.6 | 11.7 | 320.1 |
+| 1024 | 443.6 | 418.8 | 2.4 | 6.1 | 273.1 |
+
+Where roop stood before the work of this section, on the same machine
+(GFLOP/s, auto): 15.7, 14.5, 9.7 and 4.7 at the four sizes. Reordering the
+loops to `i, l, j` so the inner loop is contiguous gave 49.3, 64.5, 62.1 and
+57.1 (Accelerate was 8 to 40 times faster). Calling the SME kernel gave the
+table above.
 
 ## daxpy, `y += a x`, f64, GB/s moved (higher is better)
 
 | N | roop (auto) | roop (CPU threads) | Rust, 1 thread | Rust, all threads | Accelerate |
 |---:|---:|---:|---:|---:|---:|
-| 65536 | 106.0 | 113.7 | 148.8 | 31.5 | 648.9 |
-| 1048576 | 148.0 | 158.3 | 146.6 | 243.9 | 198.5 |
-| 4194304 | 114.3 | 116.1 | 110.8 | 113.0 | 96.9 |
-| 16777216 | 101.7 | 104.2 | 95.6 | 104.7 | 95.9 |
+| 65536 | 496.6 | 496.6 | 149.1 | 31.8 | 648.9 |
+| 1048576 | 340.1 | 331.1 | 146.9 | 259.4 | 193.5 |
+| 4194304 | 102.7 | 104.4 | 111.6 | 106.6 | 96.8 |
+| 16777216 | 103.2 | 100.2 | 93.3 | 104.7 | 95.9 |
 
-
+Before: 147.5, 149.8, 113.7 and 101.6 (auto), measured with a shorter warm-up.
 
 ## What to read from them
 
-- **On compute-bound work roop matches a hand-written threaded loop.** `dgemm`
-  is within noise of the same algorithm written in Rust and run on every core,
-  and 3 to 4 times a single thread.
-- **roop is not a BLAS.** `dgemm` is the plain triple loop, with no tiling and no
-  matrix units, so Accelerate is 25 to 40 times faster on the same machine. That
-  gap is the algorithm, not the language, and the library does not claim to close
-  it.
-- **Memory-bound work meets the memory system.** At 4M and 16M elements roop,
-  threaded Rust and Accelerate all move 95 to 115 GB/s.
-- **In cache, roop is close to one Rust thread, not to ten.** At 64K elements roop
-  moves about two thirds of what a single Rust thread does, at 1M the same as one
-  Rust thread and two thirds of the hand-threaded version. The remaining gap to
-  hand-written Rust is open work.
+- **dgemm: roop matches or beats Accelerate from 512 up, and is 10 to 20 per
+  cent behind at 128 and 256.** The compiled loops alone reach 60 GFLOP/s, an
+  eighth of the kernel. At 512 the kernel is close to what the matrix unit can
+  do (about 560 GFLOP/s if it issues one 8 by 8 `fmopa` a cycle at 4.4 GHz,
+  which is an estimate and not a measurement). The small sizes lose to
+  Accelerate because a call has a fixed cost (entering streaming mode, and
+  transposing each block of `A` through the ZA tiles before its first use) that
+  is a larger share of a small product. Removing the pack's branches and
+  double buffering it, tried in a C harness, did not show a gain over the
+  noise.
+- **daxpy: ahead of Accelerate from 1M elements up, about 25 per cent behind at
+  64K.** At 4M and 16M everything is limited by memory at around 100 GB/s and
+  roop is level with Accelerate. In cache the kernel moves 256 bytes a load
+  and keeps `y` in the ZA array while it adds; in a C harness that ran at 500
+  to 650 GB/s at 64K to 256K elements, level with Accelerate, but the same
+  kernel reached through roop's benchmark gives 500 at 64K and the gap to
+  649 is not explained.
+- **Rust, with every thread, does not catch the matrix unit.** The kernel is 30
+  to 70 times faster on `dgemm` than ten Rust threads, and a single Rust thread
+  is 200 times behind.
+- **Neither number is a claim about other routines.** Only these two loop
+  shapes have kernels. The other level 1, 2 and 3 routines (`ddot`, `dgemv`,
+  `dsyrk`, and so on) are still compiled loops, not benchmarked here. `ddot`
+  and `dgemv` accumulate in program order, which LLVM may not vectorize without
+  reordering the sums, so they are the likeliest to be behind Accelerate.
+
+## The SME kernels
+
+The M4 has an SME matrix unit that Accelerate uses and compiled loops do not:
+`fmopa` multiplies two vectors of 8 doubles into an 8 by 8 tile of
+accumulators (128 flops an instruction), and its multi-vector `fmla` into the
+ZA array moves 256 bytes a load. LLVM does not target it from ordinary loops, so
+the kernels in `crates/roop-rt/kernels` (C with the SME intrinsics, compiled by
+`crates/roop-rt/build.rs` with `clang -mcpu=apple-m4`) are called by the
+compiler when it sees the loop shape.
+
+The compiler (`crates/roop-llvm/src/stmts/parallel/gemm` and `axpy`) recognizes
+a `#[parallel]` loop that is exactly `c[i][j] += alpha * a[i][l] * b[l][j]`
+over `i`, `l` and `j` in that order, or `y[i] += alpha * x[i]` over a vector of
+at least 2048 doubles, with the places named in the types it expects, and
+emits a call in place of the loops. Anything else, including a loop with any
+other body, stays a loop. Run backward the call passes `-alpha`, so `uncall`
+still undoes `call`. The Lean model sees the source loops, not the kernel, so
+the proofs of `std::blas` are unchanged; the results differ from the loops in
+the last bits because the kernel fuses the multiply and the add, and a
+reversed `dgemm` restores its input to within rounding, as it did before.
+
+`dgemm` transposes a 16-row block of `A`, scaled by alpha, through the ZA tiles
+into a packed panel and sweeps it against 32 columns of `B` with eight `fmopa`
+tiles, 256 deep at a time. Calls above about 64 million multiply-adds split into
+64-row chunks on the thread pool, which adds 10 to 25 per cent. `daxpy` of 512K elements or more is chunked
+over the pool the same way.
+
+Without SME (an M1 to M3, or `sme = false` under `[parallel]` in `Roop.toml`)
+the loops are compiled as before. A host whose `clang` cannot build the kernels
+gets plain Rust loops with the same names, and a warning from `cargo build`.
+
+Not measured: dgemm above 1024, where the single-call kernel is limited by
+streaming `B` from memory (a C harness with 2048 by 2048 matrices ran at a third
+of the 1024 rate on one thread and at nine tenths with ten threads, which the
+runtime does not yet arrange for), and other
+element types, since the matrix unit's `f32` and integer forms are not used.
 
 ## What `noalias` changed
 
