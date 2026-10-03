@@ -3,12 +3,12 @@
 // einsum with a batch label. The gradients added are the sums of what each
 // sample adds, term for term.
 
-use einsum::qattend;
-use einsum::qattend_t;
-use einsum::qproject;
-use einsum::qscores;
-use einsum::qunproject;
-use einsum::qweight_grad;
+use einsum::wattend;
+use einsum::wattend_t;
+use einsum::wproject;
+use einsum::wscores;
+use einsum::wunproject;
+use einsum::iweight_grad;
 use super::attention::*;
 
 // m += x read as S rows of D numbers, for each sample
@@ -40,17 +40,17 @@ pub fn attn_batch<S, D, N, B>(
     ancilla a: [[[i64; S]; S]; B] = 0;
     ancilla o: [[[i64; D]; S]; B] = 0;
     call fold_batch<S, D, N, B>(xm, x);
-    call qproject(q, xm, wq);
-    call qproject(k, xm, wk);
-    call qproject(v, xm, wv);
-    call qscores(a, q, k);
-    call qattend(o, a, v);
+    call wproject(q, xm, wq);
+    call wproject(k, xm, wk);
+    call wproject(v, xm, wv);
+    call wscores(a, q, k);
+    call wattend(o, a, v);
     call unfold_batch<S, D, N, B>(y, o);
-    uncall qattend(o, a, v);
-    uncall qscores(a, q, k);
-    uncall qproject(v, xm, wv);
-    uncall qproject(k, xm, wk);
-    uncall qproject(q, xm, wq);
+    uncall wattend(o, a, v);
+    uncall wscores(a, q, k);
+    uncall wproject(v, xm, wv);
+    uncall wproject(k, xm, wk);
+    uncall wproject(q, xm, wq);
     uncall fold_batch<S, D, N, B>(xm, x);
 }
 
@@ -79,34 +79,34 @@ pub fn attn_vjp_batch<S, D, N, B>(
     ancilla dv: [[[i64; D]; S]; B] = 0;
     ancilla dxm: [[[i64; D]; S]; B] = 0;
     call fold_batch<S, D, N, B>(xm, x);
-    call qproject(q, xm, wq);
-    call qproject(k, xm, wk);
-    call qproject(v, xm, wv);
-    call qscores(a, q, k);
+    call wproject(q, xm, wq);
+    call wproject(k, xm, wk);
+    call wproject(v, xm, wv);
+    call wscores(a, q, k);
     call fold_batch<S, D, N, B>(du, u);
-    call qscores(da, du, v);
-    call qattend_t(dv, a, du);
-    call qattend(dq, da, k);
-    call qattend_t(dk, da, q);
-    call qunproject(dxm, dq, wq);
-    call qunproject(dxm, dk, wk);
-    call qunproject(dxm, dv, wv);
+    call wscores(da, du, v);
+    call wattend_t(dv, a, du);
+    call wattend(dq, da, k);
+    call wattend_t(dk, da, q);
+    call wunproject(dxm, dq, wq);
+    call wunproject(dxm, dk, wk);
+    call wunproject(dxm, dv, wv);
     call unfold_batch<S, D, N, B>(ax, dxm);
-    call qweight_grad(gwq, dq, xm);
-    call qweight_grad(gwk, dk, xm);
-    call qweight_grad(gwv, dv, xm);
-    uncall qunproject(dxm, dv, wv);
-    uncall qunproject(dxm, dk, wk);
-    uncall qunproject(dxm, dq, wq);
-    uncall qattend_t(dk, da, q);
-    uncall qattend(dq, da, k);
-    uncall qattend_t(dv, a, du);
-    uncall qscores(da, du, v);
+    call iweight_grad(gwq, dq, xm);
+    call iweight_grad(gwk, dk, xm);
+    call iweight_grad(gwv, dv, xm);
+    uncall wunproject(dxm, dv, wv);
+    uncall wunproject(dxm, dk, wk);
+    uncall wunproject(dxm, dq, wq);
+    uncall wattend_t(dk, da, q);
+    uncall wattend(dq, da, k);
+    uncall wattend_t(dv, a, du);
+    uncall wscores(da, du, v);
     uncall fold_batch<S, D, N, B>(du, u);
-    uncall qscores(a, q, k);
-    uncall qproject(v, xm, wv);
-    uncall qproject(k, xm, wk);
-    uncall qproject(q, xm, wq);
+    uncall wscores(a, q, k);
+    uncall wproject(v, xm, wv);
+    uncall wproject(k, xm, wk);
+    uncall wproject(q, xm, wq);
     uncall fold_batch<S, D, N, B>(xm, x);
 }
 

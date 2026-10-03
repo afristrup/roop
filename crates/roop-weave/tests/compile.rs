@@ -98,7 +98,11 @@ fn lean_proves_a_compiled_batched_model_exactly_reversible() {
     let out = roop(&dir, &["lean", "prog.roop", "--check"]);
     assert!(out.status.success(), "{}", text(&out));
     let report = text(&out);
-    for name in ["tiny_forward_batch", "tiny_backward_batch", "tiny_grad_batch"] {
+    for name in [
+        "tiny_forward_batch",
+        "tiny_backward_batch",
+        "tiny_grad_batch",
+    ] {
         assert!(report.contains(name), "{name} missing: {report}");
     }
     assert!(report.contains("Lean accepted the file"), "{report}");

@@ -14,6 +14,10 @@ pub struct Options {
     /// A product of `q12` matrices, the loops of weave's einsums, calls the
     /// runtime's integer kernel instead of being compiled as loops.
     pub q12: bool,
+    /// An ancilla that a `call` made and an `uncall` of the same function takes
+    /// off again, with nothing in between that changes what it reads, is set to
+    /// zero instead of computed backward.
+    pub clear_ancillas: bool,
     /// A C `main` is linked in, so none is made for the roop `main`.
     pub no_entry: bool,
     /// The most bytes the history of kept values may hold, set by the program's

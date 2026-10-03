@@ -1,13 +1,15 @@
 use crate::{
-    CodegenError, Dir, FnGen, gen_place, match_q12_matmul, matrix_dims, mem_store,
+    CodegenError, Dir, FnGen, gen_place, match_int_matmul, matrix_dims, mem_store,
     parallel_prologue,
 };
 use roop_syntax::{Block, Expr, Place};
 
-/// Runs a `q12` matrix product on the runtime's kernel, and returns whether it
-/// did. The kernel returns what the loops would, to the bit, and backward it
-/// takes off what forward added.
-pub fn gen_q12_matmul(
+/// Runs an integer matrix product on the runtime's kernel, and returns whether
+/// it did: the `q12` ones (each product divided by 4096) on the NEON kernel, and
+/// the `i64` ones on the SME matrix unit when the CPU has one. A kernel returns
+/// what the loops would, to the bit, and backward it takes off what forward
+/// added.
+pub fn gen_int_matmul(
     g: &mut FnGen,
     entry: &Expr,
     body: &Block,
@@ -15,12 +17,16 @@ pub fn gen_q12_matmul(
     until: &Expr,
     dir: Dir,
 ) -> Result<bool, CodegenError> {
-    if !g.ctx.options.q12 {
-        return Ok(false);
-    }
-    let Some(product) = match_q12_matmul(entry, body, step, until) else {
+    let Some(product) = match_int_matmul(entry, body, step, until) else {
         return Ok(false);
     };
+    let (kernel, available) = match product.scaled {
+        true => ("roop_q12_matmul", g.ctx.options.q12),
+        false => ("roop_i64_matmul", g.ctx.options.sme),
+    };
+    if !available {
+        return Ok(false);
+    }
     let place = |g: &mut FnGen, name: &str| gen_place(g, &Place::Var(name.into()));
     let (c, a, b) = (
         place(g, product.c)?,
@@ -37,7 +43,7 @@ pub fn gen_q12_matmul(
         Dir::Backward => -1,
     };
     g.emit(&format!(
-        "call void @roop_q12_matmul(ptr {}, ptr {}, ptr {}, i64 {sign}, i64 {}, i64 {}, i64 {}, i64 {})",
+        "call void @{kernel}(ptr {}, ptr {}, ptr {}, i64 {sign}, i64 {}, i64 {}, i64 {}, i64 {})",
         c.addr,
         a.addr,
         b.addr,

@@ -32,6 +32,13 @@ fn with_kernel() -> Options {
     }
 }
 
+fn with_matrix_unit() -> Options {
+    Options {
+        sme: true,
+        ..Default::default()
+    }
+}
+
 fn plain_nn(update: &str) -> String {
     nest("[[i64; 5]; 4]", "[[i64; 3]; 4]", "[[i64; 5]; 3]", update)
 }
@@ -80,4 +87,20 @@ fn a_nest_that_is_not_a_q12_product_stays_loops() {
 fn matrices_of_the_wrong_shape_stay_loops() {
     let program = nest("[[i64; 5]; 4]", "[[i64; 3]; 4]", "[[i64; 4]; 3]", MATMUL);
     assert!(!support::ir_with(&program, &with_kernel()).contains("call void @roop_q12_matmul("));
+}
+
+#[test]
+fn an_i64_product_nest_calls_the_exact_kernel_when_there_is_a_matrix_unit() {
+    let program = plain_nn("c[i][k] += a[i][j] * b[j][k];");
+    let ir = support::ir_with(&program, &with_matrix_unit());
+    support::verify(&ir);
+    assert_eq!(ir.matches("call void @roop_i64_matmul(").count(), 2, "{ir}");
+    assert!(ir.contains("i64 1, i64 4, i64 5, i64 3, i64 0)"), "{ir}");
+    assert!(ir.contains("i64 -1, i64 4, i64 5, i64 3, i64 0)"), "{ir}");
+    let without = support::ir_with(&program, &with_kernel());
+    assert!(
+        !without.contains("call void @roop_i64_matmul("),
+        "{without}"
+    );
+    assert!(!ir.contains("call void @roop_q12_matmul("), "{ir}");
 }

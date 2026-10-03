@@ -4,7 +4,7 @@
 // they are equal to the bit to B calls of `grad`.
 
 use einsum::qhadamard2;
-use einsum::qmatmul_nt;
+use einsum::wmatmul_nt;
 use super::kernels_batch::*;
 use super::rows::*;
 
@@ -79,11 +79,11 @@ pub fn vjp_batch<N, M, B>(
     call affine_batch<N, M, B>(z, w, q, b);
     call act_rows<M, B>(s, z, kind);
     call dact_rows<M, B>(d, z, kind);
-    call qmatmul_nt(t, u, w);
+    call wmatmul_nt(t, u, w);
     call qhadamard2(dt, d, t);
     call adjoint_batch<N, M, B>(aq, gw, gb, s, dt, u, w, q, c);
     uncall qhadamard2(dt, d, t);
-    uncall qmatmul_nt(t, u, w);
+    uncall wmatmul_nt(t, u, w);
     uncall dact_rows<M, B>(d, z, kind);
     uncall act_rows<M, B>(s, z, kind);
     uncall affine_batch<N, M, B>(z, w, q, b);
@@ -112,12 +112,12 @@ pub fn force_back_batch<N, M, B>(
     call affine_batch<N, M, B>(z, w, q, b);
     call act_rows<M, B>(s, z, kind);
     call dact_rows<M, B>(d, z, kind);
-    call qmatmul_nt(t, u, w);
+    call wmatmul_nt(t, u, w);
     call qhadamard2(dt, d, t);
     call adjoint_batch<N, M, B>(aq, gw, gb, s, dt, u, w, q, c);
     uncall kick_batch<N, M, B>(p, w, s, c);
     uncall qhadamard2(dt, d, t);
-    uncall qmatmul_nt(t, u, w);
+    uncall wmatmul_nt(t, u, w);
     uncall dact_rows<M, B>(d, z, kind);
     uncall act_rows<M, B>(s, z, kind);
     uncall affine_batch<N, M, B>(z, w, q, b);

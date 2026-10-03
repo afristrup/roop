@@ -86,7 +86,7 @@ int main(void) {
             for (int i = 0; i < N; i++) { ws[l][j][i] = llround(rw(l, j, i) * S); dw[l][j][i] = ws[l][j][i] / S; }
         }
 
-    /* Gradients from the reverse sweep, summed over the four samples. */
+    /* Gradients from the reverse sweep, summed over the four samples: the matrices in Q24. */
     W3 gw; B2 gb;
     memset(gw, 0, sizeof gw); memset(gb, 0, sizeof gb);
     int64_t total = 0;
@@ -112,7 +112,7 @@ int main(void) {
                 dw[l][j][i] -= 2 * eps;
                 for (int n = 0; n < 4; n++) dn += ref_loss(dw, db, xs[n], ts[n], H / S);
                 dw[l][j][i] += eps;
-                double numeric = (up - dn) / (2 * eps), got = gw[l][j][i] / S;
+                double numeric = (up - dn) / (2 * eps), got = gw[l][j][i] / (S * S);
                 if (fabs(numeric - got) > worst) worst = fabs(numeric - got);
                 if (fabs(numeric) > scale) scale = fabs(numeric);
             }
@@ -315,6 +315,14 @@ int main(int argc, char **argv) {
     }
     fprintf(stderr, "weave: %d layers of width %d, %d samples a step: %.1f samples/s, %.2f ms a step\n",
             L, N, B, B / best_one, 1000 * best_one);
+    reset();
+    for (int s = 0; s < 3; s++)
+        train_batch(&total, (int64_t*)ws, (int64_t*)bs, (int64_t*)gw, (int64_t*)gb, (int64_t*)qb,
+                    (int64_t*)pb, (int64_t*)aqb, (int64_t*)apb, (int64_t*)xs, (int64_t*)ts, &H, &LR, &kind);
+    int64_t sum = 0;
+    for (int i = 0; i < L * N * N; i++) sum = (int64_t)((uint64_t)sum * 31u + (uint64_t)((int64_t*)ws)[i]);
+    for (int i = 0; i < L * N; i++) sum = (int64_t)((uint64_t)sum * 31u + (uint64_t)((int64_t*)bs)[i]);
+    fprintf(stderr, "weights checksum after 3 steps: %lld\n", (long long)sum);
     fprintf(stderr, "weave batched: %d layers of width %d, %d samples a step: %.1f samples/s, %.2f ms a step\n",
             L, N, B, B / best_batch, 1000 * best_batch);
     return 0;

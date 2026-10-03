@@ -70,6 +70,7 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
          declare void @roop_dgemm(ptr, ptr, ptr, double, i64, i64, i64)\n\
          declare void @roop_daxpy(ptr, ptr, double, i64)\n\
          declare void @roop_q12_matmul(ptr, ptr, ptr, i64, i64, i64, i64, i64)\n\
+         declare void @roop_i64_matmul(ptr, ptr, ptr, i64, i64, i64, i64, i64)\n\
          declare i32 @roop_gpu_dispatch(i32, ptr, i64, ptr, ptr, i64, i64, i64, i64)\n\
          declare ptr @roop_chan_new(i64)\n\
          declare void @roop_chan_send(ptr, ptr)\n\

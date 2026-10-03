@@ -22,10 +22,10 @@ const LIBRARIES: [Library; 2] = [
     },
     Library {
         name: "roop_q12",
-        sources: &["kernels/q12_matmul.c"],
+        sources: &["kernels/q12_matmul.c", "kernels/i64_matmul.c"],
         march: "armv8.7-a",
         missing: "no_q12_kernel",
-        reason: "no clang for aarch64, so the Q12 matrix kernel uses plain loops",
+        reason: "no clang for aarch64, so the integer matrix kernels use plain loops",
     },
 ];
 

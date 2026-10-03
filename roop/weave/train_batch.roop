@@ -20,11 +20,17 @@ pub fn loss_batch<N, K, B>(total: &mut i64, q: &[[i64; N]; B], t: &[[i64; K]; B]
 }
 
 // aq += q - t over the first K outputs of each row
-pub fn seed_batch<N, K, B>(aq: &mut [[i64; N]; B], q: &[[i64; N]; B], t: &[[i64; K]; B]) {
+pub fn seed_batch<N, K, B>(
+    aq: &mut [[i64; N]; B],
+    q: &[[i64; N]; B],
+    t: &[[i64; K]; B],
+) {
     ancilla r: i64 = 0;
     from r == 0 {
         ancilla k: i64 = 0;
-        from k == 0 { aq[r][k] += q[r][k] - t[r][k]; } loop { k += 1; } until k == K - 1;
+        from k == 0 {
+            aq[r][k] += q[r][k] - t[r][k];
+        } loop { k += 1; } until k == K - 1;
         k -= K - 1;
     } loop { r += 1; } until r == B - 1;
     r -= B - 1;

@@ -96,6 +96,10 @@ int main(void) {
         return 5;
     static int64_t none[L][M][N];
     if (memcmp(gw_c, none, sizeof none) || memcmp(tw, none, sizeof none)) return 6;
+    uint64_t sum = 0;
+    for (int i = 0; i < L * M * N; i++) sum = sum * 31 + (uint64_t)((int64_t*)ws_a)[i];
+    for (int i = 0; i < L * M; i++) sum = sum * 31 + (uint64_t)((int64_t*)bs_a)[i];
+    printf("%llu %lld\n", (unsigned long long)sum, (long long)total_a);
     return 0;
 }
 "#;
@@ -109,9 +113,9 @@ fn config() -> String {
     )
 }
 
-#[test]
-fn a_step_on_chunks_that_run_on_threads_equals_a_step_on_the_whole_batch_bit_for_bit() {
-    let dir = project("weave-parallel", &config(), PROGRAM);
+/// Builds and runs the program, with `extra` added to Roop.toml, and returns what it prints.
+fn run(name: &str, extra: &str) -> String {
+    let dir = project(name, &format!("{}{extra}", config()), PROGRAM);
     std::fs::write(dir.join("main.c"), DRIVER).unwrap();
     let out = roop(
         &dir,
@@ -120,4 +124,27 @@ fn a_step_on_chunks_that_run_on_threads_equals_a_step_on_the_whole_batch_bit_for
     assert!(out.status.success(), "{}", stderr(&out));
     let result = Command::new(dir.join("prog")).output().unwrap();
     assert_eq!(result.status.code(), Some(0));
+    String::from_utf8_lossy(&result.stdout).into_owned()
+}
+
+#[test]
+fn a_step_on_chunks_that_run_on_threads_equals_a_step_on_the_whole_batch_bit_for_bit() {
+    assert!(!run("weave-parallel", "").is_empty());
+}
+
+#[test]
+fn zeroing_an_ancilla_that_a_call_made_changes_no_result() {
+    let cleared = run("weave-cleared", "\n[optimize]\nclear_ancillas = true\n");
+    let computed = run("weave-computed", "\n[optimize]\nclear_ancillas = false\n");
+    assert_eq!(cleared, computed);
+}
+
+#[test]
+fn the_matrix_kernels_change_no_result() {
+    let kernels = run("weave-kernels", "");
+    let loops = run(
+        "weave-loops",
+        "\n[parallel]\nsme = false\nq12 = false\n[optimize]\nclear_ancillas = false\n",
+    );
+    assert_eq!(kernels, loops);
 }

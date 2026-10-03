@@ -197,3 +197,43 @@ pub einsum fn qattend: q12 = "bqk,bkd->bqd";
 
 // The transpose of each matrix of a batch times another.
 pub einsum fn qattend_t: q12 = "bji,bjk->bik";
+
+// The wide fixed-point contractions of weave: the numbers are Q12, as above, but
+// the products of a sum are added exactly, in 64 bits, and the sum is divided by
+// 4096 once. That is more exact than `q12`, and each is one matrix product on
+// integers, which the compiler runs on the matrix unit where there is one. A
+// product with no sum in it (`qouter`, `qhadamard`) is the same either way.
+
+// A matrix times a vector.
+pub einsum fn wmatvec: q12w = "ij,j->i";
+
+// The transpose of a matrix times a vector.
+pub einsum fn wmatvec_t: q12w = "ji,j->i";
+
+// A matrix times a matrix.
+pub einsum fn wmatmul: q12w = "ij,jk->ik";
+
+// A matrix times the transpose of another.
+pub einsum fn wmatmul_nt: q12w = "ij,kj->ik";
+
+// The transpose of a matrix times another.
+pub einsum fn wmatmul_tn: q12w = "ji,jk->ik";
+
+// A batch of matrices, each times the transpose of a shared one.
+pub einsum fn wproject: q12w = "bsd,ed->bse";
+
+// A batch of matrices, each times a shared one.
+pub einsum fn wunproject: q12w = "bsd,de->bse";
+
+// Attention scores for a batch, the inner product of each query and key.
+pub einsum fn wscores: q12w = "bqd,bkd->bqk";
+
+// Attention output for a batch, the weights times the values.
+pub einsum fn wattend: q12w = "bqk,bkd->bqd";
+
+// The transpose of each matrix of a batch times another.
+pub einsum fn wattend_t: q12w = "bji,bjk->bik";
+
+// The sum, over a batch of matrices, of the transpose of the first times the
+// second, without the division by 4096: the gradient of a shared weight, in Q24.
+pub einsum fn iweight_grad: i64 = "bsi,bsk->ik";

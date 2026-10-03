@@ -31,9 +31,11 @@ fn mul(a: i64, b: i64) -> i64 {
 fn affine(net: &Net, l: usize, z: &mut [i64], q: &[i64]) {
     for j in 0..net.n {
         z[j] = z[j].wrapping_add(net.b[l * net.n + j]);
+        let mut sum = 0i64;
         for i in 0..net.n {
-            z[j] = z[j].wrapping_add(mul(net.w(l, j, i), q[i]) / Q);
+            sum = sum.wrapping_add(mul(net.w(l, j, i), q[i]));
         }
+        z[j] = z[j].wrapping_add(sum / Q);
     }
 }
 
@@ -58,10 +60,11 @@ fn force(net: &Net, l: usize, p: &mut [i64], q: &[i64], c: i64, sign: i64) {
 /// p += sign * c * W^T s
 fn kick(net: &Net, l: usize, p: &mut [i64], s: &[i64], c: i64, sign: i64) {
     for i in 0..net.n {
-        let mut t = 0i64;
+        let mut sum = 0i64;
         for j in 0..net.n {
-            t = t.wrapping_add(mul(net.w(l, j, i), s[j]) / Q);
+            sum = sum.wrapping_add(mul(net.w(l, j, i), s[j]));
         }
+        let t = sum / Q;
         p[i] = p[i].wrapping_add(mul(sign, mul(c, t) / Q));
     }
 }
@@ -87,9 +90,11 @@ fn vjp(net: &Net, l: usize, aq: &mut [i64], gw: &mut [i64], gb: &mut [i64], u: &
     let d: Vec<i64> = z.iter().map(|&z| dsigma(z)).collect();
     let mut t = vec![0i64; n];
     for j in 0..n {
+        let mut sum = 0i64;
         for i in 0..n {
-            t[j] = t[j].wrapping_add(mul(net.w(l, j, i), u[i]) / Q);
+            sum = sum.wrapping_add(mul(net.w(l, j, i), u[i]));
         }
+        t[j] = sum / Q;
     }
     let dt: Vec<i64> = (0..n).map(|j| mul(d[j], t[j]) / Q).collect();
     kick(net, l, aq, &dt, c, 1);
@@ -98,7 +103,7 @@ fn vjp(net: &Net, l: usize, aq: &mut [i64], gw: &mut [i64], gb: &mut [i64], u: &
         let cdt = mul(c, dt[j]) / Q;
         for i in 0..n {
             let at = (l * n + j) * n + i;
-            gw[at] = gw[at].wrapping_add(mul(cs, u[i]) / Q).wrapping_add(mul(cdt, q[i]) / Q);
+            gw[at] = gw[at].wrapping_add(mul(cs, u[i])).wrapping_add(mul(cdt, q[i]));
         }
         gb[l * n + j] = gb[l * n + j].wrapping_add(cdt);
     }

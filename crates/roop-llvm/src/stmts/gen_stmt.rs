@@ -1,12 +1,15 @@
 use crate::{
-    CodegenError, Dialect, Dir, FnGen, gen_ancilla, gen_axpy, gen_block, gen_borrow, gen_call,
-    gen_chan, gen_from, gen_gemm, gen_if, gen_keep, gen_logged, gen_match, gen_overwrite,
-    gen_parallel_auto, gen_parallel_cpu, gen_parallel_gpu, gen_pop, gen_push, gen_q12_matmul,
-    gen_recv, gen_send, gen_swap, gen_try, gen_update, parallel_attr,
+    CodegenError, Dialect, Dir, FnGen, cleared_slot, gen_ancilla, gen_axpy, gen_block, gen_borrow,
+    gen_call, gen_chan, gen_from, gen_gemm, gen_if, gen_int_matmul, gen_keep, gen_logged,
+    gen_match, gen_overwrite, gen_parallel_auto, gen_parallel_cpu, gen_parallel_gpu, gen_pop,
+    gen_push, gen_recv, gen_send, gen_swap, gen_try, gen_update, mem_store, parallel_attr,
 };
 use roop_syntax::{Stmt, StmtKind, Target};
 
 pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError> {
+    if let Some(slot) = cleared_slot(g, stmt, dir) {
+        return mem_store(g, &slot, "zeroinitializer");
+    }
     match &stmt.kind {
         StmtKind::Update { target, op, value } => gen_update(g, target, *op, value, dir),
         StmtKind::Swap(a, b) => gen_swap(g, a, b),
@@ -26,7 +29,7 @@ pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError
             let on_cpu = matches!(parallel, Some(None | Some(Target::Cpu)));
             if on_cpu
                 && (gen_gemm(g, entry, body, step, until, dir)?
-                    || gen_q12_matmul(g, entry, body, step, until, dir)?
+                    || gen_int_matmul(g, entry, body, step, until, dir)?
                     || gen_axpy(g, entry, body, step, until, dir)?)
             {
                 return Ok(());

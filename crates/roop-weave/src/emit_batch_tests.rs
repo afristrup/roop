@@ -1,4 +1,6 @@
-use crate::{Model, batch_sample, decl, forward, gradients, loss, names, near, quantize};
+use crate::{
+    Model, batch_sample, decl, forward, gradient_unit, gradients, loss, names, near, quantize,
+};
 
 /// A test that loads the model, runs a batch of different samples through its
 /// batched forward pass and gradient, and checks the outputs, the summed loss
@@ -72,7 +74,9 @@ pub fn emit_batch_tests(model: &Model, batch: usize) -> String {
     let gradient_tolerance = quantize(0.05 * scale + 0.005 * rows_len);
     for (tensor, grad) in model.gradients().iter().zip(&summed) {
         for (flat, g) in grad.iter().enumerate() {
-            body += &near(&tensor.element(flat), quantize(*g), gradient_tolerance);
+            let unit = gradient_unit(tensor);
+            let expected = (g * 4096.0 * unit as f64).round() as i64;
+            body += &near(&tensor.element(flat), expected, gradient_tolerance * unit);
         }
     }
     format!(

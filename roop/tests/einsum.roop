@@ -1033,3 +1033,150 @@ test qattend_t_reads_the_first_transposed {
     call qattend_t(out, x0, x1);
     expect out[0][0][0] == 16384;
 }
+
+// The `i64` products run on the matrix kernel when the machine has one, if they
+// are large enough: 16 by 16 by 16 is 4096 multiply-adds. These compare them with
+// loops written in another order, which stay loops, so a difference between the
+// kernel and the loops shows. The numbers are small, which the kernel does in
+// doubles, and large, which it hands to the loops.
+
+fn filled<N>(m: &mut [[i64; N]; N], seed: &i64, scale: &i64) {
+    ancilla i: i64 = 0;
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            m[i][j] += ((i * 7 + j * 3 + seed) % 11 - 5) * scale;
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
+}
+
+fn same<N>(a: &[[i64; N]; N], b: &[[i64; N]; N]) {
+    ancilla i: i64 = 0;
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            expect a[i][j] == b[i][j];
+        } loop { j += 1; } until j == N - 1;
+        j -= N - 1;
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
+}
+
+fn by_columns<N>(out: &mut [[i64; N]; N], a: &[[i64; N]; N], b: &[[i64; N]; N]) {
+    ancilla k: i64 = 0;
+    from k == 0 {
+        ancilla i: i64 = 0;
+        from i == 0 {
+            ancilla j: i64 = 0;
+            from j == 0 {
+                out[i][k] += a[i][j] * b[j][k];
+            } loop { j += 1; } until j == N - 1;
+            j -= N - 1;
+        } loop { i += 1; } until i == N - 1;
+        i -= N - 1;
+    } loop { k += 1; } until k == N - 1;
+    k -= N - 1;
+}
+
+fn by_columns_nt<N>(out: &mut [[i64; N]; N], a: &[[i64; N]; N], b: &[[i64; N]; N]) {
+    ancilla k: i64 = 0;
+    from k == 0 {
+        ancilla i: i64 = 0;
+        from i == 0 {
+            ancilla j: i64 = 0;
+            from j == 0 {
+                out[i][k] += a[i][j] * b[k][j];
+            } loop { j += 1; } until j == N - 1;
+            j -= N - 1;
+        } loop { i += 1; } until i == N - 1;
+        i -= N - 1;
+    } loop { k += 1; } until k == N - 1;
+    k -= N - 1;
+}
+
+fn by_columns_tn<N>(out: &mut [[i64; N]; N], a: &[[i64; N]; N], b: &[[i64; N]; N]) {
+    ancilla k: i64 = 0;
+    from k == 0 {
+        ancilla i: i64 = 0;
+        from i == 0 {
+            ancilla j: i64 = 0;
+            from j == 0 {
+                out[i][k] += a[j][i] * b[j][k];
+            } loop { j += 1; } until j == N - 1;
+            j -= N - 1;
+        } loop { i += 1; } until i == N - 1;
+        i -= N - 1;
+    } loop { k += 1; } until k == N - 1;
+    k -= N - 1;
+}
+
+test imatmul_on_the_kernel_equals_its_loops {
+    out: [[i64; 16]; 16],
+        by: [[i64; 16]; 16],
+        x0: [[i64; 16]; 16],
+        x1: [[i64; 16]; 16],
+        seed: i64,
+        scale: i64;
+    seed += 3;
+    scale += 4096;
+    call filled<16>(x0, seed, scale);
+    seed += 5;
+    call filled<16>(x1, seed, scale);
+    call imatmul(out, x0, x1);
+    call by_columns<16>(by, x0, x1);
+    call same<16>(out, by);
+}
+
+test imatmul_nt_on_the_kernel_equals_its_loops {
+    out: [[i64; 16]; 16],
+        by: [[i64; 16]; 16],
+        x0: [[i64; 16]; 16],
+        x1: [[i64; 16]; 16],
+        seed: i64,
+        scale: i64;
+    seed += 3;
+    scale += 4096;
+    call filled<16>(x0, seed, scale);
+    seed += 5;
+    call filled<16>(x1, seed, scale);
+    call imatmul_nt(out, x0, x1);
+    call by_columns_nt<16>(by, x0, x1);
+    call same<16>(out, by);
+}
+
+test imatmul_tn_on_the_kernel_equals_its_loops {
+    out: [[i64; 16]; 16],
+        by: [[i64; 16]; 16],
+        x0: [[i64; 16]; 16],
+        x1: [[i64; 16]; 16],
+        seed: i64,
+        scale: i64;
+    seed += 3;
+    scale += 4096;
+    call filled<16>(x0, seed, scale);
+    seed += 5;
+    call filled<16>(x1, seed, scale);
+    call imatmul_tn(out, x0, x1);
+    call by_columns_tn<16>(by, x0, x1);
+    call same<16>(out, by);
+}
+
+// Products of 2^50 overflow what doubles hold exactly, so the kernel leaves them to the loops.
+test imatmul_of_large_numbers_equals_its_loops {
+    out: [[i64; 16]; 16],
+        by: [[i64; 16]; 16],
+        x0: [[i64; 16]; 16],
+        x1: [[i64; 16]; 16],
+        seed: i64,
+        scale: i64;
+    seed += 3;
+    scale += 33554432;
+    call filled<16>(x0, seed, scale);
+    seed += 5;
+    call filled<16>(x1, seed, scale);
+    call imatmul(out, x0, x1);
+    call by_columns<16>(by, x0, x1);
+    call same<16>(out, by);
+}

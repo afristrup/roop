@@ -4,9 +4,9 @@
 
 use einsum::icol_sums;
 use einsum::qhadamard2;
-use einsum::qmatmul;
-use einsum::qmatmul_nt;
-use einsum::qmatmul_tn;
+use einsum::wmatmul;
+use einsum::wmatmul_nt;
+use einsum::imatmul_tn;
 use super::act::*;
 use super::kernels_batch::*;
 use super::rows::*;
@@ -26,7 +26,7 @@ pub fn mlp_batch<N, M, B>(
     call affine_batch<N, M, B>(z, w1, x, b1);
     call act_rows<M, B>(a, z, kind);
     call bias_rows<N, B>(y, b2);
-    call qmatmul_nt(y, a, w2);
+    call wmatmul_nt(y, a, w2);
     uncall act_rows<M, B>(a, z, kind);
     uncall affine_batch<N, M, B>(z, w1, x, b1);
 }
@@ -54,15 +54,15 @@ pub fn mlp_vjp_batch<N, M, B>(
     call affine_batch<N, M, B>(z, w1, x, b1);
     call act_rows<M, B>(a, z, kind);
     call dact_rows<M, B>(d, z, kind);
-    call qmatmul(ta, u, w2);
+    call wmatmul(ta, u, w2);
     call qhadamard2(tz, d, ta);
     call icol_sums(gb2, u);
-    call qmatmul_tn(gw2, u, a);
+    call imatmul_tn(gw2, u, a);
     call icol_sums(gb1, tz);
-    call qmatmul_tn(gw1, tz, x);
-    call qmatmul(ax, tz, w1);
+    call imatmul_tn(gw1, tz, x);
+    call wmatmul(ax, tz, w1);
     uncall qhadamard2(tz, d, ta);
-    uncall qmatmul(ta, u, w2);
+    uncall wmatmul(ta, u, w2);
     uncall dact_rows<M, B>(d, z, kind);
     uncall act_rows<M, B>(a, z, kind);
     uncall affine_batch<N, M, B>(z, w1, x, b1);
