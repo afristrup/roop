@@ -1,4 +1,7 @@
-use crate::{HYP, LemmaShape, Lifted, LoopLemmas, never_fails, no_ancilla_lemma, piece_lemmas};
+use crate::{
+    HYP, LemmaShape, Lifted, LoopLemmas, never_fails, no_ancilla_lemma, piece_lemmas,
+    termination_lemma,
+};
 
 /// Lemmas about one loop whose pieces were lifted out of its function: each
 /// body and step is undone by its inverse, and therefore the loop is, by the
@@ -103,5 +106,6 @@ pub fn lean_loop_lemmas(
         ));
         rewrite.push(theorem);
     }
+    text.extend(termination_lemma(info, &shape));
     (text, LoopLemmas { chain, rewrite })
 }

@@ -49,10 +49,10 @@ pub fn lean_commute(info: &Lifted, deps: &[String], lifted: &str) -> Option<Stri
     let after = |name: &'static str| move |k: usize| tuple_proj(name, k, n);
     let order = |first: &str, second: &str| {
         format!(
-            "(do let t \u{2190} {body} {}; let u \u{2190} {body} {}; pure {})",
+            "(do let \u{ab}__t\u{bb} \u{2190} {body} {}; let \u{ab}__u\u{bb} \u{2190} {body} {}; pure {})",
             with(&start, first),
-            with(&after("t"), second),
-            with(&after("u"), "(0 : Roop.I64)"),
+            with(&after("\u{ab}__t\u{bb}"), second),
+            with(&after("\u{ab}__u\u{bb}"), "(0 : Roop.I64)"),
         )
     };
     let mut unfold = vec![esc_fn(&format!("{id}_body")), "Roop.agree".to_string()];

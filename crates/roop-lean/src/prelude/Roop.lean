@@ -325,6 +325,279 @@ theorem janus_no_ancilla {σ : Type} (E S : σ → Res Bool) (B P : σ → Res �
     · simp only [if_true] at h
       exact janusGo_no_ancilla E S B P hE hS hB hP _ s h
 
+/-- Among `N + 1` points no map into `N` values is one to one. -/
+theorem distinct_bounded : ∀ (N : Nat) (f : Nat → Nat),
+    (∀ i, i ≤ N → f i < N) → (∀ i j, i ≤ N → j ≤ N → f i = f j → i = j) → False := by
+  intro N
+  induction N with
+  | zero => intro f hlt _; exact absurd (hlt 0 (Nat.le_refl 0)) (Nat.not_lt_zero _)
+  | succ N ih =>
+    intro f hlt hinj
+    by_cases hex : ∃ m, m ≤ N + 1 ∧ f m = N
+    · obtain ⟨m, hm, hfm⟩ := hex
+      let g : Nat → Nat := fun i => if i = m then f (N + 1) else f i
+      apply ih g
+      · intro i hi
+        have hne : ∀ k, k ≤ N + 1 → k ≠ m → f k ≠ N := by
+          intro k hk hkm hk2
+          exact hkm (hinj k m hk hm (by rw [hk2, hfm]))
+        by_cases him : i = m
+        · simp only [g, him, if_true]
+          have h1 := hlt (N + 1) (Nat.le_refl _)
+          have h2 : f (N + 1) ≠ N := hne (N + 1) (Nat.le_refl _) (by omega)
+          omega
+        · simp only [g, him, if_false]
+          have h1 := hlt i (by omega)
+          have h2 := hne i (by omega) him
+          omega
+      · intro i j hi hj hij
+        by_cases him : i = m <;> by_cases hjm : j = m
+        · omega
+        · simp only [g, him, hjm, if_true, if_false] at hij
+          have := hinj _ _ (Nat.le_refl _) (by omega) hij
+          omega
+        · simp only [g, him, hjm, if_true, if_false] at hij
+          have := hinj _ _ (by omega) (Nat.le_refl _) hij
+          omega
+        · simp only [g, him, hjm, if_false] at hij
+          exact hinj _ _ (by omega) (by omega) hij
+    · apply ih f
+      · intro i hi
+        have h1 := hlt i (by omega)
+        have h2 : f i ≠ N := fun h => hex ⟨i, by omega, h⟩
+        omega
+      · intro i j hi hj hij
+        exact hinj i j (by omega) (by omega) hij
+
+/-- A type whose values are counted: each has a number below `size`, and no two
+share one. Loop states are built from numbers, bools and arrays, so they are. -/
+class Coded (α : Type) where
+  size : Nat
+  code : α → Nat
+  code_lt : ∀ a, code a < size
+  code_inj : ∀ a b, code a = code b → a = b
+
+/-- One more step of a loop that never ends: the body, the exit test and the
+step all succeed, the entry assertion is false again, and the rest never ends. -/
+theorem cont_of_div {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ)
+    (hE : ∀ a, E a ≠ .error .fuel) (hS : ∀ a, S a ≠ .error .fuel)
+    (hB : ∀ a, B a ≠ .error .fuel) (hP : ∀ a, P a ≠ .error .fuel)
+    (n : Nat) (s : σ) (h : janusGo E S B P (n + 1) s = .error .fuel) :
+    ∃ t s', B s = .ok t ∧ S t = .ok false ∧ P t = .ok s' ∧ E s' = .ok false ∧
+      janusGo E S B P n s' = .error .fuel := by
+  simp only [janusGo, bind, Except.bind] at h
+  rcases hb : B s with e | t
+  · simp only [hb, Except.error.injEq] at h; exact absurd (hb ▸ h ▸ rfl) (hB s)
+  · simp only [hb] at h
+    rcases hs : S t with e | c
+    · simp only [hs, Except.error.injEq] at h; exact absurd (hs ▸ h ▸ rfl) (hS t)
+    · simp only [hs] at h
+      cases c
+      · simp only [Bool.false_eq_true, if_false] at h
+        rcases hp : P t with e | s'
+        · simp only [hp, Except.error.injEq] at h; exact absurd (hp ▸ h ▸ rfl) (hP t)
+        · simp only [hp] at h
+          rcases he : E s' with e | c
+          · simp only [he, check, Except.error.injEq] at h; exact absurd (he ▸ h ▸ rfl) (hE s')
+          · simp only [he, check] at h
+            cases c
+            · simp only [Bool.not_false, if_true] at h
+              exact ⟨t, s', rfl, hs, hp, he, h⟩
+            · simp at h
+      · simp [pure, Except.pure] at h
+
+/-- Running forever from `s`, whatever the fuel. -/
+def Diverges {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ) (s : σ) : Prop :=
+  ∀ n, janusGo E S B P n s = .error .fuel
+
+/-- A step of the endless run, as a relation. -/
+def Cont {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ) (a b : σ) : Prop :=
+  ∃ t, B a = .ok t ∧ S t = .ok false ∧ P t = .ok b ∧ E b = .ok false
+
+theorem cont_diverges {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ)
+    (hE : ∀ a, E a ≠ .error .fuel) (hS : ∀ a, S a ≠ .error .fuel)
+    (hB : ∀ a, B a ≠ .error .fuel) (hP : ∀ a, P a ≠ .error .fuel)
+    (s : σ) (h : Diverges E S B P s) :
+    ∃ s', Cont E S B P s s' ∧ Diverges E S B P s' := by
+  obtain ⟨t, s', hb, hs, hp, he, _⟩ := cont_of_div E S B P hE hS hB hP 0 s (h 1)
+  refine ⟨s', ⟨t, hb, hs, hp, he⟩, fun n => ?_⟩
+  obtain ⟨t2, s2, hb2, _, hp2, _, hn⟩ := cont_of_div E S B P hE hS hB hP n s (h (n + 1))
+  rw [hb] at hb2
+  cases hb2
+  rw [hp] at hp2
+  cases hp2
+  exact hn
+
+/-- Reversible steps are one to one: two states with the same next state are
+the same state. -/
+theorem cont_inj {σ : Type} (E S : σ → Res Bool) (B P Bi Pi : σ → Res σ)
+    (hb : ∀ a b, B a = .ok b → Bi b = .ok a) (hp : ∀ a b, P a = .ok b → Pi b = .ok a)
+    {a b c : σ} (ha : Cont E S B P a c) (hb' : Cont E S B P b c) : a = b := by
+  obtain ⟨t, hBa, _, hPa, _⟩ := ha
+  obtain ⟨u, hBb, _, hPb, _⟩ := hb'
+  have h1 := hp _ _ hPa
+  have h2 := hp _ _ hPb
+  rw [h1] at h2
+  cases h2
+  have h3 := hb _ _ hBa
+  have h4 := hb _ _ hBb
+  rw [h3] at h4
+  cases h4
+  rfl
+
+/-- The states of an endless run. -/
+noncomputable def trajectory {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ)
+    (hE : ∀ a, E a ≠ .error .fuel) (hS : ∀ a, S a ≠ .error .fuel)
+    (hB : ∀ a, B a ≠ .error .fuel) (hP : ∀ a, P a ≠ .error .fuel)
+    (s : σ) (h : Diverges E S B P s) : Nat → { x : σ // Diverges E S B P x }
+  | 0 => ⟨s, h⟩
+  | k + 1 =>
+    let x := trajectory E S B P hE hS hB hP s h k
+    ⟨Classical.choose (cont_diverges E S B P hE hS hB hP x.1 x.2),
+      (Classical.choose_spec (cont_diverges E S B P hE hS hB hP x.1 x.2)).2⟩
+
+theorem trajectory_cont {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ)
+    (hE : ∀ a, E a ≠ .error .fuel) (hS : ∀ a, S a ≠ .error .fuel)
+    (hB : ∀ a, B a ≠ .error .fuel) (hP : ∀ a, P a ≠ .error .fuel)
+    (s : σ) (h : Diverges E S B P s) (k : Nat) :
+    Cont E S B P (trajectory E S B P hE hS hB hP s h k).1
+      (trajectory E S B P hE hS hB hP s h (k + 1)).1 :=
+  (Classical.choose_spec (cont_diverges E S B P hE hS hB hP _ (trajectory E S B P hE hS hB hP s h k).2)).1
+
+/-- A loop whose pieces never run out of fuel themselves does not run forever:
+its states, were it to, would all be different, since a repeat leads back,
+step by step, to the entry state, which the entry assertion tells apart from
+every later one. The states are finitely many, so some fuel suffices. -/
+theorem janusGo_terminates {σ : Type} [Coded σ] (E S : σ → Res Bool) (B P Bi Pi : σ → Res σ)
+    (hE : ∀ a, E a ≠ .error .fuel) (hS : ∀ a, S a ≠ .error .fuel)
+    (hB : ∀ a, B a ≠ .error .fuel) (hP : ∀ a, P a ≠ .error .fuel)
+    (hb : ∀ a b, B a = .ok b → Bi b = .ok a) (hp : ∀ a b, P a = .ok b → Pi b = .ok a)
+    (s : σ) (hs : E s = .ok true) : ∃ n, janusGo E S B P n s ≠ .error .fuel := by
+  refine Classical.byContradiction fun hdiv => ?_
+  have h : Diverges E S B P s := fun n => Classical.byContradiction fun hn => hdiv ⟨n, hn⟩
+  let seq := trajectory E S B P hE hS hB hP s h
+  have cont : ∀ k, Cont E S B P (seq k).1 (seq (k + 1)).1 := trajectory_cont E S B P hE hS hB hP s h
+  have later : ∀ k, E (seq (k + 1)).1 = .ok false := fun k => by
+    obtain ⟨_, _, _, _, he⟩ := cont k
+    exact he
+  have first : (seq 0).1 = s := rfl
+  -- a repeat leads back to the start
+  have back : ∀ i j, i ≤ j → (seq i).1 = (seq j).1 → (seq 0).1 = (seq (j - i)).1 := by
+    intro i
+    induction i with
+    | zero => intro j _ heq; simpa using heq
+    | succ i ih =>
+      intro j hij heq
+      obtain ⟨j', rfl⟩ : ∃ j', j = j' + 1 := ⟨j - 1, by omega⟩
+      have := cont_inj E S B P Bi Pi hb hp (cont i) (heq ▸ cont j')
+      have := ih j' (by omega) this
+      simpa [Nat.add_sub_add_right] using this
+  have inj : ∀ i j, (seq i).1 = (seq j).1 → i = j := by
+    intro i j heq
+    rcases Nat.lt_trichotomy i j with hlt | rfl | hgt
+    · exfalso
+      have := back i j (by omega) heq
+      obtain ⟨d, hd⟩ : ∃ d, j - i = d + 1 := ⟨j - i - 1, by omega⟩
+      rw [hd] at this
+      have h1 := later d
+      rw [← this, first, hs] at h1
+      simp at h1
+    · rfl
+    · exfalso
+      have := back j i (by omega) heq.symm
+      obtain ⟨d, hd⟩ : ∃ d, i - j = d + 1 := ⟨i - j - 1, by omega⟩
+      rw [hd] at this
+      have h1 := later d
+      rw [← this, first, hs] at h1
+      simp at h1
+  exact distinct_bounded (Coded.size σ) (fun k => Coded.code (seq k).1)
+    (fun i _ => Coded.code_lt _)
+    (fun i j _ _ hij => inj i j (Coded.code_inj _ _ hij))
+
+instance : Coded Unit :=
+  ⟨1, fun _ => 0, fun _ => by decide, fun _ _ _ => rfl⟩
+
+instance : Coded Bool :=
+  ⟨2, fun b => if b then 1 else 0,
+    fun b => by cases b <;> simp,
+    fun a b h => by cases a <;> cases b <;> simp_all⟩
+
+instance {n : Nat} : Coded (BitVec n) :=
+  ⟨2 ^ n, BitVec.toNat, BitVec.isLt, fun _ _ h => BitVec.eq_of_toNat_eq h⟩
+
+instance {α β : Type} [Coded α] [Coded β] : Coded (α × β) where
+  size := Coded.size α * Coded.size β
+  code p := Coded.code p.2 + Coded.code p.1 * Coded.size β
+  code_lt p := by
+    have h1 := Coded.code_lt p.1
+    have h2 := Coded.code_lt p.2
+    have h3 : (Coded.code p.1 + 1) * Coded.size β ≤ Coded.size α * Coded.size β :=
+      Nat.mul_le_mul_right _ h1
+    rw [Nat.add_mul, Nat.one_mul] at h3
+    omega
+  code_inj a b h := by
+    have h2 := Coded.code_lt a.2
+    have h2' := Coded.code_lt b.2
+    have hs : 0 < Coded.size β := by omega
+    have hmod := congrArg (· % Coded.size β) h
+    have hdiv := congrArg (· / Coded.size β) h
+    simp only [Nat.add_mul_mod_self_right, Nat.mod_eq_of_lt h2, Nat.mod_eq_of_lt h2'] at hmod
+    simp only [Nat.add_mul_div_right _ _ hs, Nat.div_eq_of_lt h2, Nat.div_eq_of_lt h2',
+      Nat.zero_add] at hdiv
+    exact Prod.ext (Coded.code_inj _ _ hdiv) (Coded.code_inj _ _ hmod)
+
+/-- Lists are counted digit by digit. -/
+def listCode {α : Type} [Coded α] : List α → Nat
+  | [] => 0
+  | a :: l => Coded.code a + Coded.size α * listCode l
+
+theorem listCode_lt {α : Type} [Coded α] : ∀ l : List α, listCode l < Coded.size α ^ l.length
+  | [] => by simp [listCode]
+  | a :: l => by
+    have h1 := Coded.code_lt a
+    have h2 := listCode_lt l
+    have h3 : Coded.size α * (listCode l + 1) ≤ Coded.size α * Coded.size α ^ l.length :=
+      Nat.mul_le_mul_left _ h2
+    rw [Nat.mul_add, Nat.mul_one] at h3
+    simp only [listCode, List.length_cons, Nat.pow_succ]
+    rw [Nat.mul_comm (Coded.size α ^ l.length)]
+    omega
+
+theorem listCode_inj {α : Type} [Coded α] :
+    ∀ l m : List α, l.length = m.length → listCode l = listCode m → l = m
+  | [], [], _, _ => rfl
+  | [], _ :: _, h, _ => by simp at h
+  | _ :: _, [], h, _ => by simp at h
+  | a :: l, b :: m, hl, h => by
+    have ha := Coded.code_lt a
+    have hb := Coded.code_lt b
+    have hs : 0 < Coded.size α := by omega
+    simp only [listCode] at h
+    have hmod := congrArg (· % Coded.size α) h
+    have hdiv := congrArg (· / Coded.size α) h
+    simp only [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] at hmod
+    simp only [Nat.add_mul_div_left _ _ hs, Nat.div_eq_of_lt ha, Nat.div_eq_of_lt hb,
+      Nat.zero_add] at hdiv
+    have := listCode_inj l m (by simpa using hl) hdiv
+    rw [Coded.code_inj _ _ hmod, this]
+
+instance {α : Type} [Coded α] {n : Nat} : Coded (Vector α n) where
+  size := Coded.size α ^ n
+  code v := listCode v.toList
+  code_lt v := by simpa using listCode_lt v.toList
+  code_inj a b h :=
+    Vector.toList_inj.mp (listCode_inj _ _ (by simp) h)
+
+/-- A reversible loop over a counted state ends, given enough fuel, unless one of
+its own pieces runs out of fuel in an inner loop. Entry and exit tests, body and
+step are the loop's pieces and `Bi`, `Pi` the inverses of body and step. -/
+theorem janus_terminates {σ : Type} [Coded σ] (E S : σ → Res Bool) (B P Bi Pi : σ → Res σ)
+    (hE : ∀ a, E a ≠ .error .fuel) (hS : ∀ a, S a ≠ .error .fuel)
+    (hB : ∀ a, B a ≠ .error .fuel) (hP : ∀ a, P a ≠ .error .fuel)
+    (hb : ∀ a b, B a = .ok b → Bi b = .ok a) (hp : ∀ a b, P a = .ok b → Pi b = .ok a)
+    (s : σ) (hs : E s = .ok true) : ∃ n, janusGo E S B P n s ≠ .error .fuel :=
+  janusGo_terminates E S B P Bi Pi hE hS hB hP hb hp s hs
+
 /-- The value a place holds when it is empty: what a push leaves behind. -/
 class HasZero (α : Type) where
   zero : α

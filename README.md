@@ -306,6 +306,17 @@ counter ancilla around it is restored. Loops inside loops, calls between
 functions and loops in a branch all compose, and a loop whose body is not
 reversible is rejected like any other function.
 
+A reversible loop over a finite state also ends, which Lean proves in the
+prelude as `Roop.janus_terminates` (the result of Yokoyama, Axelsen and Glück
+that the Glück and Yokoyama paper cites): if the run went on for ever, its
+states would all be different, because a repeat leads back, step by step,
+through the inverse body and step, to the entry state, and the entry assertion
+tells that state apart from every later one; there are only finitely many
+states, so that cannot be. A loop whose state is numbers, bools and arrays of
+them gets `loop_terminates`: given enough fuel it does not run out, unless one
+of its own pieces, an inner loop, does. A loop with a stack in its state gets
+no such theorem, since the model's stack does not bound its length.
+
 For a `#[parallel]` loop Lean also proves what the checker's disjointness rules
 promise: any two iterations commute. Running iteration `v` then `w` ends in the
 same state as `w` then `v`, or both fail, whatever the starting state. That is
@@ -325,6 +336,85 @@ a `try` without an outcome, channels and concurrent tasks are skipped and listed
 exclusivity and the disjointness of `#[concurrent]` tasks are checked by the
 compiler but not stated as theorems; the commutation theorem is skipped for a
 parallel loop with another loop in its body.
+
+## Tests
+
+A test is a reversible computation whose verdict is the exception monad's
+outcome. It names its fixtures, which start at zero, and `expect` is a statement
+that does nothing but check:
+
+```rust
+test fibpair_of_4 {
+    n: i64, a: i64, b: i64;
+    n += 4;
+    call fibpair(n, a, b);
+    expect n == 0 && a == 5 && b == 8;
+}
+
+// Inverse computation as the specification: from the pair, the index.
+test fibpair_decodes_its_index {
+    n: i64, a: i64, b: i64;
+    a += 5;
+    b += 8;
+    uncall fibpair(n, a, b);
+    expect n == 4;
+}
+```
+
+`expect e;` is `if e { } fi true;`, which fails when `e` is false. `roop test`
+runs every test twice: forward, and then backward, which is the test's own
+inverse, and requires every fixture to be zero again. So a test needs no
+teardown, no test leaks into another, and every test also checks that what it
+calls undoes itself. Each test runs in a process of its own, which is why tests
+can call parallel kernels and irreversible code that a `try` could not roll
+back.
+
+```
+roop test                  # every file of the project that has tests
+roop test tests/blas.roop --filter gemm
+roop test --lean           # run each test on the Lean model too, and compare
+```
+
+When a test fails, it is run again a statement at a time and the state before
+each statement is shown, so you see how the state got to where the check failed.
+That is reversible debugging, as in the paper's Fig. 9, and it works because
+nothing was overwritten: the states before are all there is to know.
+
+```
+test a_wrong_expectation ... FAILED: an expectation or another check failed
+    state before each statement:
+      line 28: n += 4;                               n=0 a=0 b=0
+      line 29: call fibpair(n, a, b);                n=4 a=0 b=0
+      line 30: expect a == 6;                        n=0 a=5 b=8   <- stopped here
+```
+
+`--lean` evaluates each test on the Lean model as well and compares verdicts, so
+a disagreement is a bug in the compiler or in the model. Fixtures are numbers,
+bools, arrays of them, or a stack of `i64`. Tests live in files you give to
+`roop test`, such as `roop/tests/blas.roop`, and `roop build` leaves them out.
+
+## Bennett
+
+`bennett fn quote = settle_to;` writes the compute, copy, uncompute version of
+a function (Bennett 1973, section 6.3 of Glück and Yokoyama). Say `settle_to`
+destroys information, so it logs to a history stack. `quote` has the same
+parameters without the history, and a zero output `<name>_out` for each mutable
+one. It runs `settle_to` with a fresh history, copies what each mutable
+parameter became into its output, and runs `settle_to` backward. The inputs are
+back, the history is empty, and what remains depends only on what `settle_to`
+computes, not on how: the paper's extensional garbage, as against the trace of
+a Landauer embedding, which is intensional. A generic target keeps its lengths
+(`call quote<8>(..)`), and the result is an ordinary function that Lean proves
+reversible like any other. What it copies must be numbers, bools, structs and
+arrays of them.
+
+```rust
+fn settle_to(balance: &mut i64, amount: &i64, h: &mut Stack<i64, 8>) {
+    logged h { balance = amount * 2; }
+}
+
+bennett fn quote = settle_to;       // quote(balance, amount, balance_out)
+```
 
 ## Concurrent tasks and channels
 
@@ -368,7 +458,7 @@ each device as the slower of arithmetic and memory traffic plus a fixed launch
 cost, with constants measured on an Apple M4. On that machine the CPU wins for
 streaming loops and for light arithmetic; the GPU wins once a loop does enough
 64-bit integer work per element (about 50 dependent multiply-adds and up). `#[parallel(cpu)]`, `#[parallel(metal)]` and
-`#[parallel(nvptx)]` pin a target. Adjacent loops with the same iteration space
+`#[parallel(cuda)]` pin a target. Adjacent loops with the same iteration space
 fuse into one loop (one GPU kernel) when the merged body is still safe.
 
 ## Building
@@ -383,7 +473,7 @@ roop build prog.roop --link main.c -o prog
 ```toml
 [parallel]
 auto = true
-targets = ["cpu", "metal", "nvptx"]
+targets = ["cpu", "metal", "cuda"]
 ```
 
 Metal kernels are emitted as AIR and built with Apple's `metal` tools; NVPTX

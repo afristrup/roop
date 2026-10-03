@@ -68,3 +68,17 @@ pub fn lean_checks(file: &std::path::Path) -> Result<(), String> {
         Err(text)
     }
 }
+
+/// What Lean prints for a file, or none when it is not installed.
+pub fn lean_output(source: &str) -> Option<String> {
+    let lean = lean()?;
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let id = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("roop-lean-out-{}-{id}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("Out.lean");
+    std::fs::write(&file, source).unwrap();
+    let out = Command::new(lean).arg(&file).output().unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    Some(String::from_utf8_lossy(&out.stdout).into_owned())
+}

@@ -1,4 +1,5 @@
 mod call_lemmas;
+mod coded_type;
 mod fn_text;
 mod hypothesis;
 mod is_mut_ref;
@@ -17,12 +18,14 @@ mod never_fails;
 mod no_ancilla_lemma;
 mod piece_lemmas;
 mod proof_script;
+mod termination_lemma;
 mod test_checks;
 mod translate;
 mod translation;
 mod unfold_simp;
 
 pub use call_lemmas::*;
+pub use coded_type::*;
 pub use fn_text::*;
 pub use hypothesis::*;
 pub use is_mut_ref::*;
@@ -41,6 +44,7 @@ pub use never_fails::*;
 pub use no_ancilla_lemma::*;
 pub use piece_lemmas::*;
 pub use proof_script::*;
+pub use termination_lemma::*;
 pub use test_checks::*;
 pub use translate::*;
 pub use translation::*;

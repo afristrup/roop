@@ -71,3 +71,13 @@ fn lean_rejects_a_parallel_loop_that_accumulates_into_a_shared_variable() {
     let t = support::unchecked(src);
     assert!(support::lean_accepts(&t).is_err());
 }
+
+#[test]
+fn captured_names_may_be_t_and_u() {
+    let t = support::verified(
+        "fn scale(a: &mut [i64; 8], t: &[i64; 8], u: &i64, i: &mut i64) {
+            #[parallel] from i == 0 { a[i] += t[i] * u; } loop { i += 1; } until i == 7;
+         }",
+    );
+    assert_eq!(t.parallel, ["scale"]);
+}
