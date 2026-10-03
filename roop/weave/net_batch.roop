@@ -89,6 +89,40 @@ pub fn vjp_batch<N, M, B>(
     uncall affine_batch<N, M, B>(z, w, q, b);
 }
 
+// The backward step of `force_batch`: with u the adjoint of p, adds what it does
+// to aq, gw and gb, as `vjp_batch` does, and takes the force off p again, as
+// `uncall force_batch` does, from one evaluation of the force.
+pub fn force_back_batch<N, M, B>(
+    aq: &mut [[i64; N]; B],
+    gw: &mut [[i64; N]; M],
+    gb: &mut [i64; M],
+    p: &mut [[i64; N]; B],
+    u: &[[i64; N]; B],
+    w: &[[i64; N]; M],
+    q: &[[i64; N]; B],
+    b: &[i64; M],
+    c: &i64,
+    kind: &i64,
+) {
+    ancilla z: [[i64; M]; B] = 0;
+    ancilla s: [[i64; M]; B] = 0;
+    ancilla d: [[i64; M]; B] = 0;
+    ancilla t: [[i64; M]; B] = 0;
+    ancilla dt: [[i64; M]; B] = 0;
+    call affine_batch<N, M, B>(z, w, q, b);
+    call act_rows<M, B>(s, z, kind);
+    call dact_rows<M, B>(d, z, kind);
+    call qmatmul_nt(t, u, w);
+    call qhadamard2(dt, d, t);
+    call adjoint_batch<N, M, B>(aq, gw, gb, s, dt, u, w, q, c);
+    uncall kick_batch<N, M, B>(p, w, s, c);
+    uncall qhadamard2(dt, d, t);
+    uncall qmatmul_nt(t, u, w);
+    uncall dact_rows<M, B>(d, z, kind);
+    uncall act_rows<M, B>(s, z, kind);
+    uncall affine_batch<N, M, B>(z, w, q, b);
+}
+
 // The adjoints of one layer, from its output states back to its input states.
 pub fn layer_back_batch<N, M, B>(
     q: &mut [[i64; N]; B],
@@ -104,12 +138,10 @@ pub fn layer_back_batch<N, M, B>(
 ) {
     ancilla c: i64 = 0;
     c -= h / 2;
-    call vjp_batch<N, M, B>(aq, gw, gb, ap, w, q, b, c, kind);
-    uncall force_batch<N, M, B>(p, w, q, b, c, kind);
+    call force_back_batch<N, M, B>(aq, gw, gb, p, ap, w, q, b, c, kind);
     call drift_rows<N, B>(ap, aq, h);
     uncall drift_rows<N, B>(q, p, h);
-    call vjp_batch<N, M, B>(aq, gw, gb, ap, w, q, b, c, kind);
-    uncall force_batch<N, M, B>(p, w, q, b, c, kind);
+    call force_back_batch<N, M, B>(aq, gw, gb, p, ap, w, q, b, c, kind);
     c += h / 2;
 }
 

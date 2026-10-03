@@ -69,18 +69,25 @@ static void pack_a(double *ap, const int64_t *a, int64_t m, int64_t kk, int64_t 
 }
 
 static void pack_b(double *bp, const int64_t *b, int64_t n, int64_t np, int64_t kk, int64_t layout) {
+  if (layout == NT) {
+    for (int64_t k = 0; k < np; k++) {
+      double *out = bp + (k / NR) * kk * NR + k % NR;
+      for (int64_t j = 0; j < kk; j++) out[j * NR] = k < n ? (double)b[k * kk + j] : 0.0;
+    }
+    return;
+  }
   for (int64_t j = 0; j < kk; j++)
     for (int64_t k = 0; k < np; k++)
-      bp[j * np + k] = k >= n ? 0.0 : (double)(layout == NT ? b[k * kk + j] : b[j * n + k]);
+      bp[(k / NR) * kk * NR + j * NR + k % NR] = k < n ? (double)b[j * n + k] : 0.0;
 }
 
-static void tile(float64x2_t acc[MR][NR / 2], const double *ap, const double *bp, int64_t kk, int64_t np) {
+static void tile(float64x2_t acc[MR][NR / 2], const double *ap, const double *bp, int64_t kk) {
   for (int r = 0; r < MR; r++)
     for (int x = 0; x < NR / 2; x++) acc[r][x] = vdupq_n_f64(0);
   for (int64_t j = 0; j < kk; j++) {
     float64x2_t a01 = vld1q_f64(ap + j * MR), a23 = vld1q_f64(ap + j * MR + 2);
-    float64x2_t b0 = vld1q_f64(bp + j * np), b1 = vld1q_f64(bp + j * np + 2);
-    float64x2_t b2 = vld1q_f64(bp + j * np + 4), b3 = vld1q_f64(bp + j * np + 6);
+    float64x2_t b0 = vld1q_f64(bp + j * NR), b1 = vld1q_f64(bp + j * NR + 2);
+    float64x2_t b2 = vld1q_f64(bp + j * NR + 4), b3 = vld1q_f64(bp + j * NR + 6);
 #define ROW(r, av, lane)                                                      \
   acc[r][0] = vaddq_f64(acc[r][0], vrndq_f64(vmulq_laneq_f64(b0, av, lane))); \
   acc[r][1] = vaddq_f64(acc[r][1], vrndq_f64(vmulq_laneq_f64(b1, av, lane))); \
@@ -120,10 +127,10 @@ void roop_q12_matmul(int64_t *c, const int64_t *a, const int64_t *b, int64_t sig
   double *bp = room(&packed_b, &room_b, kk * np);
   pack_a(ap, a, m, kk, layout);
   pack_b(bp, b, n, np, kk, layout);
-  for (int64_t i = 0; i < mp; i += MR)
-    for (int64_t k = 0; k < np; k += NR) {
+  for (int64_t k = 0; k < np; k += NR)
+    for (int64_t i = 0; i < mp; i += MR) {
       float64x2_t acc[MR][NR / 2];
-      tile(acc, ap + i * kk, bp + k, kk, np);
+      tile(acc, ap + i * kk, bp + k * kk, kk);
       store(c, acc, sign, i, k, m, n);
     }
 }

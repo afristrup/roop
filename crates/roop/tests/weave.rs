@@ -286,23 +286,25 @@ static double now(void) {
 }
 
 #define ROUNDS 9
+#define MANY 20
 #define STEPS 10
 
-int main(void) {
+int main(int argc, char **argv) {
+    int only_batched = argc > 1;
     for (int n = 0; n < B; n++) {
         for (int i = 0; i < N; i++) xs[n][i] = ((n * 3 + i) % 7 - 3) * 512;
         for (int k = 0; k < 4; k++) ts[n][k] = ((n + k) % 3 - 1) * 512;
     }
     int64_t H = 1024, LR = 64, kind = 1, total = 0;
     double best_one = 1e9, best_batch = 1e9;
-    for (int round = 0; round < ROUNDS; round++) {
+    for (int round = 0; round < (only_batched ? MANY : ROUNDS); round++) {
         reset();
         double t = now();
-        for (int s = 0; s < STEPS; s++)
+        for (int s = 0; s < (only_batched ? 0 : STEPS); s++)
             train(&total, (int64_t*)ws, (int64_t*)bs, (int64_t*)gw, (int64_t*)gb, q, p, aq, ap,
                   (int64_t*)xs, (int64_t*)ts, &H, &LR, &kind);
         t = (now() - t) / STEPS;
-        if (round > 0 && t < best_one) best_one = t;
+        if (round > 0 && t < best_one && !only_batched) best_one = t;
         reset();
         t = now();
         for (int s = 0; s < STEPS; s++)
