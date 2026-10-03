@@ -84,4 +84,4 @@ def mirror(spec):
     loss = 0.5 * ((q[: spec["outputs"]] - snap(t)) ** 2).sum()
     loss.backward()
     grads = [torch.zeros_like(l) if l.grad is None else l.grad for l in leaves]
-    return float(loss), [g.flatten().tolist() for g in grads]
+    return loss.item(), [g.flatten().tolist() for g in grads]
