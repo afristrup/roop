@@ -328,6 +328,7 @@ dependencies = [
  "roop-modules",
  "roop-opt",
  "roop-syntax",
+ "roop-weave",
  "serde_json",
 ]
 
