@@ -1,4 +1,5 @@
-// `conv` on B samples, one row of the state each, taken in turn: the contributions to the
+// `conv` on B samples, one row of the state each, taken in turn: the contributions to
+// the
 // shared weight and bias add up, the same as the sum over samples.
 
 use super::conv::*;
