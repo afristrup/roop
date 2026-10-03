@@ -63,7 +63,7 @@ fn lean_proves_forward_backward_and_grad_at_width_32_with_8_layers() {
 
 /// The size of the benchmark. About four minutes on its own.
 #[test]
-#[ignore = "takes minutes: cargo test -p roop --test weave_scale --release -- --ignored"]
+#[ignore = "does not finish in 30 minutes with the wide contractions, see docs/reference.md"]
 fn lean_proves_forward_backward_and_grad_at_the_benchmark_size() {
     lean_proves("weave-scale-64", 64, 64, 8, 4);
 }

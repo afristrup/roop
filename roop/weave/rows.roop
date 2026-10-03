@@ -1,0 +1,41 @@
+// The elementwise helpers of weave on a batch: a state is B rows of N numbers,
+// one row for each sample. Like the vector forms they only add into a place
+// they do not read.
+
+use super::act::*;
+use super::kernels::*;
+
+// x += y
+pub fn add_rows<N, B>(x: &mut [[i64; N]; B], y: &[[i64; N]; B]) {
+    ancilla r: i64 = 0;
+    from r == 0 { call add_vec<N>(x[r], y[r]); } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// each row of x += b
+pub fn bias_rows<N, B>(x: &mut [[i64; N]; B], b: &[i64; N]) {
+    ancilla r: i64 = 0;
+    from r == 0 { call add_vec<N>(x[r], b); } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// x += h * y
+pub fn drift_rows<N, B>(x: &mut [[i64; N]; B], y: &[[i64; N]; B], h: &i64) {
+    ancilla r: i64 = 0;
+    from r == 0 { call drift<N>(x[r], y[r], h); } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// s += f(z) for each element
+pub fn act_rows<N, B>(s: &mut [[i64; N]; B], z: &[[i64; N]; B], kind: &i64) {
+    ancilla r: i64 = 0;
+    from r == 0 { call act<N>(s[r], z[r], kind); } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// d += f'(z) for each element
+pub fn dact_rows<N, B>(d: &mut [[i64; N]; B], z: &[[i64; N]; B], kind: &i64) {
+    ancilla r: i64 = 0;
+    from r == 0 { call dact<N>(d[r], z[r], kind); } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}

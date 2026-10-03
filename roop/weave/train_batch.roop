@@ -1,0 +1,87 @@
+// Training on a batch of samples that are processed together: the loss and the
+// gradients of all B rows at once, then one step of gradient descent.
+
+use super::net::*;
+use super::net_batch::*;
+use super::train::*;
+use super::rows::*;
+
+// loss += |q - t|^2 / 2 over the first K outputs of each row
+pub fn loss_batch<N, K, B>(total: &mut i64, q: &[[i64; N]; B], t: &[[i64; K]; B]) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla k: i64 = 0;
+        from k == 0 {
+            total += (q[r][k] - t[r][k]) * (q[r][k] - t[r][k]) / 8192;
+        } loop { k += 1; } until k == K - 1;
+        k -= K - 1;
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// aq += q - t over the first K outputs of each row
+pub fn seed_batch<N, K, B>(
+    aq: &mut [[i64; N]; B],
+    q: &[[i64; N]; B],
+    t: &[[i64; K]; B],
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla k: i64 = 0;
+        from k == 0 {
+            aq[r][k] += q[r][k] - t[r][k];
+        } loop { k += 1; } until k == K - 1;
+        k -= K - 1;
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// The loss of B samples and their summed gradients, with q holding the inputs
+// and p zero. Everything else is rebuilt, so on exit q and p are as they were.
+pub fn grad_batch<N, M, L, K, B>(
+    total: &mut i64,
+    q: &mut [[i64; N]; B],
+    p: &mut [[i64; N]; B],
+    aq: &mut [[i64; N]; B],
+    ap: &mut [[i64; N]; B],
+    gw: &mut [[[i64; N]; M]; L],
+    gb: &mut [[i64; M]; L],
+    ws: &[[[i64; N]; M]; L],
+    bs: &[[i64; M]; L],
+    h: &i64,
+    kind: &i64,
+    t: &[[i64; K]; B],
+) {
+    call forward_batch<N, M, L, B>(q, p, ws, bs, h, kind);
+    call loss_batch<N, K, B>(total, q, t);
+    call seed_batch<N, K, B>(aq, q, t);
+    call backward_batch<N, M, L, B>(q, p, aq, ap, gw, gb, ws, bs, h, kind);
+}
+
+// One step of gradient descent on B samples at once. `total` collects the loss,
+// and the buffers q, p, aq, ap and the gradients start at zero and are left at
+// zero.
+pub irrev fn step_batch<N, M, L, K, B>(
+    total: &mut i64,
+    ws: &mut [[[i64; N]; M]; L],
+    bs: &mut [[i64; M]; L],
+    gw: &mut [[[i64; N]; M]; L],
+    gb: &mut [[i64; M]; L],
+    q: &mut [[i64; N]; B],
+    p: &mut [[i64; N]; B],
+    aq: &mut [[i64; N]; B],
+    ap: &mut [[i64; N]; B],
+    xs: &[[i64; N]; B],
+    ts: &[[i64; K]; B],
+    h: &i64,
+    lr: &i64,
+    kind: &i64,
+) {
+    call add_rows<N, B>(q, xs);
+    call grad_batch<N, M, L, K, B>(total, q, p, aq, ap, gw, gb, ws, bs, h, kind, ts);
+    uncall add_rows<N, B>(q, xs);
+    call clear_mat<N, B>(aq);
+    call clear_mat<N, B>(ap);
+    call sgd<N, M, L>(ws, bs, gw, gb, lr);
+    call clear_grads<N, M, L>(gw, gb);
+}

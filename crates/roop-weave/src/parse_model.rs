@@ -1,4 +1,4 @@
-use crate::{Activation, Layer, Model, Tensor, WeaveError};
+use crate::{Activation, Layer, LossKind, Model, Norm, Optimizer, Tensor, WeaveError, quantize};
 use serde_json::Value;
 
 fn field<'a>(
@@ -102,7 +102,7 @@ fn activation(layer: &Value, path: &str) -> Result<Activation, WeaveError> {
 fn parse_attention(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveError> {
     let path = format!("layers[{index}].");
     let seq = count(layer, "seq")?;
-    if width % seq != 0 {
+    if !width.is_multiple_of(seq) {
         let found = format!("a width of {width}");
         return Err(WeaveError::Shape {
             name: format!("layers[{index}]"),
@@ -120,11 +120,89 @@ fn parse_attention(index: usize, layer: &Value, width: usize) -> Result<Layer, W
     })
 }
 
+fn parse_conv(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveError> {
+    let path = format!("layers[{index}].");
+    let channels = count(layer, "channels")?;
+    let kernel = count(layer, "kernel")?;
+    let shape = |expected: String, found: String| WeaveError::Shape {
+        name: format!("layers[{index}]"),
+        expected,
+        found,
+    };
+    if !width.is_multiple_of(channels) {
+        return Err(shape(
+            format!("a width that {channels} channels divide"),
+            format!("a width of {width}"),
+        ));
+    }
+    if kernel % 2 == 0 {
+        return Err(shape(
+            "an odd kernel".into(),
+            format!("a kernel of {kernel}"),
+        ));
+    }
+    let w = matrix(
+        layer,
+        &path,
+        "weight",
+        format!("w{index}"),
+        channels,
+        channels * kernel,
+    )?;
+    let b = vector(layer, &path, "bias", format!("b{index}"))?;
+    if b.dims[0] != channels {
+        let found = format!("{} numbers", b.dims[0]);
+        return Err(WeaveError::Shape {
+            name: b.name,
+            expected: format!("{channels} numbers"),
+            found,
+        });
+    }
+    Ok(Layer::Conv {
+        channels,
+        kernel,
+        w,
+        b,
+    })
+}
+
+fn parse_norm(
+    layer: &Value,
+    path: &str,
+    index: usize,
+    hidden: usize,
+) -> Result<Option<Norm>, WeaveError> {
+    let Some(spec) = layer.get("norm") else {
+        return Ok(None);
+    };
+    let at = format!("{path}norm.");
+    let eps = field(spec, &at, "eps", "a number")?
+        .as_f64()
+        .filter(|e| quantize(*e) >= 1);
+    let eps = eps.ok_or_else(|| WeaveError::Field {
+        path: format!("{at}eps"),
+        expected: "a number of at least 1/4096, the smallest weave can hold",
+    })?;
+    let gain = vector(spec, &at, "gain", format!("gain_{index}"))?;
+    if gain.dims[0] != hidden {
+        let found = format!("{} numbers", gain.dims[0]);
+        return Err(WeaveError::Shape {
+            name: gain.name,
+            expected: format!("{hidden} numbers"),
+            found,
+        });
+    }
+    Ok(Some(Norm { eps, gain }))
+}
+
 fn parse_layer(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveError> {
     let path = format!("layers[{index}].");
     let kind = field(layer, &path, "kind", "a layer kind")?
         .as_str()
         .unwrap_or("");
+    if kind == "conv" {
+        return parse_conv(index, layer, width);
+    }
     if kind == "attention" {
         return parse_attention(index, layer, width);
     }
@@ -156,18 +234,59 @@ fn parse_layer(index: usize, layer: &Value, width: usize) -> Result<Layer, Weave
                     found,
                 });
             }
+            let norm = parse_norm(layer, &path, index, m)?;
             Ok(Layer::Mlp {
                 act,
                 w1,
                 b1,
                 w2,
                 b2,
+                norm,
             })
         }
         other => Err(WeaveError::Layer {
             index,
             kind: other.into(),
         }),
+    }
+}
+
+fn parse_loss(root: &Value) -> Result<LossKind, WeaveError> {
+    let Some(value) = root.get("loss") else {
+        return Ok(LossKind::Mse);
+    };
+    let name = value.as_str().unwrap_or("");
+    LossKind::parse(name).ok_or_else(|| WeaveError::Loss(name.into()))
+}
+
+fn rate(optimizer: &Value, key: &str, default: f64) -> Result<f64, WeaveError> {
+    let bad = || WeaveError::Field {
+        path: format!("optimizer.{key}"),
+        expected: "a number between 0 and 1",
+    };
+    match optimizer.get(key) {
+        None => Ok(default),
+        Some(v) => v
+            .as_f64()
+            .filter(|x| (0.0..1.0).contains(x))
+            .ok_or_else(bad),
+    }
+}
+
+fn parse_optimizer(root: &Value) -> Result<Optimizer, WeaveError> {
+    let Some(value) = root.get("optimizer") else {
+        return Ok(Optimizer::Sgd);
+    };
+    match value.get("kind").and_then(Value::as_str).unwrap_or("") {
+        "sgd" => Ok(Optimizer::Sgd),
+        "momentum" => Ok(Optimizer::Momentum {
+            beta: rate(value, "beta", 0.9)?,
+        }),
+        "adam" => Ok(Optimizer::Adam {
+            beta1: rate(value, "beta1", 0.9)?,
+            beta2: rate(value, "beta2", 0.999)?,
+        }),
+        other => Err(WeaveError::Optimizer(other.into())),
     }
 }
 
@@ -214,5 +333,7 @@ pub fn parse_model(text: &str) -> Result<Model, WeaveError> {
         outputs,
         step,
         layers,
+        loss: parse_loss(&root)?,
+        optimizer: parse_optimizer(&root)?,
     })
 }

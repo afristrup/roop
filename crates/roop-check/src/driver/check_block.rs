@@ -11,7 +11,7 @@ pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
     check_uncall_after_keep(block, scope.keeping_fns)?;
     for stmt in &block.stmts {
         check_no_world(stmt, scope.world_fns)?;
-        check_parallel(stmt)?;
+        check_parallel(stmt, scope.mutability)?;
         let outside = || CheckError::IrreversibleOutsideIrrev { span: stmt.span };
         match &stmt.kind {
             StmtKind::Update { target, value, .. } => {

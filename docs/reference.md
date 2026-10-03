@@ -415,7 +415,17 @@ contraction of three indices with a matrix, and the two products of attention,
 integer) and a `d` (f64) version. The element type `q12` is fixed point for weave: the
 numbers are `i64` holding x * 4096, and each product is divided by 4096, so a
 contraction stays on that grid (`qmatvec`, `qmatvec_t`, `qouter`, `qhadamard`,
-`qmatmul`, `qmatmul_nt`). Their tests are checked against sums worked out by
+`qmatmul`, `qmatmul_nt`, `qmatmul_tn`). The element type `q12w` is the fixed
+point that weave uses: the products of a sum are added exactly, in 64 bits, and
+the sum is divided by 4096 once (`wmatvec`, `wmatvec_t`, `wmatmul`, `wmatmul_nt`,
+`wmatmul_tn`, and for a batch `wproject`, `wunproject`, `wscores`, `wattend`,
+`wattend_t`). It is more exact than `q12`, and a `q12w` einsum with a sum in it
+is two functions: the `i64` einsum `<name>__sum` into a scratch array, and the
+quotients added to `out`, with the scratch array taken off again by `uncall`
+(which the compiler does by zeroing it, see Building). A contraction with no sum
+(`qouter`, `qhadamard`) is the same in `q12` and `q12w`. `iweight_grad`
+(`"bsi,bsk->ik"` in `i64`) is the gradient of a shared weight, and is not divided
+by 4096. Their tests are checked against sums worked out by
 hand, in `roop/tests/einsum.roop`. Because a contraction is reversible, so is its
 gradient: the vector-jacobian product of an einsum is another einsum with the
 labels moved, such as `"ik,jk->ij"` for the gradient of `matmul` with respect to
@@ -515,6 +525,13 @@ so the branch on it is undone by the same test going back:
 The slope of each is in `weave::dact`. The tanh is smooth where it joins 1: its
 slope `((9 - z^2) / (3 (3 + z^2)))^2` is zero there.
 
+Contractions are the `q12w` einsums: the products of a sum are added exactly and
+divided by 4096 once, which is more exact than dividing each and lets the compiler
+run them on the matrix unit. The gradient of a matrix is the sum of the products
+that `adjoint`, `mlp_vjp`, `mlp_norm_vjp` and `conv_vjp` add up, not divided by 4096, so it is in Q24 (4096
+times a Q12 number); the gradient of a bias is in Q12. `sgd_mat` divides by
+2^24 when it applies it.
+
 **The perceptron block** is the other reversible layer, from RevNets and NICE:
 the state is split in two, and each half takes in a function of the other,
 
@@ -530,6 +547,20 @@ runs it backward with the gradients of all four parameters.
 numbers: `y += (Q K^T) V` with `Q`, `K` and `V` the rows times a weight. It has no
 softmax, since that needs an exponential, so it is the attention weave can run
 backward. Its adjoints are einsums as well (`weave::attn`, `attn_vjp`, `attn_back`).
+
+**The convolution block** is a one-dimensional convolution with zero padding as the third
+half-step: the state of width `C * T` is `C` channels of `T` numbers, the kernel size `K` is
+odd, and `y += conv(x)` with a weight of `C` rows of `C * K`. It is a product with the
+unfolded input, so it is a Q12 einsum like the rest (`weave::conv`, `conv_back`).
+
+**Normalization** is a part of the perceptron block: with `"norm": {"gain": [...], "eps": 0.01}`
+the hidden layer is `gain * z / sqrt(mean(z^2) + eps)` before the activation. weave has no
+square root that adds into a zero place, so `1 / sqrt(s)` is Newton's method run as a chain of
+21 cells, each from the one before. It starts from 1/4 and converges for `s` up to 48, and a
+larger one traps; `eps` cannot be below 1/4096. Lean did not accept this block within 30 minutes
+(its other tests and the finite-difference check against the reference do pass), so unlike the
+other blocks it is not proved reversible. This is RMSNorm. LayerNorm subtracts a mean
+as well, which is left out.
 
 ```rust
 use weave::step;
@@ -548,19 +579,73 @@ A test checks the gradients against central finite differences on a double
 precision copy of the network (they agree to about 1%, which is the 4096 grid)
 and that the input comes back bit for bit. Another trains XOR to a 50x lower
 loss. Lean proves the forward pass, the backward pass and `grad` exactly reversible,
-layer by layer and through the loop over layers, at every size tried, up to the
-benchmark's: width 64, hidden width 64, eight layers and four outputs, forward,
-backward and gradient in one file, in about two minutes (16 wide with 4 or 8
-layers takes 30 seconds, 32 wide with 4 or 8 layers 50). Each call's own lemma
+layer by layer and through the loop over layers, at widths 16 and 32 with 4 or 8
+layers: about 30 seconds at width 16 and 50 at width 32. Each call's own lemma
 settles a function of many calls, so the proof does not grow with the number of
 layers, and the cost of a width comes from the contractions, whose loop lemmas
-are proved once per size. `crates/roop/tests/weave_scale.rs` runs widths 16 and
-32; the benchmark size is `#[ignore]`d there for its two minutes.
+are proved once per size. `crates/roop/tests/weave_scale.rs` runs those two sizes.
+
+The benchmark's size, width 64 with hidden width 64, eight layers and four
+outputs, was proved in about two minutes (forward 66 seconds, backward 92, `grad`
+124) before the batched, wide-contraction weave of `q12w` einsums. With that weave
+the forward pass alone had not finished after an hour, and the three functions
+together had not finished in 30 minutes, so that size is not proved today. Why
+the cost grew with the wide contractions was not looked into; their loop lemmas at
+width 64 are the first place to look. The test is kept, `#[ignore]`d, in
+`weave_scale.rs`.
+
+**Batches.** `weave::step` runs one sample at a time. `layer_batch`, `forward_batch`,
+`layer_back_batch`, `backward_batch`, `grad_batch` and `step_batch` run `B`
+samples as matrix products, on a state of `B` rows (`[[i64; N]; B]`), and
+`mlp_batch`, `mlp_back_batch`, `attn_batch` and `attn_back_batch` do the same for
+the perceptron and attention blocks. They add into places they do not read and
+rebuild every intermediate by `uncall` like the single-sample functions, so a
+batch needs no more memory per layer than a sample does, and none that grows with
+the depth. The gradients they add are the sums of what `B` calls of the
+single-sample function add, to the bit (a test checks that for the leapfrog
+network, the perceptron and attention, for every activation).
+`step_parallel<N, M, L, K, B, C>` splits a step into `C` chunks of `B` samples,
+each with its own buffers and its own gradients, runs them with `#[parallel(cpu)]`,
+adds the gradients up and takes the step, which gives the weights of one batch of
+`C * B` samples to the bit. A parallel loop may pass read-only places, the
+weights, to a call, since the checker now counts a call as writing only the
+arguments it gives to `&mut` parameters.
 
 This is a research library, not a framework. There is no automatic
 differentiation: each layer's adjoint is written out, and roop has no function
 arguments to build a graph from. A test measures throughput: `cargo test -p roop
 --test weave --release -- --ignored --nocapture`.
+
+### Losses, optimizers and training from torch
+
+The loss is chosen in the model: `"loss": "mse"` (half the squared error, the default),
+`"sigmoid"` or `"softmax"`. For the two cross entropies the seed of the backward pass is
+the usual `p - t`, with the sigmoid from the tanh above and an exponential computed as
+`(1 + x / 64) ^ 64` (within 1% down to -2, about 7% off at -5); the cross entropy needs a
+logarithm, which weave lacks, so `total` is the squared error of the probabilities there.
+The softmax targets must sum to 1.
+
+`"optimizer"` is `{"kind": "sgd"}`, `{"kind": "momentum", "beta": 0.9}` or
+`{"kind": "adam", "beta1": 0.9, "beta2": 0.999}`. The optimizers are `irrev`, since they
+overwrite their moving averages, and live in the training step; the gradient stays
+reversible. Adam has no bias correction, and keeps its second moment in Q24 so that small
+squared gradients are not lost. A matrix's gradient is in Q24, so the matrix
+versions divide it by 4096 before the moving averages, and the vector ones take a unit of 1.
+
+`crates/roop-weave/python/weave_train.py` closes the loop with torch:
+
+```python
+from weave_train import train
+losses = train(net, xs, ts, epochs=1500, rate=0.05, loss="mse", optimizer={"kind": "adam"})
+```
+
+It exports the model, compiles it with `roop weave --batch B --driver main.c`, builds that
+with the C program that trains on files (`prog weights data epochs rate samples trained`),
+trains in fixed point with no activations stored, and copies the trained weights back into
+the torch tensors they came from. `roop weave --driver` writes the program on its own, for
+use outside Python. `roop weave --main` adds a `main` that holds the weights and runs the
+model on the command line, the input as whole numbers on the 1/4096 grid, and prints the
+outputs the same way: `roop run net.roop 1024 -2048 3072 0`.
 
 ### From torch
 
@@ -584,13 +669,20 @@ roop test net.roop
 
 The output has `net_forward`, `net_backward`, `net_grad` (the loss of a sample and its gradients, with the input
 rebuilt at the end) and `net_step<B>`, which is the training step. With `--batch B`
-it also has `net_train`, a step of B samples with the length filled in, which C
-can call. With `--tests` it adds `net_load` (the weights, rounded to 1/4096) and a test that runs
+it also has `net_forward_batch<B>`, `net_backward_batch<B>`, `net_grad_batch<B>` and
+`net_step_batch<B>`, which run the samples through the network together as
+matrix products, and `net_train`, a step of B samples with the length filled in,
+which C can call; its buffers `q`, `p`, `aq` and `ap` hold B rows of the state.
+The gradients of the matrices are in Q24. With `--tests` it adds `net_load` (the weights, rounded to 1/4096) and a test that runs
 the forward pass and the gradient and compares them with a reference in doubles, whose gradients are
-central differences, so it checks the compiler and weave together. Like every roop
-test it also runs backward. Lean proves a compiled model's forward, backward and gradient exactly reversible,
-and the loader too (`roop lean net.roop --check`). The loader is written as one small helper per
-few weights of a row, called on the row, so that Lean proves each helper and the chain of calls.
+central differences, so it checks the compiler and weave together. With `--batch B`
+it adds a second test that runs B different samples through the batched
+functions and compares the outputs, the summed loss and the summed gradients
+with the sum of the reference over the samples. Like every roop
+test it also runs backward. Lean proves a compiled model's forward, backward and gradient exactly reversible
+(`roop lean net.roop --check`), and the loader too when there is one (`--tests` or `--main`). The loader is
+written as one small helper per few weights of a row, called on the row, so that Lean proves each helper
+and the chain of calls.
 A model that is not well formed is refused with the
 name of the field, or the tensor, that is wrong.
 
@@ -605,7 +697,11 @@ python3 torch_to_weave.py pkg.module:factory --outputs 1 -o model.json
 Most torch layers lose information, so it reads the model as blocks that do not.
 `Linear(N, M), act, Linear(M, N)` is a perceptron block, `Linear(N, M), act`
 alone is a leapfrog layer whose weight is tied to its transpose, and
-`LinearAttention(seq, dim)`, from `weave_modules.py`, is an attention block. The activations
+`LinearAttention(seq, dim)`, from `weave_modules.py`, is an attention block, and an
+`nn.Conv1d(C, C, K, padding=K // 2)` is a convolution block. `Linear, RMSNorm, act, Linear` is a
+perceptron block with normalization (`nn.RMSNorm` needs `eps` of at least 1/4096).
+A residual connection is refused: `x + F(x)` writes what it reads, and inverting it needs an
+iteration that is not a constructive update, so use the coupling blocks above instead. The activations
 are `Identity`, `ReLU`, `Tanh`, `Softsign`, `Sigmoid`, `SiLU` and `GELU`; any other layer is refused, naming
 it, since turning it into something else would not be the model. The compiled
 network is the network of those blocks run on `(q, p)` with the input in `q` and
@@ -880,9 +976,38 @@ the kernel subtracts, so reversal works as for the loops. The results can
 differ from the loops in the last bits, since the kernel fuses the
 multiply and the add. `sme = false` under `[parallel]` turns it off.
 
+The same recognition covers integer matrix products, the loops that `imatmul`,
+`imatmul_nt` and `imatmul_tn` expand to (`c[i][k] += a[i][j] * b[j][k]`, or with
+`a[j][i]` or `b[k][j]`), over `i64` arrays. With SME they call `roop_i64_matmul`,
+which converts to doubles, uses the `dgemm` kernel and converts back; doubles hold
+integers exactly, so it is used only when every product and every sum is below
+2^52, and otherwise the loops run. The result is what the loops give, to the bit,
+and backward the kernel subtracts it. The loops of the `q12` einsums, where each
+product is divided by 4096 (`c[i][k] += a[i][j] * b[j][k] / 4096`), call a NEON
+kernel instead, `roop_q12_matmul`, which does the same in doubles, truncating each
+product, with the same fallback; `q12 = false` under `[parallel]` turns that one
+off.
+
+```toml
+[optimize]
+clear_ancillas = true
+```
+
+An ancilla that a `call f(w, ..)` made and an `uncall f(w, ..)` takes off again is
+set to zero, not computed backward, when `w` is an array that starts at zero and
+is written by nothing else, `f` writes nothing but `w` and does nothing to the
+world, and nothing between the two writes what `f` reads. Running the function
+backward does the same to the other of the two. Nothing observable changes, since
+the `uncall` would have left zero, and a test runs weave's step with and without
+it and compares the weights. `clear_ancillas = false` turns it off.
+
 Metal kernels are emitted as AIR and built with Apple's `metal` tools; NVPTX
 kernels go through LLVM's PTX backend and need a CUDA driver at run time. The
-CUDA launcher has not yet run on NVIDIA hardware.
+CUDA launcher has been verified on an NVIDIA GeForce RTX 4090 with driver 595.91.07
+by `cargo test -p roop-rt --test cuda -- --nocapture`, which verifies PTX launch
+and writable-buffer copyback. The compiler path is covered by
+`cargo test -p roop-llvm --test parallel_nvptx`. CUDA performance benchmarks are
+not included yet.
 
 ## Formatting
 

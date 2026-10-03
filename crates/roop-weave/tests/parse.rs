@@ -2,7 +2,7 @@ mod support;
 
 use roop_weave::{WeaveError, parse_model};
 use serde_json::json;
-use support::{attention, leapfrog, mlp, model};
+use support::{attention, conv, leapfrog, mlp, mlp_norm, model};
 
 fn error_of(value: serde_json::Value) -> WeaveError {
     parse_model(&value.to_string()).unwrap_err()
@@ -112,4 +112,30 @@ fn attention_alternates_with_perceptrons_and_needs_a_width_its_rows_divide() {
     assert_eq!(parsed.adds_into_q(), vec![true, false]);
     let bad = error_of(model("net", 5, 1, vec![attention(2, 2, 1)]));
     assert!(matches!(bad, WeaveError::Shape { .. }), "{bad}");
+}
+
+#[test]
+fn a_convolution_needs_an_odd_kernel_and_a_width_its_channels_divide() {
+    let even = error_of(model("net", 6, 1, vec![conv(2, 2, 1)]));
+    assert!(even.to_string().contains("an odd kernel"), "{even}");
+    let uneven = error_of(model("net", 5, 1, vec![conv(2, 3, 1)]));
+    assert!(uneven.to_string().contains("channels divide"), "{uneven}");
+}
+
+#[test]
+fn a_norm_needs_an_epsilon_weave_can_hold_and_a_gain_for_each_hidden_unit() {
+    let mut tiny = mlp_norm("relu", 3, 4, 1);
+    tiny["norm"]["eps"] = serde_json::json!(1e-9);
+    let error = error_of(model("net", 4, 1, vec![tiny]));
+    assert!(error.to_string().contains("at least 1/4096"), "{error}");
+    let mut short = mlp_norm("relu", 3, 4, 1);
+    short["norm"]["gain"] = serde_json::json!([1.0, 1.0]);
+    let error = error_of(model("net", 4, 1, vec![short]));
+    assert!(
+        matches!(&error, WeaveError::Shape { name, .. } if name == "gain_0"),
+        "{error}"
+    );
+    let parsed =
+        parse_model(&model("net", 4, 1, vec![mlp_norm("relu", 3, 4, 1)]).to_string()).unwrap();
+    assert_eq!(parsed.tensors().len(), 5);
 }

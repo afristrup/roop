@@ -108,3 +108,27 @@ fn rejects_non_loop_and_unrecognized_loop_shape() {
         Err(CheckError::ParallelLoopShape { .. })
     ));
 }
+
+fn with_callee(call: &str) -> Result<(), CheckError> {
+    let src = format!(
+        "fn g(x: &mut i64, y: &i64) {{ x += y; }}
+         fn f(a: &mut [i64; 8], s: &mut i64, k: &i64, i: &mut i64) {{
+             #[parallel] from i == 0 {{ {call} }} loop {{ i += 1; }} until i == 7;
+         }}"
+    );
+    check(&parse(&src).unwrap())
+}
+
+#[test]
+fn a_call_writes_only_the_places_it_gives_to_mutable_parameters() {
+    assert_eq!(with_callee("call g(a[i], k);"), Ok(()));
+    assert_eq!(with_callee("call g(a[i], s);"), Ok(()));
+    assert!(matches!(
+        with_callee("call g(s, k);"),
+        Err(CheckError::ParallelWriteNotDisjoint { var, .. }) if var == "s"
+    ));
+    assert!(matches!(
+        with_callee("call g(a[i], a[0]);"),
+        Err(CheckError::ParallelCrossIteration { .. }) | Err(CheckError::CallAliasing { .. })
+    ));
+}

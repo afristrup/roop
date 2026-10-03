@@ -86,7 +86,7 @@ int main(void) {
             for (int i = 0; i < N; i++) { ws[l][j][i] = llround(rw(l, j, i) * S); dw[l][j][i] = ws[l][j][i] / S; }
         }
 
-    /* Gradients from the reverse sweep, summed over the four samples. */
+    /* Gradients from the reverse sweep, summed over the four samples: the matrices in Q24. */
     W3 gw; B2 gb;
     memset(gw, 0, sizeof gw); memset(gb, 0, sizeof gb);
     int64_t total = 0;
@@ -112,7 +112,7 @@ int main(void) {
                 dw[l][j][i] -= 2 * eps;
                 for (int n = 0; n < 4; n++) dn += ref_loss(dw, db, xs[n], ts[n], H / S);
                 dw[l][j][i] += eps;
-                double numeric = (up - dn) / (2 * eps), got = gw[l][j][i] / S;
+                double numeric = (up - dn) / (2 * eps), got = gw[l][j][i] / (S * S);
                 if (fabs(numeric - got) > worst) worst = fabs(numeric - got);
                 if (fabs(numeric) > scale) scale = fabs(numeric);
             }
@@ -232,6 +232,15 @@ fn training_on_xor_drives_the_loss_down_without_storing_activations() {
 
 const BENCH_PROGRAM: &str = "
 use weave::step;
+use weave::step_batch;
+
+irrev fn train_batch(total: &mut i64, ws: &mut [[[i64; 64]; 64]; 8], bs: &mut [[i64; 64]; 8],
+                     gw: &mut [[[i64; 64]; 64]; 8], gb: &mut [[i64; 64]; 8],
+                     q: &mut [[i64; 64]; 32], p: &mut [[i64; 64]; 32],
+                     aq: &mut [[i64; 64]; 32], ap: &mut [[i64; 64]; 32],
+                     xs: &[[i64; 64]; 32], ts: &[[i64; 4]; 32], h: &i64, lr: &i64, kind: &i64) {
+    call step_batch<64, 64, 8, 4, 32>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr, kind);
+}
 
 irrev fn train(total: &mut i64, ws: &mut [[[i64; 64]; 64]; 8], bs: &mut [[i64; 64]; 8],
                gw: &mut [[[i64; 64]; 64]; 8], gb: &mut [[i64; 64]; 8],
@@ -252,31 +261,70 @@ const BENCH_DRIVER: &str = r#"
 #define B 32
 static int64_t ws[L][N][N], bs[L][N], gw[L][N][N], gb[L][N];
 static int64_t xs[B][N], ts[B][4], q[N], p[N], aq[N], ap[N];
+static int64_t qb[B][N], pb[B][N], aqb[B][N], apb[B][N];
 
 void train(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
            int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
 
-int main(void) {
+void train_batch(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
+                 int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+
+static void reset(void) {
+    memset(gw, 0, sizeof gw);
+    memset(gb, 0, sizeof gb);
     for (int l = 0; l < L; l++)
         for (int j = 0; j < N; j++) {
             bs[l][j] = (j % 5 - 2) * 64;
             for (int i = 0; i < N; i++) ws[l][j][i] = ((l * 5 + j * 7 + i * 3) % 9 - 4) * 64;
         }
+}
+
+static double now(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec + t.tv_nsec / 1e9;
+}
+
+#define ROUNDS 9
+#define MANY 20
+#define STEPS 10
+
+int main(int argc, char **argv) {
+    int only_batched = argc > 1;
     for (int n = 0; n < B; n++) {
         for (int i = 0; i < N; i++) xs[n][i] = ((n * 3 + i) % 7 - 3) * 512;
         for (int k = 0; k < 4; k++) ts[n][k] = ((n + k) % 3 - 1) * 512;
     }
     int64_t H = 1024, LR = 64, kind = 1, total = 0;
-    struct timespec a, b;
-    clock_gettime(CLOCK_MONOTONIC, &a);
-    int steps = 50;
-    for (int s = 0; s < steps; s++)
-        train(&total, (int64_t*)ws, (int64_t*)bs, (int64_t*)gw, (int64_t*)gb, q, p, aq, ap,
-              (int64_t*)xs, (int64_t*)ts, &H, &LR, &kind);
-    clock_gettime(CLOCK_MONOTONIC, &b);
-    double secs = (b.tv_sec - a.tv_sec) + (b.tv_nsec - a.tv_nsec) / 1e9;
+    double best_one = 1e9, best_batch = 1e9;
+    for (int round = 0; round < (only_batched ? MANY : ROUNDS); round++) {
+        reset();
+        double t = now();
+        for (int s = 0; s < (only_batched ? 0 : STEPS); s++)
+            train(&total, (int64_t*)ws, (int64_t*)bs, (int64_t*)gw, (int64_t*)gb, q, p, aq, ap,
+                  (int64_t*)xs, (int64_t*)ts, &H, &LR, &kind);
+        t = (now() - t) / STEPS;
+        if (round > 0 && t < best_one && !only_batched) best_one = t;
+        reset();
+        t = now();
+        for (int s = 0; s < STEPS; s++)
+            train_batch(&total, (int64_t*)ws, (int64_t*)bs, (int64_t*)gw, (int64_t*)gb, (int64_t*)qb,
+                        (int64_t*)pb, (int64_t*)aqb, (int64_t*)apb, (int64_t*)xs, (int64_t*)ts, &H, &LR, &kind);
+        t = (now() - t) / STEPS;
+        if (round > 0 && t < best_batch) best_batch = t;
+    }
     fprintf(stderr, "weave: %d layers of width %d, %d samples a step: %.1f samples/s, %.2f ms a step\n",
-            L, N, B, steps * B / secs, 1000 * secs / steps);
+            L, N, B, B / best_one, 1000 * best_one);
+    reset();
+    for (int s = 0; s < 3; s++)
+        train_batch(&total, (int64_t*)ws, (int64_t*)bs, (int64_t*)gw, (int64_t*)gb, (int64_t*)qb,
+                    (int64_t*)pb, (int64_t*)aqb, (int64_t*)apb, (int64_t*)xs, (int64_t*)ts, &H, &LR, &kind);
+    int64_t sum = 0;
+    for (int i = 0; i < L * N * N; i++) sum = (int64_t)((uint64_t)sum * 31u + (uint64_t)((int64_t*)ws)[i]);
+    for (int i = 0; i < L * N; i++) sum = (int64_t)((uint64_t)sum * 31u + (uint64_t)((int64_t*)bs)[i]);
+    fprintf(stderr, "weights checksum after 3 steps: %lld\n", (long long)sum);
+    fprintf(stderr, "weave batched: %d layers of width %d, %d samples a step: %.1f samples/s, %.2f ms a step\n",
+            L, N, B, B / best_batch, 1000 * best_batch);
     return 0;
 }
 "#;
@@ -413,5 +461,28 @@ fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
     ] {
         assert!(report.contains(name), "{name} missing: {report}");
     }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}
+
+#[test]
+fn lean_proves_the_convolution_block_and_its_backward_step() {
+    let src = "
+use weave::conv;
+use weave::conv_back;
+
+fn fwd(y: &mut [i64; 4], w: &[[i64; 6]; 2], b: &[i64; 2], x: &[i64; 4]) {
+    call conv<2, 3, 2, 4, 6>(y, w, b, x);
+}
+fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
+        gw: &mut [[i64; 6]; 2], gb: &mut [i64; 2],
+        w: &[[i64; 6]; 2], b: &[i64; 2], x: &[i64; 4]) {
+    call conv_back<2, 3, 2, 4, 6>(y, ay, ax, gw, gb, w, b, x);
+}
+";
+    let dir = project("weave-lean-conv", &config(), src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(report.contains("weave__conv__conv__2_3_2_4_6"), "{report}");
     assert!(report.contains("Lean accepted the file"), "{report}");
 }

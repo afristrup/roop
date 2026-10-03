@@ -1,4 +1,5 @@
 mod abort_mode;
+mod clear;
 mod ctx;
 mod dir;
 mod fn_gen;
@@ -9,6 +10,7 @@ mod slot;
 mod value;
 
 pub use abort_mode::*;
+pub use clear::*;
 pub use ctx::*;
 pub use dir::*;
 pub use fn_gen::*;

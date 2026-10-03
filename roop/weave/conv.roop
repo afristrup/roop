@@ -1,0 +1,121 @@
+// A reversible block of one-dimensional convolution, a half of a coupling like `mlp`:
+//
+//     y += conv(x)        conv(x)[c][t] = b[c] + sum over c', k of w[c][c' * K + k] x[c'][t + k - K / 2]
+//
+// The state of width N = C * T is C channels of T numbers, the input and output have
+// as many channels, and the kernel size K is odd, so the length stays T with zeros
+// beyond the ends. The convolution is a product with the unfolded input (im2col), so
+// it is a Q12 einsum like the rest, and its adjoints are as well.
+
+use einsum::qmatmul;
+use einsum::imatmul_nt;
+use einsum::qmatmul_nt;
+use einsum::qmatmul_tn;
+use einsum::qrow_sums;
+use super::attention::*;
+
+// col[c * K + k][t] += x[c * T + t + k - K / 2], where that is inside the channel
+pub fn im2col<C, K, T, N, CK>(col: &mut [[i64; T]; CK], x: &[i64; N]) {
+    ancilla c: i64 = 0;
+    from c == 0 {
+        ancilla k: i64 = 0;
+        from k == 0 {
+            ancilla t: i64 = 0;
+            from t == 0 {
+                if t + k >= K / 2 && t + k - K / 2 < T {
+                    col[c * K + k][t] += x[c * T + t + k - K / 2];
+                } fi t + k >= K / 2 && t + k - K / 2 < T;
+            } loop { t += 1; } until t == T - 1;
+            t -= T - 1;
+        } loop { k += 1; } until k == K - 1;
+        k -= K - 1;
+    } loop { c += 1; } until c == C - 1;
+    c -= C - 1;
+}
+
+// x[c * T + t + k - K / 2] += col[c * K + k][t], where that is inside the channel
+pub fn col2im<C, K, T, N, CK>(x: &mut [i64; N], col: &[[i64; T]; CK]) {
+    ancilla c: i64 = 0;
+    from c == 0 {
+        ancilla k: i64 = 0;
+        from k == 0 {
+            ancilla t: i64 = 0;
+            from t == 0 {
+                if t + k >= K / 2 && t + k - K / 2 < T {
+                    x[c * T + t + k - K / 2] += col[c * K + k][t];
+                } fi t + k >= K / 2 && t + k - K / 2 < T;
+            } loop { t += 1; } until t == T - 1;
+            t -= T - 1;
+        } loop { k += 1; } until k == K - 1;
+        k -= K - 1;
+    } loop { c += 1; } until c == C - 1;
+    c -= C - 1;
+}
+
+// y[c * T + t] += o[c][t] + b[c]
+fn unfold_bias<C, T, N>(y: &mut [i64; N], o: &[[i64; T]; C], b: &[i64; C]) {
+    call unfold<C, T, N>(y, o);
+    ancilla c: i64 = 0;
+    from c == 0 {
+        ancilla t: i64 = 0;
+        from t == 0 { y[c * T + t] += b[c]; } loop { t += 1; } until t == T - 1;
+        t -= T - 1;
+    } loop { c += 1; } until c == C - 1;
+    c -= C - 1;
+}
+
+// y += conv(x), with the intermediates computed and undone.
+pub fn conv<C, K, T, N, CK>(
+    y: &mut [i64; N],
+    w: &[[i64; CK]; C],
+    b: &[i64; C],
+    x: &[i64; N],
+) {
+    ancilla col: [[i64; T]; CK] = 0;
+    ancilla o: [[i64; T]; C] = 0;
+    call im2col<C, K, T, N, CK>(col, x);
+    call qmatmul(o, w, col);
+    call unfold_bias<C, T, N>(y, o, b);
+    uncall qmatmul(o, w, col);
+    uncall im2col<C, K, T, N, CK>(col, x);
+}
+
+// With u the adjoint of what `conv` added to, adds the adjoint of x to ax and the
+// gradients of the weight, in Q24 like weave's other matrices, and the bias.
+pub fn conv_vjp<C, K, T, N, CK>(
+    ax: &mut [i64; N],
+    gw: &mut [[i64; CK]; C],
+    gb: &mut [i64; C],
+    u: &[i64; N],
+    w: &[[i64; CK]; C],
+    x: &[i64; N],
+) {
+    ancilla col: [[i64; T]; CK] = 0;
+    ancilla um: [[i64; T]; C] = 0;
+    ancilla dcol: [[i64; T]; CK] = 0;
+    call im2col<C, K, T, N, CK>(col, x);
+    call fold<C, T, N>(um, u);
+    call imatmul_nt(gw, um, col);
+    call qrow_sums(gb, um);
+    call qmatmul_tn(dcol, w, um);
+    call col2im<C, K, T, N, CK>(ax, dcol);
+    uncall qmatmul_tn(dcol, w, um);
+    uncall fold<C, T, N>(um, u);
+    uncall im2col<C, K, T, N, CK>(col, x);
+}
+
+// The backward step of `conv`: on entry y is the output and ay its adjoint; on exit y is
+// what it was before, and ax and the gradients have been added to.
+pub fn conv_back<C, K, T, N, CK>(
+    y: &mut [i64; N],
+    ay: &[i64; N],
+    ax: &mut [i64; N],
+    gw: &mut [[i64; CK]; C],
+    gb: &mut [i64; C],
+    w: &[[i64; CK]; C],
+    b: &[i64; C],
+    x: &[i64; N],
+) {
+    call conv_vjp<C, K, T, N, CK>(ax, gw, gb, ay, w, x);
+    uncall conv<C, K, T, N, CK>(y, w, b, x);
+}

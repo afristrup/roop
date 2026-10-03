@@ -1,4 +1,4 @@
-use crate::{AbortMode, Ctx, Dialect, Kernel, Slot};
+use crate::{AbortMode, Clear, Ctx, Dialect, Kernel, Slot};
 use roop_syntax::{Place, Type};
 
 /// Per-function emission state. Allocas are hoisted to the entry block.
@@ -21,6 +21,8 @@ pub struct FnGen<'a> {
     pub kernels: Vec<Kernel>,
     /// Module-level definitions (string constants) the function needs.
     pub globals: Vec<String>,
+    /// The statements of the enclosing ancillas that are compiled as zeroing.
+    pub clears: Vec<Clear>,
     next: usize,
 }
 
@@ -40,6 +42,7 @@ impl<'a> FnGen<'a> {
             outlined: Vec::new(),
             kernels: Vec::new(),
             globals: Vec::new(),
+            clears: Vec::new(),
             next: 0,
         }
     }
