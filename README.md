@@ -1,5 +1,5 @@
 # roop
-The reversible, parallel programming language. See more at [uncompute.ai](uncompute.ai)
+The reversible, parallel programming language. See more at [uncompute.ai](https://www.uncompute.ai)
 
 ## Reversible by default
 
