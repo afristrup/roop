@@ -1,8 +1,10 @@
 use crate::{
-    HYP, LoopLemmas, esc, esc_fn, esc_thm, is_mut_ref, lean_type, proof_script, tuple_expr,
-    tuple_proj, tuple_type, unfold_simp,
+    HYP, LoopLemmas, chain_calls, chain_proof, chain_roundtrip, esc, esc_fn, esc_thm,
+    guarded_proof, is_mut_ref, lean_type, proof_script, tuple_expr, tuple_proj, tuple_type,
+    unfold_simp,
 };
 use roop_syntax::{FnDef, Param};
+use std::collections::HashMap;
 
 /// Names of the generated result variables; double underscores keep them clear
 /// of user parameters.
@@ -22,10 +24,11 @@ pub fn lean_theorems(
     def: &FnDef,
     deps: &[String],
     loop_lemmas: &LoopLemmas,
+    modular: &HashMap<String, LoopLemmas>,
     ancillas: bool,
     one_way: bool,
 ) -> Option<String> {
-    let text = theorems(def, deps, loop_lemmas, ancillas, one_way)?;
+    let text = theorems(def, deps, loop_lemmas, modular, ancillas, one_way)?;
     let calls = roop_check::calls_in(&def.body, false).len();
     if calls <= 2 {
         return Some(text);
@@ -41,6 +44,7 @@ fn theorems(
     def: &FnDef,
     deps: &[String],
     loop_lemmas: &LoopLemmas,
+    modular: &HashMap<String, LoopLemmas>,
     ancillas: bool,
     one_way: bool,
 ) -> Option<String> {
@@ -64,14 +68,31 @@ fn theorems(
     let thm = |suffix: &str| esc_thm(&format!("{}_{suffix}", def.name));
 
     let mut text = String::new();
+    let chain = chain_calls(def);
+    let backward: Option<Vec<(String, bool)>> = chain
+        .as_ref()
+        .map(|calls| calls.iter().rev().map(|(c, i)| (c.clone(), !i)).collect());
     if ancillas {
-        for (name, callee) in [("ancilla_restored", &f), ("inv_ancilla_restored", &f_inv)] {
+        for (name, callee, raw, calls) in [
+            ("ancilla_restored", &f, def.name.clone(), &chain),
+            (
+                "inv_ancilla_restored",
+                &f_inv,
+                format!("{}_inv", def.name),
+                &backward,
+            ),
+        ] {
+            let body = guarded_proof(
+                calls
+                    .as_ref()
+                    .and_then(|calls| chain_proof(&raw, calls, modular, HYP)),
+                proof(HYP),
+            );
             text.push_str(&format!(
-                "theorem {} {} ({HYP} : {callee} {} = Except.error Roop.Fail.ancilla) : False := by\n{}\n",
+                "theorem {} {} ({HYP} : {callee} {} = Except.error Roop.Fail.ancilla) : False := by\n{body}\n",
                 thm(name),
                 all_params.join(" "),
                 inputs.join(" "),
-                proof(HYP)
             ));
         }
     }
@@ -105,8 +126,20 @@ fn theorems(
         .map(typed)
         .collect();
     let roundtrip = proof(&format!("{HYP} \u{22a2}"));
+    let inv_f_proof = guarded_proof(
+        chain.as_ref().and_then(|calls| {
+            chain_roundtrip(&def.name, &format!("{}_inv", def.name), calls, modular)
+        }),
+        roundtrip.clone(),
+    );
+    let f_inv_proof = guarded_proof(
+        backward.as_ref().and_then(|calls| {
+            chain_roundtrip(&format!("{}_inv", def.name), &def.name, calls, modular)
+        }),
+        roundtrip.clone(),
+    );
     text.push_str(&format!(
-        "theorem {} {} ({OUT} : {tuple}) ({HYP} : {f} {} = Except.ok {OUT}) :\n    {f_inv} {} = Except.ok {} := by\n{roundtrip}\n",
+        "theorem {} {} ({OUT} : {tuple}) ({HYP} : {f} {} = Except.ok {OUT}) :\n    {f_inv} {} = Except.ok {} := by\n{inv_f_proof}\n",
         thm("inv_f"),
         all_params.join(" "),
         inputs.join(" "),
@@ -117,7 +150,7 @@ fn theorems(
         return Some(text);
     }
     text.push_str(&format!(
-        "theorem {} {} ({OUT} : {tuple}) ({INIT} : {tuple}) ({HYP} : {f_inv} {} = Except.ok {INIT}) :\n    {f} {} = Except.ok {OUT} := by\n{roundtrip}\n",
+        "theorem {} {} ({OUT} : {tuple}) ({INIT} : {tuple}) ({HYP} : {f_inv} {} = Except.ok {INIT}) :\n    {f} {} = Except.ok {OUT} := by\n{f_inv_proof}\n",
         thm("f_inv"),
         read_only.join(" "),
         with_components(OUT).join(" "),
