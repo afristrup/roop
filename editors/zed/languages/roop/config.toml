@@ -8,3 +8,6 @@ brackets = [
   { start = "(", end = ")", close = true, newline = false },
   { start = "[", end = "]", close = true, newline = false },
 ]
+
+# Once there is a language server, name it here as in extension.toml:
+# language_servers = ["roop-lsp"]

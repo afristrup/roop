@@ -509,3 +509,10 @@ are kept. A comment inside a statement header or a declaration, such as between
 the arguments of a call, would have to move, so the formatter refuses the file
 and names the line. After formatting it parses the result again and fails if
 the program differs.
+
+## Editors
+
+`editors/` has a Tree-sitter grammar for roop and an extension for Zed, with
+highlighting, an outline, bracket matching and indentation. See
+`editors/README.md` for installing it, and for what a language server would
+build on.
