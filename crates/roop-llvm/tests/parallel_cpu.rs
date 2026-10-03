@@ -3,6 +3,20 @@ mod support;
 
 use harness::{N, harness};
 
+/// Options that start threads even for this small loop.
+fn threads_always() -> roop_llvm::Options {
+    roop_llvm::Options {
+        parallel: roop_llvm::ParallelOptions {
+            cost: roop_llvm::CostModel {
+                serial_cutoff_ns: 0.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
 fn roundtrip(options: &roop_llvm::Options) -> String {
     let src = format!(
         "fn axpy(a: &mut [i64; {N}], b: &[i64; {N}], i: &mut i64, k: &i64) {{
@@ -20,7 +34,7 @@ fn roundtrip(options: &roop_llvm::Options) -> String {
 
 #[test]
 fn parallel_loop_runs_and_reverses_across_threads() {
-    roundtrip(&roop_llvm::Options::default());
+    roundtrip(&threads_always());
 }
 
 #[test]
@@ -28,7 +42,7 @@ fn apple_m4_target_is_applied_to_every_function() {
     let ir = roundtrip(&roop_llvm::Options {
         triple: Some("arm64-apple-macosx".into()),
         cpu: Some("apple-m4".into()),
-        ..Default::default()
+        ..threads_always()
     });
     assert!(ir.contains("\"target-cpu\"=\"apple-m4\""));
     assert!(ir.contains("define internal void @axpy.par"));

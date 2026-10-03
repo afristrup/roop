@@ -20,6 +20,9 @@ pub struct CostModel {
     pub gpu_ops_per_ns: f64,
     pub gpu_bytes_per_ns: f64,
     pub copy_bytes_per_ns: f64,
+    /// A loop whose whole serial run costs less than this does not start
+    /// threads at all.
+    pub serial_cutoff_ns: f64,
 }
 
 impl Default for CostModel {
@@ -33,6 +36,7 @@ impl Default for CostModel {
             gpu_ops_per_ns: 370.0,
             gpu_bytes_per_ns: 27.0,
             copy_bytes_per_ns: 30.0,
+            serial_cutoff_ns: 30_000.0,
         }
     }
 }

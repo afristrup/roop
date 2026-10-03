@@ -33,6 +33,7 @@ fn options(gpus: &[Target], cost: CostModel) -> Options {
 fn gpu_always() -> CostModel {
     CostModel {
         cpu_launch_ns: 1000.0,
+        serial_cutoff_ns: 0.0,
         gpu_launch_ns: 0.0,
         copy_bytes_per_ns: 1e9,
         gpu_ops_per_ns: 1e6,
@@ -46,6 +47,7 @@ fn gpu_always() -> CostModel {
 fn gpu_when_large() -> CostModel {
     CostModel {
         cpu_launch_ns: 0.0,
+        serial_cutoff_ns: 0.0,
         gpu_launch_ns: 1000.0,
         copy_bytes_per_ns: 1e9,
         gpu_ops_per_ns: 1e6,
@@ -58,6 +60,7 @@ fn gpu_when_large() -> CostModel {
 fn gpu_hostile() -> CostModel {
     CostModel {
         gpu_launch_ns: 1e9,
+        serial_cutoff_ns: 0.0,
         ..CostModel::default()
     }
 }
@@ -153,4 +156,29 @@ fn an_automatically_chosen_gpu_produces_the_same_results() {
         ("main.c".to_string(), HARNESS),
     ];
     assert_eq!(support::run_native_files(&files).unwrap(), Some(0));
+}
+
+#[test]
+fn a_loop_too_small_to_pay_for_threads_runs_serially_by_default() {
+    let src = "fn f(a: &mut [i64; 8], i: &mut i64) {
+        #[parallel] from i == 0 { a[i] += 1; } loop { i += 1; } until i == 7;
+    }";
+    let out = support::compiled(src, &Options::default());
+    assert!(
+        !out.host.contains("call void @roop_parallel_for"),
+        "{}",
+        out.host
+    );
+    let forced = Options {
+        parallel: ParallelOptions {
+            cost: CostModel {
+                serial_cutoff_ns: 0.0,
+                ..CostModel::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let out = support::compiled(src, &forced);
+    assert!(out.host.contains("call void @roop_parallel_for"));
 }
