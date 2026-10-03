@@ -120,11 +120,60 @@ fn parse_attention(index: usize, layer: &Value, width: usize) -> Result<Layer, W
     })
 }
 
+fn parse_conv(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveError> {
+    let path = format!("layers[{index}].");
+    let channels = count(layer, "channels")?;
+    let kernel = count(layer, "kernel")?;
+    let shape = |expected: String, found: String| WeaveError::Shape {
+        name: format!("layers[{index}]"),
+        expected,
+        found,
+    };
+    if width % channels != 0 {
+        return Err(shape(
+            format!("a width that {channels} channels divide"),
+            format!("a width of {width}"),
+        ));
+    }
+    if kernel % 2 == 0 {
+        return Err(shape(
+            "an odd kernel".into(),
+            format!("a kernel of {kernel}"),
+        ));
+    }
+    let w = matrix(
+        layer,
+        &path,
+        "weight",
+        format!("w{index}"),
+        channels,
+        channels * kernel,
+    )?;
+    let b = vector(layer, &path, "bias", format!("b{index}"))?;
+    if b.dims[0] != channels {
+        let found = format!("{} numbers", b.dims[0]);
+        return Err(WeaveError::Shape {
+            name: b.name,
+            expected: format!("{channels} numbers"),
+            found,
+        });
+    }
+    Ok(Layer::Conv {
+        channels,
+        kernel,
+        w,
+        b,
+    })
+}
+
 fn parse_layer(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveError> {
     let path = format!("layers[{index}].");
     let kind = field(layer, &path, "kind", "a layer kind")?
         .as_str()
         .unwrap_or("");
+    if kind == "conv" {
+        return parse_conv(index, layer, width);
+    }
     if kind == "attention" {
         return parse_attention(index, layer, width);
     }

@@ -116,6 +116,16 @@ pub fn attention(seq: usize, dim: usize, seed: usize) -> Value {
     })
 }
 
+pub fn conv(channels: usize, kernel: usize, seed: usize) -> Value {
+    json!({
+        "kind": "conv",
+        "channels": channels,
+        "kernel": kernel,
+        "weight": weights(channels, channels * kernel, seed),
+        "bias": biases(channels, seed),
+    })
+}
+
 pub fn model(name: &str, width: usize, outputs: usize, layers: Vec<Value>) -> Value {
     json!({ "name": name, "width": width, "outputs": outputs, "step": 0.25, "layers": layers })
 }

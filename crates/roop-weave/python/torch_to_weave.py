@@ -5,6 +5,8 @@ read as a network of reversible blocks, found in an nn.Sequential:
 
     Linear(N, M), act, Linear(M, N)   an "mlp" block: one half of the state takes
                                       in a perceptron of the other (RevNet, NICE)
+    Conv1d(C, C, K, padding=K // 2)   a "conv" block, a half of a coupling like the
+                                      perceptron; pass width= when no Linear comes first
     LinearAttention(seq, dim)         an "attention" block, a half of a coupling like
                                       the perceptron, from weave_modules.py
     Linear(N, M), act                 a "leapfrog" layer: a step of the dynamics
@@ -108,7 +110,7 @@ def numbers(tensor):
 
 def bias_of(linear):
     if linear.bias is None:
-        return [0.0] * linear.out_features
+        return [0.0] * (linear.out_channels if kind(linear) == "Conv1d" else linear.out_features)
     return numbers(linear.bias)
 
 
@@ -137,9 +139,33 @@ def attention_block(module, i, width):
     }
 
 
+def conv_block(module, i, width):
+    if module.in_channels != module.out_channels:
+        raise Unsupported(f"layer {i}: Conv1d must keep its channels, as the state keeps its width")
+    padding = module.padding
+    same = padding == "same" or tuple(padding) == (module.kernel_size[0] // 2,)
+    if (module.groups != 1 or tuple(module.stride) != (1,) or tuple(module.dilation) != (1,)
+            or module.kernel_size[0] % 2 == 0 or not same or module.padding_mode != "zeros"):
+        raise Unsupported(
+            f"layer {i}: Conv1d must have an odd kernel, stride 1, no dilation or groups, "
+            "and zero padding that keeps the length"
+        )
+    if width % module.in_channels != 0:
+        raise Unsupported(f"layer {i}: {module.in_channels} channels do not divide the width {width}")
+    return {
+        "kind": "conv",
+        "channels": module.in_channels,
+        "kernel": module.kernel_size[0],
+        "weight": numbers(module.weight.reshape(module.out_channels, -1)),
+        "bias": bias_of(module),
+    }
+
+
 def block_at(leaves, i, width):
     """The block that starts at leaves[i], and how many leaves it takes."""
     first = leaves[i]
+    if kind(first) == "Conv1d":
+        return conv_block(first, i, width), 1
     if kind(first) == "LinearAttention":
         return attention_block(first, i, width), 1
     if not is_linear(first):
@@ -181,21 +207,25 @@ def parameters(block, leaves, i):
         m = leaves[i]
         return [m.wq.weight, m.wk.weight, m.wv.weight]
     first = leaves[i]
-    if block["kind"] == "leapfrog":
+    if block["kind"] in ("leapfrog", "conv"):
         return [first.weight, first.bias]
     second = leaves[i + 2]
     return [first.weight, first.bias, second.weight, second.bias]
 
 
-def export_bound(model, outputs=None, step=0.25, name="model", loss="mse", optimizer=None):
+def export_bound(model, outputs=None, step=0.25, name="model", loss="mse", optimizer=None,
+                 width=None):
     """The roop-weave model for a torch module as a dict, and the torch tensors
     that hold each of its weights, in the order roop-weave keeps them."""
     leaves = flatten(model) if kind(model) == "Sequential" else traced_chain(model)
     heads = [m for m in leaves if is_linear(m) or kind(m) == "LinearAttention"]
-    if not heads:
+    if kind(leaves[0]) == "Conv1d" and width is None:
+        raise Unsupported("the state width is not known from a Conv1d first; pass width=")
+    if not heads and width is None:
         raise Unsupported("the model has no Linear layer")
-    first = heads[0]
-    width = first.seq * first.dim if kind(first) == "LinearAttention" else first.in_features
+    if width is None:
+        first = heads[0]
+        width = first.seq * first.dim if kind(first) == "LinearAttention" else first.in_features
     layers, bound, i = [], [], 0
     while i < len(leaves):
         block, taken = block_at(leaves, i, width)
@@ -216,9 +246,9 @@ def export_bound(model, outputs=None, step=0.25, name="model", loss="mse", optim
     return spec, bound
 
 
-def export(model, outputs=None, step=0.25, name="model", loss="mse", optimizer=None):
+def export(model, outputs=None, step=0.25, name="model", loss="mse", optimizer=None, width=None):
     """The roop-weave model for a torch module, as a dict."""
-    return export_bound(model, outputs, step, name, loss, optimizer)[0]
+    return export_bound(model, outputs, step, name, loss, optimizer, width)[0]
 
 
 def load(spec):

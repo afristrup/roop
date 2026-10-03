@@ -1,6 +1,6 @@
 mod support;
 
-use support::{attention, compile, leapfrog, mlp, model, project, roop, text};
+use support::{attention, compile, conv, leapfrog, mlp, model, project, roop, text};
 
 fn check(name: &str, layers: Vec<serde_json::Value>, width: usize, outputs: usize) {
     let dir = project(name);
@@ -105,4 +105,23 @@ fn check_loss(name: &str, loss: &str, outputs: usize) {
 fn the_cross_entropy_seeds_are_the_gradients_of_the_cross_entropy() {
     check_loss("ce_sigmoid", "sigmoid", 3);
     check_loss("ce_softmax", "softmax", 3);
+}
+
+#[test]
+fn convolution_blocks_agree_with_the_reference() {
+    check("conv_alone", vec![conv(2, 3, 1), conv(2, 3, 4)], 6, 2);
+    check("conv_wide_kernel", vec![conv(2, 5, 2), conv(2, 1, 3)], 6, 2);
+    check("conv_one_channel", vec![conv(1, 3, 5), conv(1, 3, 6)], 5, 2);
+}
+
+#[test]
+fn convolution_mixed_with_the_other_blocks_agrees_with_the_reference() {
+    let layers = vec![
+        conv(2, 3, 1),
+        mlp("silu", 3, 6, 2),
+        attention(3, 2, 3),
+        leapfrog("tanh", 4, 6, 4),
+        conv(3, 3, 5),
+    ];
+    check("conv_mixed", layers, 6, 3);
 }

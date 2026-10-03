@@ -41,6 +41,31 @@ pub fn layer_call(layer: &Layer, into_q: bool, width: usize, step: f64, back: bo
                 wq.name, wk.name, wv.name
             )
         }
+        (
+            Layer::Conv {
+                channels,
+                kernel,
+                w,
+                b,
+            },
+            back,
+        ) => {
+            let length = width / channels;
+            let ck = channels * kernel;
+            let generics = format!("{channels}, {kernel}, {length}, {width}, {ck}");
+            let (y, ay, ax, x) = if into_q {
+                ("q", "aq", "ap", "p")
+            } else {
+                ("p", "ap", "aq", "q")
+            };
+            match back {
+                false => format!("call conv<{generics}>({y}, {}, {}, {x});", w.name, b.name),
+                true => format!(
+                    "call conv_back<{generics}>({y}, {ay}, {ax}, g{0}, g{1}, {0}, {1}, {x});",
+                    w.name, b.name
+                ),
+            }
+        }
         (Layer::Mlp { w1, b1, w2, b2, .. }, true) => {
             let (y, ay, ax, x) = if into_q {
                 ("q", "aq", "ap", "p")

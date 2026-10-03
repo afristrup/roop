@@ -32,6 +32,10 @@ def models():
             nn.Linear(4, 3), nn.GELU(), nn.Linear(3, 4), nn.Linear(4, 5), nn.SiLU(),
             nn.Linear(4, 2), nn.Sigmoid(), nn.Linear(2, 4),
         ),
+        "conv_blocks": nn.Sequential(
+            nn.Linear(6, 4), nn.Tanh(), nn.Linear(4, 6),
+            nn.Conv1d(2, 2, 3, padding=1), nn.Conv1d(3, 3, 3, padding="same", bias=False),
+        ),
         "attention_and_mlp": nn.Sequential(
             LinearAttention(2, 2), nn.Linear(4, 3), nn.Tanh(), nn.Linear(3, 4), LinearAttention(2, 2),
         ),
@@ -59,8 +63,8 @@ class RealTorch(unittest.TestCase):
     def test_a_layer_weave_cannot_run_backward_is_refused(self):
         with self.assertRaisesRegex(Unsupported, "Softplus is not reversible"):
             export(nn.Sequential(nn.Linear(4, 4), nn.Softplus()))
-        with self.assertRaisesRegex(Unsupported, "Conv1d must follow a Linear"):
-            export(nn.Sequential(nn.Linear(4, 4), nn.ReLU(), nn.Conv1d(1, 1, 1)))
+        with self.assertRaisesRegex(Unsupported, "BatchNorm1d must follow a Linear"):
+            export(nn.Sequential(nn.Linear(4, 4), nn.ReLU(), nn.BatchNorm1d(4)))
 
     def test_a_custom_module_is_traced_and_its_functions_are_activations(self):
         class Net(nn.Module):
@@ -109,6 +113,22 @@ class RealTorch(unittest.TestCase):
         # The weights that came back reproduce the loss weave reported.
         again = evaluate(export(net.eval(), outputs=1), xs, ts)
         self.assertAlmostEqual(again, losses[-1], delta=0.02 + 0.1 * losses[-1])
+
+    def test_conv1d_is_a_block_when_it_keeps_the_length_and_the_channels(self):
+        spec = export(nn.Sequential(nn.Linear(6, 4), nn.ReLU(), nn.Linear(4, 6), nn.Conv1d(2, 2, 3, padding=1)))
+        conv = spec["layers"][-1]
+        self.assertEqual((conv["kind"], conv["channels"], conv["kernel"]), ("conv", 2, 3))
+        self.assertEqual((len(conv["weight"]), len(conv["weight"][0])), (2, 6))
+        for bad in [nn.Conv1d(2, 3, 3, padding=1), nn.Conv1d(2, 2, 3), nn.Conv1d(2, 2, 3, stride=2, padding=1),
+                    nn.Conv1d(2, 2, 2, padding=1), nn.Conv1d(2, 2, 3, padding=1, groups=2)]:
+            with self.assertRaises(Unsupported):
+                export(nn.Sequential(nn.Linear(6, 4), nn.ReLU(), nn.Linear(4, 6), bad))
+
+    def test_a_conv_first_needs_the_width(self):
+        net = nn.Sequential(nn.Conv1d(2, 2, 3, padding=1))
+        with self.assertRaisesRegex(Unsupported, "pass width"):
+            export(net)
+        self.assertEqual(export(net, width=6)["width"], 6)
 
     def test_a_residual_connection_is_refused_because_the_graph_branches(self):
         class Residual(nn.Module):

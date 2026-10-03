@@ -1,6 +1,7 @@
 // weave: neural networks that run backward.
 mod act;
 mod attention;
+mod conv;
 mod kernels;
 mod losses;
 mod mlp;
@@ -10,6 +11,7 @@ mod train;
 
 pub use act::*;
 pub use attention::*;
+pub use conv::*;
 pub use kernels::*;
 pub use losses::*;
 pub use mlp::*;

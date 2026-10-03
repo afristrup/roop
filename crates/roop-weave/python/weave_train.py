@@ -25,7 +25,7 @@ def pack(values):
 
 
 KEYS = {"leapfrog": ["weight", "bias"], "mlp": ["w1", "b1", "w2", "b2"],
-        "attention": ["wq", "wk", "wv"]}
+        "attention": ["wq", "wk", "wv"], "conv": ["weight", "bias"]}
 
 
 def tensors(spec):

@@ -174,3 +174,6 @@ pub einsum fn qmatmul_nt: q12 = "ij,kj->ik";
 
 // The transpose of a matrix times another.
 pub einsum fn qmatmul_tn: q12 = "ji,jk->ik";
+
+// The sum of each row, with no scaling: a sum is already on the grid.
+pub einsum fn qrow_sums: q12 = "ij->i";
