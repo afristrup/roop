@@ -25,7 +25,7 @@ pub fn termination_lemma(info: &Lifted, shape: &LemmaShape) -> Option<String> {
         .map(|part| format!("\u{ab}h{part}\u{bb}"))
         .collect();
     Some(format!(
-        "theorem {} {} {{{s} : {}}} {} (\u{ab}__e\u{bb} : {} {s} = Except.ok true) :\n    \u{2203} n, Roop.janusGo {} n {s} \u{2260} Except.error Roop.Fail.fuel :=\n  Roop.janus_terminates {} {} {} {} {} {s} \u{ab}__e\u{bb}\n",
+        "theorem {} {} {{{s} : {}}} {} (\u{ab}__e\u{bb} : {} {s} = Except.ok true) :\n    \u{2203} \u{ab}__n\u{bb}, Roop.janusGo {} \u{ab}__n\u{bb} {s} \u{2260} Except.error Roop.Fail.fuel :=\n  Roop.janus_terminates {} {} {} {} {} {s} \u{ab}__e\u{bb}\n",
         shape.theorem("loop_terminates"),
         shape.implicit,
         shape.state,

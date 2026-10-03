@@ -58,3 +58,13 @@ fn a_captured_variable_named_a_does_not_clash_with_the_theorem() {
     );
     assert!(t.lean.contains("loop_terminates"));
 }
+
+#[test]
+fn captured_variables_named_n_and_s_do_not_clash_either() {
+    let t = support::verified(
+        "fn count(x: &mut i64, i: &mut i64, n: &i64, s: &i64) {
+            from i == 0 { x += s; } loop { i += 1; } until i == n;
+         }",
+    );
+    assert!(t.lean.contains("loop_terminates"));
+}
