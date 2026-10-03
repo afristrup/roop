@@ -579,14 +579,15 @@ roop weave model.json -o net.roop --tests --batch 8
 roop test net.roop
 ```
 
-The output has `net_load` (the weights, rounded to 1/4096), `net_forward`,
-`net_backward`, `net_grad` (the loss of a sample and its gradients, with the input
+The output has `net_forward`, `net_backward`, `net_grad` (the loss of a sample and its gradients, with the input
 rebuilt at the end) and `net_step<B>`, which is the training step. With `--batch B`
 it also has `net_train`, a step of B samples with the length filled in, which C
-can call. With `--tests` it adds a test that runs the forward pass and the
-gradient and compares them with a reference in doubles, whose gradients are
+can call. With `--tests` it adds `net_load` (the weights, rounded to 1/4096) and a test that runs
+the forward pass and the gradient and compares them with a reference in doubles, whose gradients are
 central differences, so it checks the compiler and weave together. Like every roop
-test it also runs backward. A model that is not well formed is refused with the
+test it also runs backward. Lean proves a compiled model's forward, backward and gradient exactly reversible
+(`roop lean net.roop --check`; it does not take the loader, which is only for the test).
+A model that is not well formed is refused with the
 name of the field, or the tensor, that is wrong.
 
 `crates/roop-weave/python/torch_to_weave.py` writes that JSON from a torch module, an

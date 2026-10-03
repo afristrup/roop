@@ -71,3 +71,17 @@ fn attention_mixed_with_perceptrons_and_leapfrog_agrees_with_the_reference() {
     ];
     check("attn_mixed", layers, 4, 2);
 }
+
+#[test]
+fn lean_proves_a_compiled_model_exactly_reversible() {
+    let dir = project("lean");
+    let layers = vec![leapfrog("tanh", 2, 2, 1), mlp("relu", 2, 2, 2)];
+    compile(&dir, &model("tiny", 2, 1, layers), &[]);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", text(&out));
+    let report = text(&out);
+    for name in ["tiny_forward", "tiny_backward", "tiny_grad"] {
+        assert!(report.contains(name), "{name} missing: {report}");
+    }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}
