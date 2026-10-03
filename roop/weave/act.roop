@@ -1,0 +1,113 @@
+// Activations of weave in Q12. An activation f and its slope f' are chosen by a
+// kind, a number that is only read, so the branch on it is undone by the same
+// test on the way back:
+//
+//     0 identity    f = z
+//     1 cauchy      f = z / (1 + z^2), the force of log(1 + z^2) / 2
+//     2 softsign    f = z / (1 + |z|)
+//     3 relu        f = max(z, 0)
+//     4 tanh        f = z (27 + z^2) / (27 + 9 z^2) for |z| <= 3, else +-1
+//
+// The tanh is a Pade approximation. Its slope, ((9 - z^2) / (3 + z^2))^2, is
+// zero at |z| = 3 where it joins the constant, so the function is smooth there.
+// Each function adds its result to a place it does not read.
+
+// s += f(z)
+pub fn act_at(s: &mut i64, z: &i64, kind: &i64) {
+    if kind == 0 {
+        s += z;
+    } else {
+        if kind == 1 {
+            s += z * 4096 / (4096 + z * z / 4096);
+        } else {
+            if kind == 2 {
+                if z >= 0 {
+                    s += z * 4096 / (4096 + z);
+                } else {
+                    s += z * 4096 / (4096 - z);
+                } fi z >= 0;
+            } else {
+                if kind == 3 {
+                    if z > 0 { s += z; } fi z > 0;
+                } else {
+                    call tanh_at(s, z);
+                } fi kind == 3;
+            } fi kind == 2;
+        } fi kind == 1;
+    } fi kind == 0;
+}
+
+fn tanh_at(s: &mut i64, z: &i64) {
+    if z > 12288 {
+        s += 4096;
+    } else {
+        if z < -12288 {
+            s -= 4096;
+        } else {
+            s += z
+                * (110592 + z * z / 4096)
+                / 4096
+                * 4096
+                / (110592 + 9 * (z * z / 4096));
+        } fi z < -12288;
+    } fi z > 12288;
+}
+
+// d += f'(z)
+pub fn dact_at(d: &mut i64, z: &i64, kind: &i64) {
+    if kind == 0 {
+        d += 4096;
+    } else {
+        if kind == 1 {
+            d += (4096 - z * z / 4096)
+                * 16777216
+                / ((4096 + z * z / 4096) * (4096 + z * z / 4096));
+        } else {
+            if kind == 2 {
+                if z >= 0 {
+                    d += 16777216 * 4096 / ((4096 + z) * (4096 + z));
+                } else {
+                    d += 16777216 * 4096 / ((4096 - z) * (4096 - z));
+                } fi z >= 0;
+            } else {
+                if kind == 3 {
+                    if z > 0 { d += 4096; } fi z > 0;
+                } else {
+                    call dtanh_at(d, z);
+                } fi kind == 3;
+            } fi kind == 2;
+        } fi kind == 1;
+    } fi kind == 0;
+}
+
+fn dtanh_at(d: &mut i64, z: &i64) {
+    if z > 12288 {} else {
+        if z < -12288 {} else {
+            d += (36864 - z * z / 4096)
+                * 4096
+                / (36864 + 3 * (z * z / 4096))
+                * ((36864 - z * z / 4096) * 4096 / (36864 + 3 * (z * z / 4096)))
+                / 4096;
+        } fi z < -12288;
+    } fi z > 12288;
+}
+
+// s += f(z) for each element
+pub fn act<N>(s: &mut [i64; N], z: &[i64; N], kind: &i64) {
+    ancilla j: i64 = 0;
+    #[parallel]
+    from j == 0 {
+        call act_at(s[j], z[j], kind + 0);
+    } loop { j += 1; } until j == N - 1;
+    j -= N - 1;
+}
+
+// d += f'(z) for each element
+pub fn dact<N>(d: &mut [i64; N], z: &[i64; N], kind: &i64) {
+    ancilla j: i64 = 0;
+    #[parallel]
+    from j == 0 {
+        call dact_at(d[j], z[j], kind + 0);
+    } loop { j += 1; } until j == N - 1;
+    j -= N - 1;
+}

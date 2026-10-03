@@ -1,0 +1,83 @@
+// The activations of weave, checked at a few points in Q12 (1.0 is 4096).
+
+use weave::*;
+
+test identity_adds_z {
+    s: i64, d: i64, z: i64, kind: i64;
+    z += 8192;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s == 8192 && d == 4096;
+}
+
+test cauchy_of_one_is_a_half {
+    s: i64, d: i64, z: i64, kind: i64;
+    z += 4096;
+    kind += 1;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s == 2048 && d == 0;
+}
+
+test softsign_is_odd {
+    s: i64, d: i64, z: i64, kind: i64;
+    z -= 4096;
+    kind += 2;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s == 0 - 2048 && d == 1024;
+}
+
+test relu_cuts_negatives {
+    s: i64, d: i64, z: i64, kind: i64;
+    z -= 4096;
+    kind += 3;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s == 0 && d == 0;
+}
+
+test relu_keeps_positives {
+    s: i64, d: i64, z: i64, kind: i64;
+    z += 4096;
+    kind += 3;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s == 4096 && d == 4096;
+}
+
+test tanh_of_zero_and_its_slope {
+    s: i64, d: i64, z: i64, kind: i64;
+    kind += 4;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s == 0 && d == 4096;
+}
+
+test tanh_of_one_is_close {
+    s: i64, d: i64, z: i64, kind: i64;
+    z += 4096;
+    kind += 4;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s > 3100 && s < 3200 && d > 1700 && d < 1900;
+}
+
+test tanh_saturates {
+    s: i64, d: i64, z: i64, kind: i64;
+    z += 20000;
+    kind += 4;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s == 4096 && d == 0;
+}
+
+test the_vector_forms_apply_each_element {
+    s: [i64; 2], d: [i64; 2], z: [i64; 2], kind: i64;
+    z[0] += 4096;
+    z[1] -= 4096;
+    kind += 3;
+    call act(s, z, kind);
+    call dact(d, z, kind);
+    expect s[0] == 4096 && s[1] == 0 && d[0] == 4096 && d[1] == 0;
+}
