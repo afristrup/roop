@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Times roop's BLAS routines against hand-written Rust and Apple Accelerate.
 
-    python3 bench/run.py            # prints a markdown table
+    python3 bench/run.py [gemm|axpy] # prints a markdown table
 
 roop is built twice: with the compiler free to pick a GPU for a bare
 `#[parallel]` loop (the default), and with `auto = false`, so loops run on CPU
@@ -50,6 +50,16 @@ def main():
     chip = run(["sysctl", "-n", "machdep.cpu.brand_string"]).strip() if platform.system() == "Darwin" else platform.processor()
     print(f"Machine: {chip}, {os.cpu_count()} cores. roop: {ROOP.parent.name} build of the compiler.\n")
 
+    only = sys.argv[1] if len(sys.argv) > 1 else "all"
+    if only in ("all", "gemm"):
+        bench_gemm(work)
+    if only == "all":
+        time.sleep(30)  # the gemm runs leave the chip loaded; let it settle
+    if only in ("all", "axpy"):
+        bench_axpy(work)
+
+
+def bench_gemm(work):
     print("### dgemm, C += A B, f64, GFLOP/s (higher is better)\n")
     print("| N | roop (auto) | roop (CPU threads) | Rust, 1 thread | Rust, all threads | Accelerate |")
     print("|---:|---:|---:|---:|---:|---:|")
@@ -60,7 +70,9 @@ def main():
         one, many, blas = (flops / t / 1e9 for t in native_times("gemm", n, reps))
         print(f"| {n} | {auto:.1f} | {cpu:.1f} | {one:.1f} | {many:.1f} | {blas:.1f} |", flush=True)
 
-    time.sleep(30)  # the gemm runs leave the chip loaded; let it settle
+
+
+def bench_axpy(work):
     print("\n### daxpy, y += a x, f64, GB/s moved (higher is better)\n")
     print("| N | roop (auto) | roop (CPU threads) | Rust, 1 thread | Rust, all threads | Accelerate |")
     print("|---:|---:|---:|---:|---:|---:|")
