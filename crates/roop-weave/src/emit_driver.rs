@@ -2,7 +2,9 @@ use crate::Model;
 
 /// A C program that trains the model that `emit_train` writes, on data in files:
 ///
-///     prog <weights.bin> <data.bin> <epochs> <rate> <samples> <trained.bin>
+/// ```text
+/// prog <weights.bin> <data.bin> <epochs> <rate> <samples> <trained.bin>
+/// ```
 ///
 /// The files are little-endian 64-bit integers on the 1/4096 grid. The weights are
 /// every tensor in the order of `Model::tensors`; the data is the inputs of all
