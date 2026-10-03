@@ -7,9 +7,11 @@ pub fn parse_test_args(mut args: impl Iterator<Item = String>) -> Result<TestArg
         paths: Vec::new(),
         filter: None,
         timeout: 60,
+        lean: false,
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--lean" => parsed.lean = true,
             "--filter" => parsed.filter = Some(args.next().ok_or_else(usage)?),
             "--timeout" => {
                 let seconds = args.next().and_then(|s| s.parse().ok());

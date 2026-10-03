@@ -1,6 +1,6 @@
 use crate::{
-    BuildArgs, CliError, Emit, TestArgs, Verdict, build, config_for, load_with_tests, run_one_test,
-    run_trace, test_driver, test_files,
+    BuildArgs, CliError, Emit, TestArgs, Verdict, build, config_for, lean_agreement,
+    load_with_tests, run_one_test, run_trace, test_driver, test_files,
 };
 use roop_syntax::{FnDef, Item};
 use std::time::Duration;
@@ -49,17 +49,20 @@ pub fn run_test(args: &TestArgs) -> Result<(), CliError> {
             return Err(e);
         }
         println!("running {} tests from {}", selected.len(), file.display());
+        let mut native: Vec<(String, bool)> = Vec::new();
         for (index, test) in selected {
             let timeout = Duration::from_secs(args.timeout);
             let verdict = run_one_test(&exe, index, timeout)
                 .map_err(|e| CliError::Io(format!("running {}", test.name), e))?;
             match verdict {
                 Verdict::Passed => {
+                    native.push((test.name.clone(), true));
                     passed += 1;
                     println!("test {} ... ok", test.name);
                 }
                 other => {
                     failed += 1;
+                    native.push((test.name.clone(), false));
                     let traced = !matches!(other, Verdict::TimedOut);
                     let why = match other {
                         Verdict::NotRestored(what) => format!("after the backward run, {what}"),
@@ -76,6 +79,19 @@ pub fn run_test(args: &TestArgs) -> Result<(), CliError> {
                     }
                 }
             }
+        }
+        if args.lean {
+            let agreement = lean_agreement(&program, &native, &dir)?;
+            println!(
+                "lean model: {} agree, {} differ, {} not modelled",
+                agreement.agree,
+                agreement.differ.len(),
+                agreement.unmodelled.len()
+            );
+            for name in &agreement.differ {
+                println!("  the model and the compiled test differ on {name}");
+            }
+            failed += agreement.differ.len();
         }
         let _ = std::fs::remove_dir_all(&dir);
     }

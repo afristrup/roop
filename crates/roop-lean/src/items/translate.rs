@@ -10,6 +10,16 @@ use std::collections::HashMap;
 /// Translates what it can. A function that uses something not modelled yet is
 /// skipped and reported, so the rest of the file stays valid Lean.
 pub fn translate(program: &Program) -> Translation {
+    translate_with(program, true)
+}
+
+/// The model only: the functions and their inverses, with no lemmas or
+/// theorems, which is much faster for a file that is only evaluated.
+pub fn translate_models(program: &Program) -> Translation {
+    translate_with(program, false)
+}
+
+fn translate_with(program: &Program, proofs: bool) -> Translation {
     let mut cx = Ctx::new(program);
     let mut result = Translation::default();
     let mut lean = String::from(PRELUDE);
@@ -56,7 +66,7 @@ pub fn translate(program: &Program) -> Translation {
         let mut waiting = Vec::new();
         let mut progressed = false;
         for def in pending {
-            match translate_fn(&cx, def, &deps, &lemmas, &modular) {
+            match translate_fn(&cx, def, &deps, &lemmas, &modular, proofs) {
                 Ok(piece) => {
                     progressed = true;
                     lean.push_str(&piece.text);
@@ -133,6 +143,7 @@ fn translate_fn(
     deps: &[String],
     lemmas: &LoopLemmas,
     modular: &HashMap<String, LoopLemmas>,
+    proofs: bool,
 ) -> Result<Piece, LeanError> {
     let forward = lean_fn(cx, def, Dir::Forward)?;
     let reversible = !is_irreversible_fn(def);
@@ -166,7 +177,7 @@ fn translate_fn(
         // unfolded where it is called instead.
         let ancillas =
             forward.ancillas > 0 || backward.ancillas > 0 || !calls_in(&def.body, false).is_empty();
-        if !inexact {
+        if !inexact && proofs {
             for info in &forward.pieces {
                 let (lemma_text, names) = match info.construct {
                     Construct::Loop => lean_loop_lemmas(info, deps, &known),

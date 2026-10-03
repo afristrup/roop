@@ -145,3 +145,17 @@ fn a_backward_run_that_does_not_restore_shows_both_runs() {
     assert!(text.contains("undo line"), "{text}");
     assert!(text.contains("(backward run done)"), "{text}");
 }
+
+#[test]
+fn lean_runs_the_same_tests_on_the_model() {
+    let src = format!("{COUNTER}\ntest wrong {{ a: i64; expect a == 1; }}\n");
+    let dir = project("test-lean", "", &src);
+    let out = roop(&dir, &["test", "--lean"]);
+    let text = stdout(&out);
+    assert!(
+        text.contains("lean model: 3 agree, 0 differ, 0 not modelled"),
+        "{text}{}",
+        stderr(&out)
+    );
+    assert!(text.contains("2 passed, 1 failed"), "{text}");
+}

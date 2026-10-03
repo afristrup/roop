@@ -7,4 +7,6 @@ pub struct TestArgs {
     pub filter: Option<String>,
     /// Seconds a test may run before it counts as failed.
     pub timeout: u64,
+    /// Also run each test on the Lean model and compare.
+    pub lean: bool,
 }

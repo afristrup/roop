@@ -17,5 +17,5 @@ use out::*;
 use stmts::*;
 use types::*;
 
-pub use items::{Translation, translate};
+pub use items::{Translation, test_checks, translate, translate_models};
 pub use prelude::{PRELUDE, SESSION_PRELUDE};
