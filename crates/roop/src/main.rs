@@ -17,6 +17,7 @@ fn run() -> Result<(), CliError> {
         Command::Build(args) => build(&args),
         Command::Lean(args) => run_lean(&args),
         Command::Fmt(args) => run_fmt(&args),
+        Command::Test(args) => run_test(&args),
     }
 }
 

@@ -6,4 +6,6 @@ pub struct BuildArgs {
     pub output: PathBuf,
     pub emit: Emit,
     pub link: Vec<PathBuf>,
+    /// Keep the `test` items, which `roop test` runs.
+    pub keep_tests: bool,
 }

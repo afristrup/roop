@@ -1,6 +1,6 @@
 use crate::{
     BuildArgs, BuildDir, CliError, Emit, build_metallib, build_ptx, clang, config_for,
-    host_options, load_source, run_tool, runtime_lib,
+    host_options, load_source, load_with_tests, run_tool, runtime_lib,
 };
 use roop_llvm::{compile_all, embed_blobs};
 use roop_opt::fuse_parallel;
@@ -10,7 +10,11 @@ pub fn build(args: &BuildArgs) -> Result<(), CliError> {
     let config = config_for(&args.input)?;
     let options = host_options(&config);
 
-    let program = load_source(&args.input, &config)?;
+    let program = if args.keep_tests {
+        load_with_tests(&args.input, &config)?
+    } else {
+        load_source(&args.input, &config)?
+    };
     roop_check::check(&program).map_err(CliError::Check)?;
     let program = fuse_parallel(&program);
     let compiled = compile_all(&program, &options).map_err(CliError::Codegen)?;

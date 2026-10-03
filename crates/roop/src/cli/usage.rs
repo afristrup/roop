@@ -1,6 +1,7 @@
 pub const USAGE: &str =
     "usage: roop build <input.roop> [-o <output>] [--emit ir|obj|exe] [--link <file>]...
        roop lean <input.roop> [-o <output.lean>] [--check]
+       roop test [<path>...] [--filter <text>] [--timeout <seconds>]
        roop fmt [<path>...] [--check] [--width <columns>] [--stdin]
 
   build        compile to LLVM IR, an object, or an executable
@@ -11,6 +12,11 @@ pub const USAGE: &str =
 
   lean         translate to a Lean 4 model with reversibility theorems
     --check      run Lean on the result and fail if it is rejected
+
+  test         run the `test` items of .roop files, each forward and then backward
+    <path>       files or directories; by default every file of the project with tests
+    --filter T   only the tests whose name contains T
+    --timeout S  seconds a test may run (default 60)
 
   fmt          rewrite .roop files in place, like cargo fmt
     <path>       files or directories; by default every .roop file of the project

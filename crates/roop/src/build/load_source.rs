@@ -5,6 +5,11 @@ use std::path::Path;
 /// Loads `input` and the modules it uses, configured by the nearest
 /// `Roop.toml`, with generic functions instantiated.
 pub fn load_source(input: &Path, config: &roop_config::Config) -> Result<Program, CliError> {
+    Ok(roop_opt::strip_tests(&load_with_tests(input, config)?))
+}
+
+/// The same, with the `test` items kept.
+pub fn load_with_tests(input: &Path, config: &roop_config::Config) -> Result<Program, CliError> {
     let program = roop_modules::load_program(input, config).map_err(CliError::Modules)?;
     roop_opt::monomorphize(&program).map_err(CliError::Generics)
 }
