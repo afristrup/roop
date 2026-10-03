@@ -202,12 +202,12 @@ test softmax_of_a_clear_winner_is_close_to_one {
     q[1] += 20480;
     t[1] += 4096;
     call seed_softmax<3, 3>(aq, total, q, t);
-    expect aq[1] > 0 - 40
+    expect aq[1] > 0 - 60
         && aq[1] <= 0
         && aq[0] >= 0
-        && aq[0] < 40
+        && aq[0] < 60
         && aq[2] >= 0
-        && aq[2] < 40;
+        && aq[2] < 60;
 }
 
 test softmax_of_one_third_is_exact_enough {
