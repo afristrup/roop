@@ -377,7 +377,12 @@ fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
     let out = roop(&dir, &["lean", "prog.roop", "--check"]);
     assert!(out.status.success(), "{}", stderr(&out));
     let report = String::from_utf8_lossy(&out.stdout).into_owned();
-    for name in ["weave__mlp__mlp__4_3", "weave__mlp__mlp_back__4_3", "fwd", "back"] {
+    for name in [
+        "weave__mlp__mlp__4_3",
+        "weave__mlp__mlp_back__4_3",
+        "fwd",
+        "back",
+    ] {
         assert!(report.contains(name), "{name} missing: {report}");
     }
     assert!(report.contains("Lean accepted the file"), "{report}");

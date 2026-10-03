@@ -1,4 +1,4 @@
-.PHONY: install-cli
+.PHONY: install
 
-install-cli:
+install:
 	cargo install --path crates/roop
