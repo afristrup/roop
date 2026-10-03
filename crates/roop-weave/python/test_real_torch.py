@@ -36,6 +36,10 @@ def models():
             nn.Linear(6, 4), nn.Tanh(), nn.Linear(4, 6),
             nn.Conv1d(2, 2, 3, padding=1), nn.Conv1d(3, 3, 3, padding="same", bias=False),
         ),
+        "rmsnorm_blocks": nn.Sequential(
+            nn.Linear(4, 5), nn.RMSNorm(5, eps=1e-2), nn.GELU(), nn.Linear(5, 4),
+            nn.Linear(4, 3), nn.RMSNorm(3, eps=1e-2, elementwise_affine=False), nn.Tanh(), nn.Linear(3, 4),
+        ),
         "attention_and_mlp": nn.Sequential(
             LinearAttention(2, 2), nn.Linear(4, 3), nn.Tanh(), nn.Linear(3, 4), LinearAttention(2, 2),
         ),
@@ -129,6 +133,18 @@ class RealTorch(unittest.TestCase):
         with self.assertRaisesRegex(Unsupported, "pass width"):
             export(net)
         self.assertEqual(export(net, width=6)["width"], 6)
+
+    def test_rmsnorm_inside_a_perceptron_is_a_norm_of_the_block(self):
+        net = nn.Sequential(nn.Linear(4, 5), nn.RMSNorm(5, eps=1e-2), nn.ReLU(), nn.Linear(5, 4))
+        spec = export(net)
+        self.assertEqual(spec["layers"][0]["norm"]["eps"], 1e-2)
+        self.assertEqual(len(spec["layers"][0]["norm"]["gain"]), 5)
+
+    def test_rmsnorm_with_an_epsilon_below_the_grid_or_out_of_place_is_refused(self):
+        with self.assertRaisesRegex(Unsupported, "below 1/4096"):
+            export(nn.Sequential(nn.Linear(4, 5), nn.RMSNorm(5), nn.ReLU(), nn.Linear(5, 4)))
+        with self.assertRaisesRegex(Unsupported, "RMSNorm must be in a Linear"):
+            export(nn.Sequential(nn.Linear(4, 5), nn.RMSNorm(5, eps=1e-2), nn.ReLU()))
 
     def test_a_residual_connection_is_refused_because_the_graph_branches(self):
         class Residual(nn.Module):

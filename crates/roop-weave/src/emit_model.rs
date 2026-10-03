@@ -1,5 +1,6 @@
 use crate::{
-    Model, emit_backward, emit_forward, emit_grad, emit_load, emit_step, emit_tests, emit_train,
+    Model, emit_backward, emit_forward, emit_grad, emit_load, emit_main, emit_step, emit_tests,
+    emit_train,
 };
 
 /// The roop file for a model: its forward pass, backward
@@ -8,7 +9,7 @@ use crate::{
 /// checks the rest against a reference in doubles, with `<name>_load` to give it
 /// the weights. The loader is left out otherwise, since Lean cannot prove a long
 /// run of writes into the rows of a matrix and a model without it is proved whole.
-pub fn emit_model(model: &Model, tests: bool, batch: Option<usize>) -> String {
+pub fn emit_model(model: &Model, tests: bool, batch: Option<usize>, main: bool) -> String {
     let mut parts = vec![
         "// Written by roop-weave. Every layer is reversible, so the backward pass\n// rebuilds the input from the output and stores no activation.\n\nuse weave::*;\n"
             .to_string(),
@@ -20,8 +21,13 @@ pub fn emit_model(model: &Model, tests: bool, batch: Option<usize>) -> String {
     if let Some(batch) = batch {
         parts.push(emit_train(model, batch));
     }
-    if tests {
+    if tests || main {
         parts.push(emit_load(model));
+    }
+    if main {
+        parts.push(emit_main(model));
+    }
+    if tests {
         parts.push(emit_tests(model));
     }
     parts.join("\n")
