@@ -1,5 +1,6 @@
 mod auto;
 mod capture_env;
+mod gemm;
 mod gen_parallel_cpu;
 mod gpu;
 mod int_op;
@@ -12,6 +13,7 @@ mod parallel_prologue;
 
 pub use auto::*;
 pub use capture_env::*;
+pub use gemm::*;
 pub use gen_parallel_cpu::*;
 pub use gpu::*;
 pub use int_op::*;

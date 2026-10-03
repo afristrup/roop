@@ -2,6 +2,7 @@ mod chan;
 mod concurrent;
 mod gpu;
 mod io;
+mod kernels;
 mod parallel;
 mod world;
 

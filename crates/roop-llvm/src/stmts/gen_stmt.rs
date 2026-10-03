@@ -1,6 +1,6 @@
 use crate::{
     CodegenError, Dialect, Dir, FnGen, gen_ancilla, gen_block, gen_borrow, gen_call, gen_chan,
-    gen_from, gen_if, gen_keep, gen_logged, gen_match, gen_overwrite, gen_parallel_auto,
+    gen_from, gen_gemm, gen_if, gen_keep, gen_logged, gen_match, gen_overwrite, gen_parallel_auto,
     gen_parallel_cpu, gen_parallel_gpu, gen_pop, gen_push, gen_recv, gen_send, gen_swap, gen_try,
     gen_update, parallel_attr,
 };
@@ -21,26 +21,33 @@ pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError
             body,
             step,
             until,
-        } => match parallel_attr(stmt).filter(|_| g.dialect == Dialect::Host) {
-            None => gen_from(g, entry, body, step, until, dir),
-            Some(None) => gen_parallel_auto(g, entry, body, step, until, dir),
-            Some(Some(target)) => {
-                if !g.ctx.options.parallel.allowed.contains(&target) {
-                    return Err(CodegenError::Unsupported(
-                        "a parallel target disabled in Roop.toml",
-                    ));
-                }
-                match target {
-                    Target::Cpu => gen_parallel_cpu(g, entry, body, step, until, dir),
-                    Target::Cuda => {
-                        gen_parallel_gpu(g, Dialect::Nvptx, entry, body, step, until, dir)
+        } => {
+            let parallel = parallel_attr(stmt).filter(|_| g.dialect == Dialect::Host);
+            let on_cpu = matches!(parallel, Some(None | Some(Target::Cpu)));
+            if on_cpu && gen_gemm(g, entry, body, step, until, dir)? {
+                return Ok(());
+            }
+            match parallel {
+                None => gen_from(g, entry, body, step, until, dir),
+                Some(None) => gen_parallel_auto(g, entry, body, step, until, dir),
+                Some(Some(target)) => {
+                    if !g.ctx.options.parallel.allowed.contains(&target) {
+                        return Err(CodegenError::Unsupported(
+                            "a parallel target disabled in Roop.toml",
+                        ));
                     }
-                    Target::Metal => {
-                        gen_parallel_gpu(g, Dialect::Air, entry, body, step, until, dir)
+                    match target {
+                        Target::Cpu => gen_parallel_cpu(g, entry, body, step, until, dir),
+                        Target::Cuda => {
+                            gen_parallel_gpu(g, Dialect::Nvptx, entry, body, step, until, dir)
+                        }
+                        Target::Metal => {
+                            gen_parallel_gpu(g, Dialect::Air, entry, body, step, until, dir)
+                        }
                     }
                 }
             }
-        },
+        }
         StmtKind::Match { scrutinee, arms } => gen_match(g, scrutinee, arms, dir),
         StmtKind::Ancilla {
             name,
