@@ -15,7 +15,7 @@ pub fn find_non_unwindable(
         let marked = stmt.attrs.iter().find_map(|attr| match attr {
             Attr::Parallel { .. } => Some("a parallel loop"),
             Attr::Concurrent => Some("a concurrent task"),
-            Attr::Auto => None,
+            Attr::Auto { .. } | Attr::Label(_) => None,
         });
         let found = if marked.is_some() {
             marked

@@ -26,6 +26,10 @@
         ]
       }
     },
+    "lifetime": {
+      "type": "PATTERN",
+      "value": "'[A-Za-z_][A-Za-z0-9_]*"
+    },
     "identifier": {
       "type": "PATTERN",
       "value": "[A-Za-z][A-Za-z0-9_]*|_[A-Za-z0-9_]+"
@@ -1517,14 +1521,70 @@
         }
       ]
     },
+    "auto": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "auto"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "<"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "lifetime"
+                },
+                {
+                  "type": "STRING",
+                  "value": ">"
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        }
+      ]
+    },
+    "label": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "lifetime"
+        },
+        {
+          "type": "STRING",
+          "value": ":"
+        }
+      ]
+    },
     "_statement": {
       "type": "SEQ",
       "members": [
         {
           "type": "REPEAT",
           "content": {
-            "type": "SYMBOL",
-            "name": "attribute"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "attribute"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "label"
+              }
+            ]
           }
         },
         {
@@ -1990,8 +2050,8 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "STRING",
-              "value": "auto"
+              "type": "SYMBOL",
+              "name": "auto"
             },
             {
               "type": "BLANK"
@@ -2051,8 +2111,8 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "STRING",
-              "value": "auto"
+              "type": "SYMBOL",
+              "name": "auto"
             },
             {
               "type": "BLANK"

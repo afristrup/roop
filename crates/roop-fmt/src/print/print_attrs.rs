@@ -7,7 +7,7 @@ pub fn print_attrs(attrs: &[Attr]) -> Vec<Doc> {
         .iter()
         .flat_map(|attr| {
             let text = match attr {
-                Attr::Auto => return Vec::new(),
+                Attr::Auto { .. } | Attr::Label(_) => return Vec::new(),
                 Attr::Concurrent => "#[concurrent]".to_string(),
                 Attr::Parallel { target: None } => "#[parallel]".to_string(),
                 Attr::Parallel { target: Some(t) } => {

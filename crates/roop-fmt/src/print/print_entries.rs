@@ -24,7 +24,7 @@ pub fn print_entries(ctx: &Ctx, lines: &mut Lines, stmts: &[Stmt]) {
             },
         ) = (
             last,
-            stmt.attrs.iter().all(|a| *a == Attr::Auto),
+            stmt.attrs.iter().all(|a| matches!(a, Attr::Auto { .. })),
             &stmt.kind,
         ) {
             let header = Doc::concat(vec![

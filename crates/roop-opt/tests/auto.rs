@@ -37,3 +37,47 @@ fn an_auto_ancilla_must_start_at_zero() {
         Err(AutoError::StartsNonZero { name: "x".into() })
     );
 }
+
+#[test]
+fn a_region_lets_go_of_an_ancilla_declared_outside_each_round() {
+    let src = "fn f(i: &mut i64, a: &i64) {
+        auto<'round> ancilla x: i64 = 0;
+        'round: from i == 0 {
+            x += a;
+        } loop { i += 1; } until i == 3;
+        i -= 3;
+    }";
+    assert_eq!(check(&expanded(src).unwrap()), Ok(()));
+}
+
+#[test]
+fn a_region_may_be_a_labeled_block() {
+    let src = "fn f(a: &i64) {
+        auto<'part> ancilla x: i64 = 0;
+        'part: { x += a; }
+    }";
+    assert_eq!(check(&expanded(src).unwrap()), Ok(()));
+}
+
+#[test]
+fn a_region_that_is_not_there_is_an_error() {
+    assert_eq!(
+        expanded("fn f() { auto<'gone> ancilla x: i64 = 0; }"),
+        Err(AutoError::UnknownRegion {
+            name: "x".into(),
+            region: "gone".into()
+        })
+    );
+}
+
+#[test]
+fn a_label_on_something_else_is_not_a_region() {
+    let src = "fn f(a: &i64) {
+        auto<'r> ancilla x: i64 = 0;
+        'r: x += a;
+    }";
+    assert_eq!(
+        expanded(src),
+        Err(AutoError::NotARegion { region: "r".into() })
+    );
+}

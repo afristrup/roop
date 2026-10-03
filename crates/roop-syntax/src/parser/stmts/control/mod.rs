@@ -1,4 +1,5 @@
 mod attr;
+mod auto_attr;
 mod borrow_stmt;
 mod chan_stmt;
 mod irrev_stmt;
@@ -14,6 +15,7 @@ mod send_stmt;
 mod try_stmt;
 
 pub use attr::*;
+pub use auto_attr::*;
 pub use borrow_stmt::*;
 pub use chan_stmt::*;
 pub use irrev_stmt::*;

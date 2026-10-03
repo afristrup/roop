@@ -295,7 +295,26 @@ from lines == 0 {
 ```
 
 What stays out of the loop body is what the loop itself looks at, here `eof` and
-`lines`, so those are let go of after it. Write `keep` by hand when you want it
+`lines`, so those are let go of after it.
+
+**Explicit lifetimes.** Where a variable is let go of is its lifetime, and by
+default it is the end of its block. Name a shorter one with a label, the way Rust
+names a region: `'round: from ...` labels a loop, or `'part: { ... }` a block, and
+`auto<'round> ancilla x: T = 0;` declares `x` outside it but lets go of it at the
+end of every run of that block, as well as where its own block ends. So the
+buffer can be declared once, among the others, and still start each round empty:
+
+```rust
+auto<'round> ancilla line: [u8; 4096] = 0;
+auto<'round> ancilla len: i64 = 0;
+'round: from lines == 0 {
+    call read_line(line, len, eof);
+    ...
+} loop { lines += 1; } until eof == 1;
+```
+
+A label that nothing follows, or that is on anything but a loop or a block, is an
+error. Labels are only names for `auto`; they change nothing else. Write `keep` by hand when you want it
 somewhere else, or `ancilla` when you want the checker to prove the ancilla is
 undone, which is the stronger guarantee and costs no history.
 

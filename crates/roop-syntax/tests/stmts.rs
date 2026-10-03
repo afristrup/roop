@@ -134,3 +134,22 @@ fn keep_is_a_statement_of_one_place() {
         roop_syntax::StmtKind::Keep(_)
     ));
 }
+
+#[test]
+fn an_auto_names_its_region_and_a_statement_its_label() {
+    let src = "fn f(i: &mut i64) { auto<'r> ancilla x: i64 = 0; 'r: from i == 0 { x += 1; } until i == 1; }";
+    let program = parse(src).unwrap();
+    let roop_syntax::Item::Fn(f) = &program.items[0] else {
+        panic!("not a function");
+    };
+    let roop_syntax::StmtKind::Ancilla { body, .. } = &f.body.stmts[0].kind else {
+        panic!("not an ancilla");
+    };
+    assert_eq!(
+        f.body.stmts[0].attrs,
+        [roop_syntax::Attr::Auto {
+            region: Some("r".into())
+        }]
+    );
+    assert_eq!(body.stmts[0].attrs, [roop_syntax::Attr::Label("r".into())]);
+}

@@ -1,6 +1,6 @@
 use crate::{
-    Ctx, Doc, auto_prefix, print_attrs, print_block, print_call, print_expr, print_from, print_if,
-    print_match, print_place, print_try, print_type, update_text,
+    Ctx, Doc, auto_prefix, label_prefix, print_attrs, print_block, print_call, print_expr,
+    print_from, print_if, print_match, print_place, print_try, print_type, update_text,
 };
 use roop_syntax::{OverwriteOp, Stmt, StmtKind};
 
@@ -122,6 +122,7 @@ pub fn print_stmt(ctx: &Ctx, stmt: &Stmt) -> Doc {
         } => print_call("uncall", callee, generics, args),
     };
     let mut parts = print_attrs(&stmt.attrs);
+    parts.push(Doc::text(label_prefix(stmt)));
     parts.push(body);
     Doc::concat(parts)
 }

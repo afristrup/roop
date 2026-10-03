@@ -1,6 +1,7 @@
 // Rotates each letter of its input 13 places. The rotation is a bijection on
 // bytes, so it is reversible, and so is the loop around it: running `rot13`
-// twice, or backward, gives the text back.
+// twice, or backward, gives the text back. The line is let go of at the end of
+// every round of the loop labeled 'round, though it is declared once.
 
 use std::io::*;
 use std::text::*;
@@ -8,9 +9,9 @@ use std::text::*;
 fn main() {
     auto ancilla eof: i64 = 0;
     auto ancilla lines: i64 = 0;
-    from lines == 0 {
-        auto ancilla line: [u8; 4096] = 0;
-        auto ancilla len: i64 = 0;
+    auto<'round> ancilla line: [u8; 4096] = 0;
+    auto<'round> ancilla len: i64 = 0;
+    'round: from lines == 0 {
         call read_line(line, len, eof);
         if eof == 0 {
             call rot13(line);

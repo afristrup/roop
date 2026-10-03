@@ -372,3 +372,9 @@ fn auto_ancillas_keep_their_keyword() {
         "fn f(a: &i64) {\n    auto ancilla x: i64 = 0 {\n        x += a;\n    }\n    x -= a;\n}\n";
     assert!(fmt(block).contains("auto ancilla x: i64 = 0 {"));
 }
+
+#[test]
+fn regions_and_labels_keep_their_form() {
+    let src = "fn f(i: &mut i64, a: &i64) {\n    auto<'round> ancilla x: i64 = 0;\n    'round: from i == 0 { x += a; } loop { i += 1; } until i == 3;\n    i -= 3;\n}\n";
+    assert_eq!(fmt(src), src);
+}

@@ -8,6 +8,7 @@ use std::collections::HashSet;
 pub fn settles(stmt: &Stmt, name: &str, mutability: &Mutability) -> bool {
     match &stmt.kind {
         StmtKind::Keep(Place::Var(kept)) => kept == name,
+        StmtKind::Block(block) => ends_kept(block, name, mutability),
         StmtKind::From { body, step, .. } => {
             ends_kept(body, name, mutability)
                 && (!writes(step, name, mutability) || ends_kept(step, name, mutability))

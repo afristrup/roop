@@ -76,3 +76,7 @@
 ["(" ")" "[" "]" "{" "}"] @punctuation.bracket
 ["," ";" ":" "::" "." "#"] @punctuation.delimiter
 (wildcard) @constant
+
+(lifetime) @label
+
+(lifetime) @label

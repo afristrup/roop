@@ -1,4 +1,4 @@
-use crate::{AutoError, expand_block};
+use crate::{AutoError, expand_block, strip_labels};
 use roop_syntax::{Item, Program};
 
 /// Writes out the keeps of every `auto ancilla`, placed where its block ends,
@@ -9,6 +9,7 @@ pub fn expand_auto(program: &Program) -> Result<Program, AutoError> {
     for item in &mut items {
         if let Item::Fn(f) = item {
             expand_block(&mut f.body)?;
+            strip_labels(&mut f.body);
         }
     }
     Ok(Program { items })

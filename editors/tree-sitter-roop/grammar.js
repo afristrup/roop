@@ -35,6 +35,8 @@ module.exports = grammar({
 
     comment: (_) => token(seq("//", /[^\n]*/)),
 
+    lifetime: (_) => /'[A-Za-z_][A-Za-z0-9_]*/,
+
     identifier: (_) => /[A-Za-z][A-Za-z0-9_]*|_[A-Za-z0-9_]+/,
     integer: (_) => /[0-9]+/,
     float: (_) => /[0-9]+\.[0-9]+/,
@@ -248,9 +250,13 @@ module.exports = grammar({
         "]",
       ),
 
+    auto: ($) => seq("auto", optional(seq("<", $.lifetime, ">"))),
+
+    label: ($) => seq($.lifetime, ":"),
+
     _statement: ($) =>
       seq(
-        repeat($.attribute),
+        repeat(choice($.attribute, $.label)),
         choice(
           $.update_statement,
           $.swap_statement,
@@ -337,7 +343,7 @@ module.exports = grammar({
 
     ancilla_statement: ($) =>
       seq(
-        optional("auto"),
+        optional($.auto),
         "ancilla",
         field("name", $.identifier),
         ":",
@@ -349,7 +355,7 @@ module.exports = grammar({
 
     ancilla_declaration: ($) =>
       seq(
-        optional("auto"),
+        optional($.auto),
         "ancilla",
         field("name", $.identifier),
         ":",

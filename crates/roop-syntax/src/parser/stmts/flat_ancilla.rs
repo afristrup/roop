@@ -1,9 +1,9 @@
-use crate::{Entry, Err, Token, TokenInput, expr, ident, ty};
+use crate::{Entry, Err, Token, TokenInput, auto_attr, expr, ident, ty};
 use chumsky::prelude::*;
 
 /// `ancilla name: T = e;`, an ancilla that lasts to the end of its block.
 pub fn flat_ancilla<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Entry, Err<'a>> + Clone {
-    just(Token::Auto)
+    auto_attr()
         .or_not()
         .then_ignore(just(Token::Ancilla))
         .then(ident())
@@ -18,7 +18,7 @@ pub fn flat_ancilla<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Entry, Err<'a
                 name,
                 ty,
                 init,
-                auto: auto.is_some(),
+                auto,
                 start: span.start,
                 after: span.end,
             }
