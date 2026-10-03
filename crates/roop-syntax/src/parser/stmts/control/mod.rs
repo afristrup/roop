@@ -1,7 +1,9 @@
 mod attr;
+mod auto_attr;
 mod borrow_stmt;
 mod chan_stmt;
 mod irrev_stmt;
+mod keep_stmt;
 mod logged_stmt;
 mod match_stmt;
 mod overwrite_stmt;
@@ -13,9 +15,11 @@ mod send_stmt;
 mod try_stmt;
 
 pub use attr::*;
+pub use auto_attr::*;
 pub use borrow_stmt::*;
 pub use chan_stmt::*;
 pub use irrev_stmt::*;
+pub use keep_stmt::*;
 pub use logged_stmt::*;
 pub use match_stmt::*;
 pub use overwrite_stmt::*;

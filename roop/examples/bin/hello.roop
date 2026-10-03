@@ -1,9 +1,13 @@
-// Hello, world. `main` is where a program starts. It is irrev, since writing
-// to the screen cannot be taken back, and `roop run examples/bin/hello.roop`
-// builds and runs it.
+// Hello, world. `main` is where a program starts, and it is reversible like
+// any function: writing is pending until the program ends, so even this
+// could be taken back. `roop run examples/bin/hello.roop` builds and runs it.
 
 use std::io::println;
 
-irrev fn main() {
+fn main() {
     call println("Hello, world!");
+}
+
+test hello_can_be_taken_back {
+    call main();
 }

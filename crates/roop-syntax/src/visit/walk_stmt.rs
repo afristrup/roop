@@ -49,6 +49,7 @@ pub fn walk_stmt(v: &mut dyn Visitor, kind: &mut StmtKind) {
             walk_place(v, stack);
             walk_place(v, target);
         }
+        StmtKind::Keep(place) => walk_place(v, place),
         StmtKind::Logged { history, body } => {
             walk_place(v, history);
             walk_block(v, body);

@@ -13,8 +13,8 @@ fn announce() {
     call println("step two");
 }
 
-irrev fn main() {
-    ancilla failed: bool = false;
+fn main() {
+    auto ancilla failed: bool = false;
     try {
         call announce();
         expect false;
@@ -22,4 +22,8 @@ irrev fn main() {
     } catch_rollback {
         call println("rolled back: nothing from announce was shown");
     } -> failed;
+}
+
+test undo_can_be_taken_back {
+    call main();
 }

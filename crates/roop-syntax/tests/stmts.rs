@@ -122,3 +122,34 @@ fn parses_attributes_in_either_order() {
     let src = "fn f(x: &mut i64) { #[concurrent] #[parallel] { x += 1; } }";
     assert!(parse(src).is_ok());
 }
+
+#[test]
+fn keep_is_a_statement_of_one_place() {
+    let program = parse("fn f(a: &mut [i64; 2]) { keep a[1]; }").unwrap();
+    let roop_syntax::Item::Fn(f) = &program.items[0] else {
+        panic!("not a function");
+    };
+    assert!(matches!(
+        f.body.stmts[0].kind,
+        roop_syntax::StmtKind::Keep(_)
+    ));
+}
+
+#[test]
+fn an_auto_names_its_region_and_a_statement_its_label() {
+    let src = "fn f(i: &mut i64) { auto<'r> ancilla x: i64 = 0; 'r: from i == 0 { x += 1; } until i == 1; }";
+    let program = parse(src).unwrap();
+    let roop_syntax::Item::Fn(f) = &program.items[0] else {
+        panic!("not a function");
+    };
+    let roop_syntax::StmtKind::Ancilla { body, .. } = &f.body.stmts[0].kind else {
+        panic!("not an ancilla");
+    };
+    assert_eq!(
+        f.body.stmts[0].attrs,
+        [roop_syntax::Attr::Auto {
+            region: Some("r".into())
+        }]
+    );
+    assert_eq!(body.stmts[0].attrs, [roop_syntax::Attr::Label("r".into())]);
+}

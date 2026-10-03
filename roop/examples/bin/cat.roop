@@ -1,12 +1,11 @@
 // Copies the files it is given to standard output, or standard input when it
-// gets none. The status is 1 when a file could not be read.
+// gets none. The status is the number of files it could not read.
 
 use std::fs::read_file;
 use std::io::*;
 use std::process::*;
-use std::text::clear;
 
-irrev fn main(status: &mut i64) {
+fn main(status: &mut i64) {
     ancilla argc: i64 = 0;
     call arg_count(argc);
     if argc < 2 {
@@ -14,35 +13,35 @@ irrev fn main(status: &mut i64) {
     } else {
         call copy_files(argc, status);
     } fi argc < 2;
+    uncall arg_count(argc);
 }
 
-irrev fn copy_stdin() {
-    ancilla line: [u8; 4096] = 0;
-    ancilla len: i64 = 0;
-    ancilla eof: i64 = 0;
-    ancilla first: i64 = 1;
-    from first == 1 {
+// A line is read and written, and let go of when the round ends, so the next
+// one is read into an empty buffer. The count of lines is what tells the first
+// time round the loop from the others.
+fn copy_stdin() {
+    auto ancilla eof: i64 = 0;
+    auto ancilla lines: i64 = 0;
+    from lines == 0 {
+        auto ancilla line: [u8; 4096] = 0;
+        auto ancilla len: i64 = 0;
         call read_line(line, len, eof);
         if eof == 0 {
             call print_buf(line, len);
             call print("\n");
         } fi eof == 0;
-    } loop {
-        first = 0;
-        call clear(line, len);
-        eof = 0;
-    } until eof == 1;
+    } loop { lines += 1; } until eof == 1;
 }
 
-irrev fn copy_files(argc: &i64, status: &mut i64) {
-    ancilla k: i64 = 1;
-    ancilla path: [u8; 512] = 0;
-    ancilla path_len: i64 = 0;
-    ancilla text: [u8; 65536] = 0;
-    ancilla len: i64 = 0;
-    ancilla failed: i64 = 0;
-    from k == 1 {
-        call arg(k, path, path_len);
+fn copy_files(argc: &i64, status: &mut i64) {
+    ancilla k: i64 = 0;
+    from k == 0 {
+        auto ancilla path: [u8; 512] = 0;
+        auto ancilla path_len: i64 = 0;
+        auto ancilla text: [u8; 65536] = 0;
+        auto ancilla len: i64 = 0;
+        auto ancilla failed: i64 = 0;
+        call arg(k + 1, path, path_len);
         call read_file(path, text, len, failed);
         if failed == 0 {
             call print_buf(text, len);
@@ -50,12 +49,13 @@ irrev fn copy_files(argc: &i64, status: &mut i64) {
             call eprint("cat: cannot read ");
             call eprint_buf(path, path_len);
             call eprint("\n");
-            status = 1;
+            status += 1;
         } fi failed == 0;
-    } loop {
-        k += 1;
-        call clear(path, path_len);
-        call clear(text, len);
-        failed = 0;
-    } until k == argc - 1;
+    } loop { k += 1; } until k == argc - 2;
+    k -= argc - 2;
+}
+
+test cat_can_be_taken_back {
+    status: i64;
+    call main(status);
 }

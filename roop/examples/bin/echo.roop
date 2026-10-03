@@ -1,25 +1,28 @@
-// Prints its arguments, separated by spaces. The status that `main` takes is
-// the exit status of the program.
+// Prints its arguments, separated by spaces. An `auto ancilla` is let go of
+// where its block ends, which hands it to the world instead of losing it, and
+// the word is declared inside the loop, so each round starts with an empty one.
 
 use std::io::*;
 use std::process::*;
-use std::text::clear;
 
-irrev fn main(status: &mut i64) {
+fn main() {
     ancilla argc: i64 = 0;
-    ancilla k: i64 = 1;
-    ancilla word: [u8; 256] = 0;
-    ancilla len: i64 = 0;
     call arg_count(argc);
     if argc >= 2 {
-        from k == 1 {
-            call arg(k, word, len);
+        ancilla k: i64 = 0;
+        from k == 0 {
+            auto ancilla word: [u8; 256] = 0;
+            auto ancilla len: i64 = 0;
+            call arg(k + 1, word, len);
             call print_buf(word, len);
-            if k < argc - 1 { call print(" "); } fi k < argc - 1;
-        } loop {
-            k += 1;
-            call clear(word, len);
-        } until k == argc - 1;
+            if k < argc - 2 { call print(" "); } fi k < argc - 2;
+        } loop { k += 1; } until k == argc - 2;
+        k -= argc - 2;
     } fi argc >= 2;
     call print("\n");
+    uncall arg_count(argc);
+}
+
+test echo_can_be_taken_back {
+    call main();
 }

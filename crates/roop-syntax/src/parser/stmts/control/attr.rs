@@ -1,5 +1,5 @@
 use crate::{Attr, Target, Token};
-use crate::{Err, TokenInput, ident};
+use crate::{Err, TokenInput, auto_attr, ident, lifetime};
 use chumsky::prelude::*;
 
 /// `#[concurrent]`, `#[parallel]` or `#[parallel(cpu | cuda | metal)]`.
@@ -27,9 +27,12 @@ pub fn attr<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Attr, Err<'a>> + Clon
         )
         .map(|target| Attr::Parallel { target });
     let concurrent = named("concurrent").to(Attr::Concurrent);
-    just(Token::Hash).ignore_then(
-        parallel
-            .or(concurrent)
-            .delimited_by(just(Token::LBracket), just(Token::RBracket)),
-    )
+    just(Token::Hash)
+        .ignore_then(
+            parallel
+                .or(concurrent)
+                .delimited_by(just(Token::LBracket), just(Token::RBracket)),
+        )
+        .or(auto_attr())
+        .or(lifetime().then_ignore(just(Token::Colon)).map(Attr::Label))
 }

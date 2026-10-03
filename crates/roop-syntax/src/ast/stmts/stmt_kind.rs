@@ -60,6 +60,10 @@ pub enum StmtKind {
         stack: Place,
         target: Place,
     },
+    /// Hands the value of `place` to the world, which remembers it, leaving the
+    /// place zero. Running it backward takes the value back, so it releases a
+    /// buffer without losing anything.
+    Keep(Place),
     /// Destroying updates are allowed inside; each pushes what it destroys on
     /// `history`, so the block stays reversible.
     Logged {

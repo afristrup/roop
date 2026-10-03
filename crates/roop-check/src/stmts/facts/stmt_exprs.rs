@@ -21,6 +21,7 @@ pub fn stmt_exprs(stmt: &Stmt) -> Vec<&Expr> {
         | StmtKind::Recv { .. }
         | StmtKind::Push { .. }
         | StmtKind::Pop { .. }
+        | StmtKind::Keep(_)
         | StmtKind::Logged { .. } => Vec::new(),
     }
 }

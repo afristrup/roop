@@ -13,6 +13,7 @@ pub fn load_with_tests(input: &Path, config: &roop_config::Config) -> Result<Pro
     let program = roop_modules::load_program(input, config).map_err(CliError::Modules)?;
     let program = roop_opt::expand_einsum(&program).map_err(CliError::Einsum)?;
     let program = roop_opt::expand_bennett(&program).map_err(CliError::Bennett)?;
+    let program = roop_opt::expand_auto(&program).map_err(CliError::Auto)?;
     let program = roop_opt::infer_lengths(&program);
     roop_opt::monomorphize(&program).map_err(CliError::Generics)
 }

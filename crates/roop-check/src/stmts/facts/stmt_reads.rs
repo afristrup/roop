@@ -20,6 +20,7 @@ pub fn stmt_reads<'a>(stmt: &'a Stmt, out: &mut HashSet<&'a str>) {
             place_vars(stack, out);
             place_vars(p, out);
         }
+        StmtKind::Keep(place) => place_vars(place, out),
         StmtKind::Call { args, .. } | StmtKind::Uncall { args, .. } => {
             for arg in args {
                 expr_vars(arg, out);

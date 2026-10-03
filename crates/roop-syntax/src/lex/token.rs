@@ -55,6 +55,10 @@ pub enum Token<'a> {
     Push,
     #[token("pop")]
     Pop,
+    #[token("keep")]
+    Keep,
+    #[token("auto")]
+    Auto,
     #[token("logged")]
     Logged,
     #[token("empty")]
@@ -88,6 +92,8 @@ pub enum Token<'a> {
     Str(&'a str),
     #[regex(r"b'([^'\\\n]|\\.)'")]
     Byte(&'a str),
+    #[regex(r"'[A-Za-z_][A-Za-z0-9_]*")]
+    Lifetime(&'a str),
 
     #[token("#")]
     Hash,
@@ -170,7 +176,12 @@ pub enum Token<'a> {
 impl fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Ident(s) | Self::Int(s) | Self::Float(s) | Self::Str(s) | Self::Byte(s) => {
+            Self::Ident(s)
+            | Self::Int(s)
+            | Self::Float(s)
+            | Self::Str(s)
+            | Self::Byte(s)
+            | Self::Lifetime(s) => {
                 write!(f, "{s}")
             }
             other => write!(f, "{other:?}"),

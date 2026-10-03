@@ -1,7 +1,9 @@
+mod auto_prefix;
 mod escape;
 mod float_text;
 mod format_source;
 mod is_simple;
+mod label_prefix;
 mod lines;
 mod op_text;
 mod precedence;
@@ -36,10 +38,12 @@ mod print_use;
 mod same_program;
 mod update_text;
 
+pub use auto_prefix::*;
 pub use escape::*;
 pub use float_text::*;
 pub use format_source::*;
 pub use is_simple::*;
+pub use label_prefix::*;
 pub use lines::*;
 pub use op_text::*;
 pub use precedence::*;

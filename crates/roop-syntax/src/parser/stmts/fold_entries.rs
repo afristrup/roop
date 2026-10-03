@@ -11,6 +11,7 @@ pub fn fold_entries(entries: Vec<Entry>, end: usize) -> Vec<Stmt> {
                 name,
                 ty,
                 init,
+                auto,
                 start,
                 after,
             } => {
@@ -19,7 +20,7 @@ pub fn fold_entries(entries: Vec<Entry>, end: usize) -> Vec<Stmt> {
                     span: Span::from(after..end),
                 };
                 rest = vec![Stmt {
-                    attrs: Vec::new(),
+                    attrs: auto.into_iter().collect(),
                     kind: StmtKind::Ancilla {
                         name,
                         ty,

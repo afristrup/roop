@@ -1,4 +1,4 @@
-use crate::{CodegenError, Dir, FnGen, call_arguments, resolve};
+use crate::{CodegenError, Dir, FnGen, call_arguments, entry_symbol, resolve};
 use roop_syntax::Expr;
 
 /// A call to the failure-atomic variant of the callee, which returns nonzero
@@ -15,15 +15,16 @@ pub fn gen_call_status(
     let passed = call_arguments(g, &def.params, args, def.external)?;
     if def.external {
         // The runtime reports a failure in a status argument, not by failing.
-        let symbol = if inverse {
-            format!("{callee}_inv")
-        } else {
-            callee.into()
-        };
+        let base = entry_symbol(callee);
+        let symbol = if inverse { format!("{base}_inv") } else { base };
         g.emit(&format!("call void @{symbol}({})", passed.join(", ")));
         return Ok(());
     }
-    let symbol = format!("{callee}{}_try", if inverse { "_inv" } else { "" });
+    let symbol = format!(
+        "{}{}_try",
+        entry_symbol(callee),
+        if inverse { "_inv" } else { "" }
+    );
     let status = format!("%{}", g.fresh("t"));
     g.emit(&format!(
         "{status} = call i32 @{symbol}({})",

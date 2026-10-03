@@ -64,6 +64,7 @@ fn rename_stmt(stmt: &Stmt, from: &str, to: &str) -> Stmt {
             stack: p(stack),
             source: p(source),
         },
+        StmtKind::Keep(place) => StmtKind::Keep(p(place)),
         StmtKind::Pop { stack, target } => StmtKind::Pop {
             stack: p(stack),
             target: p(target),

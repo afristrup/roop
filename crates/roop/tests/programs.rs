@@ -572,3 +572,18 @@ fn the_examples_are_formatted() {
     );
     assert!(out.status.success(), "{}{}", stdout(&out), stderr(&out));
 }
+
+#[test]
+fn the_example_programs_need_no_irrev() {
+    for entry in std::fs::read_dir(library().join("examples/bin")).unwrap() {
+        let path = entry.unwrap().path();
+        let source = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            !source
+                .lines()
+                .any(|l| !l.trim_start().starts_with("//") && l.contains("irrev")),
+            "{} uses irrev",
+            path.display()
+        );
+    }
+}

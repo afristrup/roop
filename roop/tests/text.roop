@@ -108,3 +108,26 @@ test is_digit_recognises_digits {
     call is_digit(letter, yes_letter);
     expect yes_digit == 1 && yes_letter == 0;
 }
+
+test parse_int_reads_a_number {
+    value: i64, ok: i64, n: i64;
+    n += 4;
+    call parse_int("-123", n, value, ok);
+    expect value == -123 && ok == 1;
+}
+
+test parse_int_flags_what_is_not_a_number {
+    value: i64, ok: i64, n: i64;
+    n += 3;
+    call parse_int("12x", n, value, ok);
+    expect ok == 0 && value == 0;
+}
+
+test keep_lets_go_of_a_value_and_backward_takes_it_back {
+    x: i64, buf: [u8; 4];
+    x += 5;
+    buf[1] += b'z';
+    keep x;
+    keep buf;
+    expect x == 0 && buf[1] == 0;
+}

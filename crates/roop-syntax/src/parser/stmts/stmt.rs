@@ -1,7 +1,8 @@
 use crate::{Block, Expr, Place, Stmt, StmtKind, Token, UpdateOp, comma_list};
 use crate::{
-    Err, TokenInput, attr, block, borrow_stmt, chan_stmt, expr, ident, irrev_stmt, logged_stmt,
-    match_stmt, overwrite_stmt, place, pop_stmt, push_stmt, recv_stmt, send_stmt, try_stmt, ty,
+    Err, TokenInput, attr, block, borrow_stmt, chan_stmt, expr, ident, irrev_stmt, keep_stmt,
+    logged_stmt, match_stmt, overwrite_stmt, place, pop_stmt, push_stmt, recv_stmt, send_stmt,
+    try_stmt, ty,
 };
 use chumsky::prelude::*;
 
@@ -152,6 +153,7 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
             .or(logged)
             .or(push_stmt())
             .or(pop_stmt())
+            .or(keep_stmt())
             .or(overwrite_stmt())
             .or(plain_block);
 

@@ -1,5 +1,6 @@
+use crate::auto_prefix;
 use crate::{Ctx, Doc, Lines, print_expr, print_stmt, print_type};
-use roop_syntax::{Block, Stmt, StmtKind};
+use roop_syntax::{Attr, Block, Stmt, StmtKind};
 
 /// Adds the statements to the lines of their block. An ancilla that is the
 /// last statement of its block is written as `ancilla x: T = e;`, with the
@@ -21,10 +22,17 @@ pub fn print_entries(ctx: &Ctx, lines: &mut Lines, stmts: &[Stmt]) {
                 init,
                 body,
             },
-        ) = (last, stmt.attrs.is_empty(), &stmt.kind)
-        {
+        ) = (
+            last,
+            stmt.attrs.iter().all(|a| matches!(a, Attr::Auto { .. })),
+            &stmt.kind,
+        ) {
             let header = Doc::concat(vec![
-                Doc::text(format!("ancilla {name}: {} = ", print_type(ty))),
+                Doc::text(format!(
+                    "{}ancilla {name}: {} = ",
+                    auto_prefix(stmt),
+                    print_type(ty)
+                )),
                 print_expr(init),
                 Doc::text(";"),
             ]);

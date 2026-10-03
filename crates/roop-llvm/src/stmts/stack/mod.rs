@@ -1,3 +1,4 @@
+mod gen_keep;
 mod gen_logged;
 mod gen_logged_overwrite;
 mod gen_pop;
@@ -11,6 +12,7 @@ mod stack_elem_ptr;
 mod stack_len_ptr;
 mod stack_parts;
 
+pub use gen_keep::*;
 pub use gen_logged::*;
 pub use gen_logged_overwrite::*;
 pub use gen_pop::*;

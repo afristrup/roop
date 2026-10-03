@@ -23,6 +23,7 @@ pub fn stmt_places(stmt: &Stmt) -> Vec<&Place> {
             push_place(stack, &mut out);
             push_place(target, &mut out);
         }
+        StmtKind::Keep(place) => push_place(place, &mut out),
         StmtKind::Logged { history, .. } => push_place(history, &mut out),
         StmtKind::Try {
             outcome: Some(outcome),
