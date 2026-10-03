@@ -9,7 +9,8 @@ read as a network of reversible blocks, found in an nn.Sequential:
                                       whose force is W^T act(W q + b), with the
                                       weight tied to its transpose
 
-The activations are Identity, ReLU, Tanh and Softsign. Everything else is
+The activations are Identity, ReLU, Tanh, Softsign, Sigmoid, SiLU and GELU
+(GELU as the usual z * sigmoid(1.702 z) approximation). Everything else is
 refused, naming the layer, rather than turned into something that is not what
 the model computes. The compiled network is the network of these blocks, run
 on a state (q, p) with the input in q and p zero; it is not the original
@@ -23,7 +24,15 @@ import importlib
 import json
 import sys
 
-ACTIVATIONS = {"Identity": "identity", "ReLU": "relu", "Tanh": "tanh", "Softsign": "softsign"}
+ACTIVATIONS = {
+    "Identity": "identity",
+    "ReLU": "relu",
+    "Tanh": "tanh",
+    "Softsign": "softsign",
+    "Sigmoid": "sigmoid",
+    "SiLU": "silu",
+    "GELU": "gelu",
+}
 
 
 class Unsupported(Exception):
@@ -43,7 +52,14 @@ def activation_named(name):
     return type(name, (), {"children": lambda self: iter(())})()
 
 
-FUNCTIONS = {"relu": "ReLU", "tanh": "Tanh", "softsign": "Softsign"}
+FUNCTIONS = {
+    "relu": "ReLU",
+    "tanh": "Tanh",
+    "softsign": "Softsign",
+    "sigmoid": "Sigmoid",
+    "silu": "SiLU",
+    "gelu": "GELU",
+}
 
 
 def traced_chain(model):

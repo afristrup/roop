@@ -114,3 +114,54 @@ test mlp_adds_its_function_and_runs_backward {
     expect gb1[0] == 4096 && gw1[0][0] == 4096 && gw1[0][1] == 2048;
     expect ax[0] == 4096 && ax[1] == 8192;
 }
+
+test sigmoid_of_zero_is_a_half {
+    s: i64, d: i64, z: i64, kind: i64;
+    kind += 5;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s == 2048 && d == 1024;
+}
+
+test sigmoid_of_one_is_close {
+    s: i64, d: i64, z: i64, kind: i64;
+    z += 4096;
+    kind += 5;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s > 2950 && s < 3050 && d > 750 && d < 850;
+}
+
+test silu_of_zero_and_its_slope {
+    s: i64, d: i64, z: i64, kind: i64;
+    kind += 6;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s == 0 && d == 2048;
+}
+
+test silu_of_one_is_close {
+    s: i64, d: i64, z: i64, kind: i64;
+    z += 4096;
+    kind += 6;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s > 2950 && s < 3050 && d > 3700 && d < 3900;
+}
+
+test gelu_of_zero_and_its_slope {
+    s: i64, d: i64, z: i64, kind: i64;
+    kind += 7;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s == 0 && d == 2048;
+}
+
+test gelu_of_one_is_close {
+    s: i64, d: i64, z: i64, kind: i64;
+    z += 4096;
+    kind += 7;
+    call act_at(s, z, kind);
+    call dact_at(d, z, kind);
+    expect s > 3300 && s < 3500 && d > 4300 && d < 4900;
+}

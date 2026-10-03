@@ -5,7 +5,11 @@ use std::path::PathBuf;
 use std::process::Command;
 use support::{compile, project, roop, text};
 
-const MODELS: [&str; 2] = ["mlp_then_leapfrog", "two_blocks_no_bias"];
+const MODELS: [&str; 3] = [
+    "mlp_then_leapfrog",
+    "smooth_activations",
+    "two_blocks_no_bias",
+];
 
 /// Runs the tests on real torch with uv, and leaves the exported models and
 /// torch's gradients in `out`. False when uv is not installed.

@@ -508,6 +508,9 @@ so the branch on it is undone by the same test going back:
 | 2 | softsign, `z / (1 + abs(z))` |
 | 3 | relu |
 | 4 | tanh, as the Pade approximation `z (27 + z^2) / (27 + 9 z^2)` up to 3, then 1 |
+| 5 | sigmoid, `1/2 + tanh(z / 2) / 2` |
+| 6 | silu, `z sigmoid(z)` |
+| 7 | gelu, `z sigmoid(1.702 z)`, the usual approximation |
 
 The slope of each is in `weave::dact`. The tanh is smooth where it joins 1: its
 slope `((9 - z^2) / (3 (3 + z^2)))^2` is zero there.
@@ -591,7 +594,7 @@ python3 torch_to_weave.py pkg.module:factory --outputs 1 -o model.json
 Most torch layers lose information, so it reads the model as blocks that do not.
 `Linear(N, M), act, Linear(M, N)` is a perceptron block, and `Linear(N, M), act`
 alone is a leapfrog layer whose weight is tied to its transpose. The activations
-are `Identity`, `ReLU`, `Tanh` and `Softsign`; any other layer is refused, naming
+are `Identity`, `ReLU`, `Tanh`, `Softsign`, `Sigmoid`, `SiLU` and `GELU`; any other layer is refused, naming
 it, since turning it into something else would not be the model. The compiled
 network is the network of those blocks run on `(q, p)` with the input in `q` and
 `p` zero, so it is a reversible network trained like the torch one, and not the

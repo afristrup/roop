@@ -13,6 +13,17 @@ def snap(x):
     return torch.round(torch.as_tensor(x, dtype=torch.float64) * GRID) / GRID
 
 
+GELU_SCALE = 6971 / 4096
+
+
+def pade(z):
+    return torch.where(z.abs() > 3, torch.sign(z), z * (27 + z * z) / (27 + 9 * z * z))
+
+
+def sigmoid(z):
+    return 0.5 + 0.5 * pade(z / 2)
+
+
 def activate(name, z):
     if name == "identity":
         return z
@@ -23,8 +34,13 @@ def activate(name, z):
     if name == "relu":
         return torch.clamp(z, min=0)
     if name == "tanh":
-        pade = z * (27 + z * z) / (27 + 9 * z * z)
-        return torch.where(z.abs() > 3, torch.sign(z), pade)
+        return pade(z)
+    if name == "sigmoid":
+        return sigmoid(z)
+    if name == "silu":
+        return z * sigmoid(z)
+    if name == "gelu":
+        return z * sigmoid(GELU_SCALE * z)
     raise ValueError(name)
 
 

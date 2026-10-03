@@ -44,15 +44,15 @@ fn a_layer_that_is_not_reversible_is_refused() {
 
 #[test]
 fn an_unknown_activation_is_refused_and_the_known_ones_named() {
-    let error = error_of(model("net", 4, 1, vec![leapfrog("gelu", 4, 4, 1)]));
+    let error = error_of(model("net", 4, 1, vec![leapfrog("softplus", 4, 4, 1)]));
     assert!(
-        error.to_string().contains("no activation `gelu`"),
+        error.to_string().contains("no activation `softplus`"),
         "{error}"
     );
     assert!(
         error
             .to_string()
-            .contains("identity, cauchy, softsign, relu and tanh")
+            .contains("identity, cauchy, softsign, relu, tanh, sigmoid, silu and gelu")
     );
 }
 

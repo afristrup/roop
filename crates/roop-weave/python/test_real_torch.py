@@ -19,6 +19,10 @@ def models():
         "mlp_then_leapfrog": nn.Sequential(
             nn.Linear(4, 3), nn.ReLU(), nn.Linear(3, 4), nn.Linear(4, 4), nn.Tanh()
         ),
+        "smooth_activations": nn.Sequential(
+            nn.Linear(4, 3), nn.GELU(), nn.Linear(3, 4), nn.Linear(4, 5), nn.SiLU(),
+            nn.Linear(4, 2), nn.Sigmoid(), nn.Linear(2, 4),
+        ),
         "two_blocks_no_bias": nn.Sequential(
             nn.Linear(4, 5, bias=False), nn.Softsign(), nn.Linear(5, 4, bias=False),
             nn.Sequential(nn.Linear(4, 2), nn.Tanh(), nn.Linear(2, 4)),
@@ -41,8 +45,8 @@ class RealTorch(unittest.TestCase):
         self.assertEqual(spec["layers"][0]["b1"], [0.0] * 5)
 
     def test_a_layer_weave_cannot_run_backward_is_refused(self):
-        with self.assertRaisesRegex(Unsupported, "GELU is not reversible"):
-            export(nn.Sequential(nn.Linear(4, 4), nn.GELU()))
+        with self.assertRaisesRegex(Unsupported, "Softplus is not reversible"):
+            export(nn.Sequential(nn.Linear(4, 4), nn.Softplus()))
         with self.assertRaisesRegex(Unsupported, "Conv1d must follow a Linear"):
             export(nn.Sequential(nn.Linear(4, 4), nn.ReLU(), nn.Conv1d(1, 1, 1)))
 

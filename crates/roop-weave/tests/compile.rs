@@ -12,14 +12,18 @@ fn check(name: &str, layers: Vec<serde_json::Value>, width: usize, outputs: usiz
 
 #[test]
 fn a_leapfrog_layer_of_each_activation_agrees_with_the_reference() {
-    for act in ["identity", "cauchy", "softsign", "relu", "tanh"] {
+    for act in [
+        "identity", "cauchy", "softsign", "relu", "tanh", "sigmoid", "silu", "gelu",
+    ] {
         check(&format!("leap_{act}"), vec![leapfrog(act, 3, 4, 1)], 4, 2);
     }
 }
 
 #[test]
 fn a_perceptron_of_each_activation_agrees_with_the_reference() {
-    for act in ["identity", "cauchy", "softsign", "relu", "tanh"] {
+    for act in [
+        "identity", "cauchy", "softsign", "relu", "tanh", "sigmoid", "silu", "gelu",
+    ] {
         check(
             &format!("mlp_{act}"),
             vec![mlp(act, 3, 4, 2), mlp(act, 2, 4, 5)],
