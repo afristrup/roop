@@ -3,6 +3,7 @@
 #include <time.h>
 
 #define N @N@
+#define INNER (N < 100000 ? 400000 / N : 1)
 void axpy(double *y, double *x, double *alpha);
 
 static double now(void) {
@@ -24,14 +25,14 @@ int main(void) {
         y[i] = 1.0;
     }
     int reps = @REPS@;
-    double times[64];
-    axpy(y, x, &alpha);
+    static double times[2048];
+    for (int k = 0; k < INNER; k++) axpy(y, x, &alpha);
     for (int r = 0; r < reps; r++) {
         double t0 = now();
-        axpy(y, x, &alpha);
-        times[r] = now() - t0;
+        for (int k = 0; k < INNER; k++) axpy(y, x, &alpha);
+        times[r] = (now() - t0) / INNER;
     }
     qsort(times, reps, sizeof(double), cmp);
-    printf("%.9f\n", times[reps / 2]);
+    printf("%.9f\n", times[0]);
     return y[0] == -1.0;
 }

@@ -5,7 +5,10 @@
 
 roop is built twice: with the compiler free to pick a GPU for a bare
 `#[parallel]` loop (the default), and with `auto = false`, so loops run on CPU
-threads. Every figure is the median of several runs after one warm-up.
+threads. Every figure is the best of three runs of the program, each the best of
+several timed calls after one warm-up; small sizes time a batch of calls. The
+best, not the median, because on a laptop the scheduler moves a program between
+fast and slow cores and the median swings by a factor of two.
 """
 import os, pathlib, platform, subprocess, sys, tempfile
 
@@ -33,11 +36,12 @@ def roop_time(kind, n, reps, auto, work):
     (work / "main.c").write_text(main)
     env = dict(os.environ, ROOP_RT_LIB=str(ROOT / "target" / ("release" if "release" in str(ROOP) else "debug") / "libroop_rt.a"))
     run([str(ROOP), "build", "prog.roop", "--link", "main.c", "-o", "prog"], cwd=work, env=env)
-    return float(run(["./prog"], cwd=work).strip())
+    return min(float(run(["./prog"], cwd=work).strip()) for _ in range(3))
 
 
 def native_times(kind, n, reps):
-    return [float(x) for x in run(["/tmp/roop_native_bench", kind, str(n), str(reps)]).split()]
+    runs = [[float(x) for x in run(["/tmp/roop_native_bench", kind, str(n), str(reps)]).split()] for _ in range(3)]
+    return [min(column) for column in zip(*runs)]
 
 
 def main():

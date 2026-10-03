@@ -1,6 +1,6 @@
 use crate::{
-    CheckError, Facts, Scope, check_ancilla, check_borrow, check_no_world, check_parallel,
-    check_try, check_uncall_after_keep, check_update,
+    CheckError, Facts, Scope, check_ancilla, check_borrow, check_call_aliasing, check_no_world,
+    check_parallel, check_try, check_uncall_after_keep, check_update,
 };
 use roop_syntax::{Block, StmtKind};
 
@@ -29,7 +29,8 @@ pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
             StmtKind::Send { .. } | StmtKind::Recv { .. } => {}
             StmtKind::Push { .. } | StmtKind::Pop { .. } | StmtKind::Keep(_) => {}
             StmtKind::Logged { body, .. } => check_block(body, scope.inside_logged())?,
-            StmtKind::Call { callee, .. } => {
+            StmtKind::Call { callee, args, .. } => {
+                check_call_aliasing(callee, args, stmt.span, scope.facts, scope.mutability)?;
                 if scope.irreversible_fns.contains(callee.as_str()) && !scope.irrev {
                     return Err(CheckError::CallsIrreversible {
                         callee: callee.clone(),
@@ -37,7 +38,8 @@ pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
                     });
                 }
             }
-            StmtKind::Uncall { callee, .. } => {
+            StmtKind::Uncall { callee, args, .. } => {
+                check_call_aliasing(callee, args, stmt.span, scope.facts, scope.mutability)?;
                 if scope.irreversible_fns.contains(callee.as_str()) {
                     return Err(CheckError::UncallIrreversible {
                         callee: callee.clone(),

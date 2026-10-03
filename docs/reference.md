@@ -9,6 +9,15 @@ Every `fn`, `struct` and `enum` is reversible: updates are invertible
 branches and loops carry exit assertions. Each function compiles to `f` and
 its inverse `f_inv`.
 
+An update may not read the place it writes (`x += x` is not injective), and a
+call may not give a place to a `&mut` parameter while another argument overlaps
+it: `call g(a, a)` or `call g(v[i], v[j])` is refused, since `g` would change what
+it reads under its own update and `uncall g` could not put it back. Elements of an
+array whose indices provably differ, such as `v[0]` and `v[1]`, do not overlap.
+This is also what lets the compiler treat every reference parameter as the only
+way to reach what it points at, as Rust does, which makes loops over them
+vectorize.
+
 `irrev` is the escape hatch, like `unsafe` in Rust. An `irrev fn`, or an
 `irrev { ... }` block, lifts those rules and allows destroying values (`x = e`,
 `x %= e`) and a `try` that forgets its outcome. Prefer the next

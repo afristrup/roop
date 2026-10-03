@@ -11,29 +11,34 @@ unsafe extern "C" {
     fn cblas_daxpy(n: i32, alpha: f64, x: *const f64, incx: i32, y: *mut f64, incy: i32);
 }
 
-fn median(mut times: Vec<f64>) -> f64 {
-    times.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    times[times.len() / 2]
+fn best(times: Vec<f64>) -> f64 {
+    times.into_iter().fold(f64::INFINITY, f64::min)
 }
 
 fn time(reps: usize, mut f: impl FnMut()) -> f64 {
-    f();
-    median((0..reps).map(|_| {
-        let t = Instant::now();
+    time_batched(reps, 1, &mut f)
+}
+
+fn time_batched(reps: usize, inner: usize, f: &mut impl FnMut()) -> f64 {
+    for _ in 0..inner {
         f();
-        t.elapsed().as_secs_f64()
+    }
+    best((0..reps).map(|_| {
+        let t = Instant::now();
+        for _ in 0..inner {
+            f();
+        }
+        t.elapsed().as_secs_f64() / inner as f64
     }).collect())
 }
 
 fn gemm_rows(c: &mut [f64], a: &[f64], b: &[f64], n: usize, first: usize) {
     for (r, row) in c.chunks_mut(n).enumerate() {
         let i = first + r;
-        for j in 0..n {
-            let mut s = 0.0;
-            for l in 0..n {
-                s += a[i * n + l] * b[l * n + j];
-            }
-            row[j] += s;
+        let a_row = &a[i * n..(i + 1) * n];
+        for (j, cell) in row.iter_mut().enumerate() {
+            let column = b[j..].iter().step_by(n);
+            *cell += a_row.iter().zip(column).map(|(x, y)| x * y).sum::<f64>();
         }
     }
 }
@@ -67,25 +72,26 @@ fn main() {
         _ => {
             let x: Vec<f64> = (0..n).map(|i| (i % 7) as f64 * 0.25).collect();
             let mut y = vec![1.0; n];
-            let one = time(reps, || {
-                for i in 0..n {
-                    y[i] += 1.0 * x[i];
+            let inner = if n < 100_000 { 400_000 / n } else { 1 };
+            let one = time_batched(reps, inner, &mut || {
+                for (a, b) in y.iter_mut().zip(&x) {
+                    *a += 1.0 * b;
                 }
             });
-            let many = time(reps, || {
+            let many = time_batched(reps, inner, &mut || {
                 let per = n.div_ceil(threads);
                 std::thread::scope(|s| {
                     for (k, chunk) in y.chunks_mut(per).enumerate() {
                         let x = &x;
                         s.spawn(move || {
-                            for (i, v) in chunk.iter_mut().enumerate() {
-                                *v += 1.0 * x[k * per + i];
+                            for (v, w) in chunk.iter_mut().zip(&x[k * per..]) {
+                                *v += 1.0 * w;
                             }
                         });
                     }
                 });
             });
-            let blas = time(reps, || unsafe {
+            let blas = time_batched(reps, inner, &mut || unsafe {
                 cblas_daxpy(n as i32, 1.0, x.as_ptr(), 1, y.as_mut_ptr(), 1)
             });
             println!("{one:.9} {many:.9} {blas:.9}");
