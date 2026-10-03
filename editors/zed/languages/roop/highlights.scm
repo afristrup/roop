@@ -13,7 +13,7 @@
 [
   "mod" "use" "as" "extern" "world" "einsum" "irrev" "enum" "struct" "fn" "build" "unbuild" "mut"
   "if" "else" "fi" "from" "loop" "until" "match" "assert" "expect"
-  "ancilla" "borrow" "call" "uncall" "chan" "send" "recv" "push" "pop" "keep" "keep"
+  "ancilla" "borrow" "call" "uncall" "chan" "send" "recv" "push" "pop" "keep" "auto" "auto" "keep"
   "logged" "try" "catch_rollback"
   "test" "bennett"
   "session" "offer" "select" "checkpoint" "rec"

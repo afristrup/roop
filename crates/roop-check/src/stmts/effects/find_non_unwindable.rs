@@ -12,11 +12,13 @@ pub fn find_non_unwindable(
     blocked: &HashSet<&str>,
 ) -> Option<(&'static str, Span)> {
     for stmt in &block.stmts {
-        let found = if !stmt.attrs.is_empty() {
-            Some(match stmt.attrs[0] {
-                Attr::Parallel { .. } => "a parallel loop",
-                Attr::Concurrent => "a concurrent task",
-            })
+        let marked = stmt.attrs.iter().find_map(|attr| match attr {
+            Attr::Parallel { .. } => Some("a parallel loop"),
+            Attr::Concurrent => Some("a concurrent task"),
+            Attr::Auto => None,
+        });
+        let found = if marked.is_some() {
+            marked
         } else {
             match &stmt.kind {
                 StmtKind::Irrev(_) => Some("an irrev block"),

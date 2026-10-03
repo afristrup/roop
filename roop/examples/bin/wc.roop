@@ -1,36 +1,30 @@
 // Counts the lines, words and bytes of its standard input. The counting is
-// reversible code. Each line is let go of with `keep` once it is counted, and
-// the counts are written with `print_int`.
+// reversible code. Each line is let go of when its round ends, and the counts
+// are written with `print_int`.
 
 use std::io::*;
 
 fn main() {
-    ancilla line: [u8; 4096] = 0;
-    ancilla len: i64 = 0;
-    ancilla eof: i64 = 0;
-    ancilla lines: i64 = 0;
-    ancilla words: i64 = 0;
-    ancilla bytes: i64 = 0;
+    auto ancilla eof: i64 = 0;
+    auto ancilla lines: i64 = 0;
+    auto ancilla words: i64 = 0;
+    auto ancilla bytes: i64 = 0;
     from lines == 0 {
+        auto ancilla line: [u8; 4096] = 0;
+        auto ancilla len: i64 = 0;
         call read_line(line, len, eof);
         if eof == 0 {
             lines += 1;
             bytes += len + 1;
             call count_words(line, len, words);
         } fi eof == 0;
-        keep line;
-        keep len;
     } until eof == 1;
-    keep eof;
     call print_int(lines);
     call print(" ");
     call print_int(words);
     call print(" ");
     call print_int(bytes);
     call print("\n");
-    keep lines;
-    keep words;
-    keep bytes;
 }
 
 // words gets the number of words in the first len bytes of line: places where

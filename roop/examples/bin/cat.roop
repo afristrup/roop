@@ -16,35 +16,31 @@ fn main(status: &mut i64) {
     uncall arg_count(argc);
 }
 
-// A line is read, written and let go of with `keep`, so the next one is read
-// into an empty buffer. The count of lines is what tells the first time round
-// the loop from the others.
+// A line is read and written, and let go of when the round ends, so the next
+// one is read into an empty buffer. The count of lines is what tells the first
+// time round the loop from the others.
 fn copy_stdin() {
-    ancilla line: [u8; 4096] = 0;
-    ancilla len: i64 = 0;
-    ancilla eof: i64 = 0;
-    ancilla lines: i64 = 0;
+    auto ancilla eof: i64 = 0;
+    auto ancilla lines: i64 = 0;
     from lines == 0 {
+        auto ancilla line: [u8; 4096] = 0;
+        auto ancilla len: i64 = 0;
         call read_line(line, len, eof);
         if eof == 0 {
             call print_buf(line, len);
             call print("\n");
         } fi eof == 0;
-        keep line;
-        keep len;
     } loop { lines += 1; } until eof == 1;
-    keep eof;
-    keep lines;
 }
 
 fn copy_files(argc: &i64, status: &mut i64) {
     ancilla k: i64 = 0;
-    ancilla path: [u8; 512] = 0;
-    ancilla path_len: i64 = 0;
-    ancilla text: [u8; 65536] = 0;
-    ancilla len: i64 = 0;
-    ancilla failed: i64 = 0;
     from k == 0 {
+        auto ancilla path: [u8; 512] = 0;
+        auto ancilla path_len: i64 = 0;
+        auto ancilla text: [u8; 65536] = 0;
+        auto ancilla len: i64 = 0;
+        auto ancilla failed: i64 = 0;
         call arg(k + 1, path, path_len);
         call read_file(path, text, len, failed);
         if failed == 0 {
@@ -55,11 +51,6 @@ fn copy_files(argc: &i64, status: &mut i64) {
             call eprint("\n");
             status += 1;
         } fi failed == 0;
-        keep path;
-        keep path_len;
-        keep text;
-        keep len;
-        keep failed;
     } loop { k += 1; } until k == argc - 2;
     k -= argc - 2;
 }

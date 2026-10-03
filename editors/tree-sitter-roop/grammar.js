@@ -337,6 +337,7 @@ module.exports = grammar({
 
     ancilla_statement: ($) =>
       seq(
+        optional("auto"),
         "ancilla",
         field("name", $.identifier),
         ":",
@@ -348,6 +349,7 @@ module.exports = grammar({
 
     ancilla_declaration: ($) =>
       seq(
+        optional("auto"),
         "ancilla",
         field("name", $.identifier),
         ":",

@@ -1,3 +1,4 @@
+mod auto_prefix;
 mod escape;
 mod float_text;
 mod format_source;
@@ -36,6 +37,7 @@ mod print_use;
 mod same_program;
 mod update_text;
 
+pub use auto_prefix::*;
 pub use escape::*;
 pub use float_text::*;
 pub use format_source::*;

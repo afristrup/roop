@@ -274,19 +274,30 @@ monads, made general: any value can be a log entry, because each entry has its
 take-back. It is also what makes `main` reversible. An ancilla that starts at
 zero is released by a `keep` of the whole variable at the end of its block, or
 at the end of each round of a loop that touches it, wherever it was changed
-before, and the checker accepts that in place of an inverse. A loop that reads
+before, and the checker accepts that in place of an inverse.
+
+**`auto ancilla` writes the `keep` for you.** It works like a lifetime in Rust:
+you say what a variable is, and the compiler places the end of it. `auto ancilla
+x: T = 0;` is an ancilla that is let go of with `keep x;` where its block ends,
+so a buffer declared inside a loop body is let go of at the end of every round,
+and the next round starts from zero. It must start at zero. A loop that reads
 lines is then:
 
 ```rust
+auto ancilla eof: i64 = 0;
+auto ancilla lines: i64 = 0;
 from lines == 0 {
+    auto ancilla line: [u8; 4096] = 0;
+    auto ancilla len: i64 = 0;
     call read_line(line, len, eof);
     if eof == 0 { call print_buf(line, len); call print("\n"); } fi eof == 0;
-    keep line;
-    keep len;
 } loop { lines += 1; } until eof == 1;
-keep eof;
-keep lines;
 ```
+
+What stays out of the loop body is what the loop itself looks at, here `eof` and
+`lines`, so those are let go of after it. Write `keep` by hand when you want it
+somewhere else, or `ancilla` when you want the checker to prove the ancilla is
+undone, which is the stronger guarantee and costs no history.
 
 The history is a stack, so a function is run backward by exactly reversing it:
 do not `uncall` something that kept values after other code has kept values of
@@ -303,14 +314,13 @@ fn announce() {
 }
 
 fn main() {
-    ancilla failed: bool = false;
+    auto ancilla failed: bool = false;
     try {
         call announce();
         expect false;                      // the try fails
     } catch_rollback {
         call println("rolled back: nothing from announce was shown");
     } -> failed;
-    keep failed;
 }
 ```
 

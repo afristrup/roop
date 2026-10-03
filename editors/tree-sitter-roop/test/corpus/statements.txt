@@ -359,8 +359,48 @@ fn f(x: &mut i64, b: &mut [u8; 4]) {
   (function_item
     name: (identifier)
     (parameters
-      (parameter name: (identifier) type: (reference_type type: (primitive_type)))
-      (parameter name: (identifier) type: (reference_type type: (array_type element: (primitive_type) length: (integer)))))
+      (parameter
+        name: (identifier)
+        type: (reference_type
+          type: (primitive_type)))
+      (parameter
+        name: (identifier)
+        type: (reference_type
+          type: (array_type
+            element: (primitive_type)
+            length: (integer)))))
     body: (block
-      (keep_statement (identifier))
-      (keep_statement (index_expression value: (identifier) (integer))))))
+      (keep_statement
+        (identifier))
+      (keep_statement
+        (index_expression
+          value: (identifier)
+          (integer))))))
+
+==================
+auto ancilla
+==================
+
+fn f(a: &i64) {
+    auto ancilla x: i64 = 0;
+    x += a;
+}
+
+---
+
+(source_file
+  (function_item
+    name: (identifier)
+    (parameters
+      (parameter
+        name: (identifier)
+        type: (reference_type
+          type: (primitive_type))))
+    body: (block
+      (ancilla_declaration
+        name: (identifier)
+        type: (primitive_type)
+        init: (integer))
+      (update_statement
+        target: (identifier)
+        value: (identifier)))))

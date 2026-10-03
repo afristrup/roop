@@ -363,3 +363,12 @@ fn slashes_in_a_string_stay() {
     let src = "fn f() {\n    call g(\"http://x\"); // comment\n}\n";
     assert_eq!(fmt(src), src);
 }
+
+#[test]
+fn auto_ancillas_keep_their_keyword() {
+    let src = "fn f(a: &i64) {\n    auto ancilla x: i64 = 0;\n    x += a;\n}\n";
+    assert_eq!(fmt(src), src);
+    let block =
+        "fn f(a: &i64) {\n    auto ancilla x: i64 = 0 {\n        x += a;\n    }\n    x -= a;\n}\n";
+    assert!(fmt(block).contains("auto ancilla x: i64 = 0 {"));
+}

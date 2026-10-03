@@ -5,6 +5,6 @@ use roop_syntax::{Attr, Stmt, Target};
 pub fn parallel_attr(stmt: &Stmt) -> Option<Option<Target>> {
     stmt.attrs.iter().find_map(|attr| match attr {
         Attr::Parallel { target } => Some(*target),
-        Attr::Concurrent => None,
+        Attr::Concurrent | Attr::Auto => None,
     })
 }

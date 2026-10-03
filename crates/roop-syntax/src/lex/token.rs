@@ -57,6 +57,8 @@ pub enum Token<'a> {
     Pop,
     #[token("keep")]
     Keep,
+    #[token("auto")]
+    Auto,
     #[token("logged")]
     Logged,
     #[token("empty")]

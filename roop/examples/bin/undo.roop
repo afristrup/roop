@@ -14,7 +14,7 @@ fn announce() {
 }
 
 fn main() {
-    ancilla failed: bool = false;
+    auto ancilla failed: bool = false;
     try {
         call announce();
         expect false;
@@ -22,7 +22,6 @@ fn main() {
     } catch_rollback {
         call println("rolled back: nothing from announce was shown");
     } -> failed;
-    keep failed;
 }
 
 test undo_can_be_taken_back {

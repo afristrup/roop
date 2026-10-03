@@ -3244,6 +3244,10 @@
     "named": false
   },
   {
+    "type": "auto",
+    "named": false
+  },
+  {
     "type": "bennett",
     "named": false
   },

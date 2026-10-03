@@ -8,6 +8,7 @@ pub enum Entry {
         name: String,
         ty: Type,
         init: Expr,
+        auto: bool,
         /// Where the declaration starts, and where it ends, after its `;`.
         start: usize,
         after: usize,

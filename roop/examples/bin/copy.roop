@@ -6,11 +6,11 @@ use std::process::*;
 
 fn main(status: &mut i64) {
     ancilla argc: i64 = 0;
-    ancilla source: [u8; 512] = 0;
-    ancilla target: [u8; 512] = 0;
-    ancilla source_len: i64 = 0;
-    ancilla target_len: i64 = 0;
-    ancilla failed: i64 = 0;
+    auto ancilla source: [u8; 512] = 0;
+    auto ancilla target: [u8; 512] = 0;
+    auto ancilla source_len: i64 = 0;
+    auto ancilla target_len: i64 = 0;
+    auto ancilla failed: i64 = 0;
     call arg_count(argc);
     if argc != 3 {
         call eprintln("usage: copy <from> <to>");
@@ -24,10 +24,5 @@ fn main(status: &mut i64) {
             status += 1;
         } fi failed != 0;
     } fi argc != 3;
-    keep source;
-    keep target;
-    keep source_len;
-    keep target_len;
-    keep failed;
     uncall arg_count(argc);
 }

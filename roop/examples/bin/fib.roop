@@ -14,10 +14,10 @@ fn main(status: &mut i64) {
         call eprintln("usage: fib <n>");
         status += 2;
     } else {
-        ancilla word: [u8; 32] = 0;
-        ancilla word_len: i64 = 0;
-        ancilla index: i64 = 0;
-        ancilla ok: i64 = 0;
+        auto ancilla word: [u8; 32] = 0;
+        auto ancilla word_len: i64 = 0;
+        auto ancilla index: i64 = 0;
+        auto ancilla ok: i64 = 0;
         call arg(1, word, word_len);
         call parse_int(word, word_len, index, ok);
         if ok == 1 && index >= 0 && index <= 90 {
@@ -26,21 +26,17 @@ fn main(status: &mut i64) {
             call eprintln("fib: the index must be from 0 to 90");
             status += 2;
         } fi ok == 1 && index >= 0 && index <= 90;
-        keep word;
-        keep word_len;
-        keep index;
-        keep ok;
     } fi argc < 2;
     uncall arg_count(argc);
 }
 
 fn print_fib(index: &i64) {
-    ancilla n: i64 = 0;
-    ancilla a: i64 = 0;
-    ancilla b: i64 = 0;
-    ancilla number: i64 = 0;
-    ancilla out: [u8; 64] = 0;
-    ancilla len: i64 = 0;
+    auto ancilla n: i64 = 0;
+    auto ancilla a: i64 = 0;
+    auto ancilla b: i64 = 0;
+    auto ancilla number: i64 = 0;
+    auto ancilla out: [u8; 64] = 0;
+    auto ancilla len: i64 = 0;
     n += index;
     call fibpair(n, a, b);
     number += b;
@@ -48,12 +44,6 @@ fn print_fib(index: &i64) {
     call put_int(out, len, number);
     call put(out, len, "\n");
     call print_buf(out, len);
-    keep out;
-    keep len;
-    keep n;
-    keep a;
-    keep b;
-    keep number;
 }
 
 test fib_can_be_taken_back {

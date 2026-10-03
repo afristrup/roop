@@ -1,5 +1,6 @@
-// Prints its arguments, separated by spaces. A word is let go of with `keep`
-// when it has been printed, which hands it to the world instead of losing it.
+// Prints its arguments, separated by spaces. An `auto ancilla` is let go of
+// where its block ends, which hands it to the world instead of losing it, and
+// the word is declared inside the loop, so each round starts with an empty one.
 
 use std::io::*;
 use std::process::*;
@@ -9,14 +10,12 @@ fn main() {
     call arg_count(argc);
     if argc >= 2 {
         ancilla k: i64 = 0;
-        ancilla word: [u8; 256] = 0;
-        ancilla len: i64 = 0;
         from k == 0 {
+            auto ancilla word: [u8; 256] = 0;
+            auto ancilla len: i64 = 0;
             call arg(k + 1, word, len);
             call print_buf(word, len);
             if k < argc - 2 { call print(" "); } fi k < argc - 2;
-            keep word;
-            keep len;
         } loop { k += 1; } until k == argc - 2;
         k -= argc - 2;
     } fi argc >= 2;

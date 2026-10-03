@@ -27,9 +27,11 @@ pub fn attr<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Attr, Err<'a>> + Clon
         )
         .map(|target| Attr::Parallel { target });
     let concurrent = named("concurrent").to(Attr::Concurrent);
-    just(Token::Hash).ignore_then(
-        parallel
-            .or(concurrent)
-            .delimited_by(just(Token::LBracket), just(Token::RBracket)),
-    )
+    just(Token::Hash)
+        .ignore_then(
+            parallel
+                .or(concurrent)
+                .delimited_by(just(Token::LBracket), just(Token::RBracket)),
+        )
+        .or(just(Token::Auto).to(Attr::Auto))
 }

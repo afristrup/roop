@@ -1,6 +1,6 @@
 use crate::{
-    Ctx, Doc, print_attrs, print_block, print_call, print_expr, print_from, print_if, print_match,
-    print_place, print_try, print_type, update_text,
+    Ctx, Doc, auto_prefix, print_attrs, print_block, print_call, print_expr, print_from, print_if,
+    print_match, print_place, print_try, print_type, update_text,
 };
 use roop_syntax::{OverwriteOp, Stmt, StmtKind};
 
@@ -101,7 +101,11 @@ pub fn print_stmt(ctx: &Ctx, stmt: &Stmt) -> Doc {
             init,
             body,
         } => Doc::concat(vec![
-            Doc::text(format!("ancilla {name}: {} = ", print_type(ty))),
+            Doc::text(format!(
+                "{}ancilla {name}: {} = ",
+                auto_prefix(stmt),
+                print_type(ty)
+            )),
             print_expr(init),
             Doc::text(" "),
             print_block(ctx, body, false),
