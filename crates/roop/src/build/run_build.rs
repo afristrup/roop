@@ -8,15 +8,23 @@ use std::path::Path;
 
 pub fn build(args: &BuildArgs) -> Result<(), CliError> {
     let config = config_for(&args.input)?;
-    let options = host_options(&config);
-
     let program = if args.keep_tests {
         load_with_tests(&args.input, &config)?
     } else {
         load_source(&args.input, &config)?
     };
-    roop_check::check(&program).map_err(CliError::Check)?;
-    let program = fuse_parallel(&program);
+    build_program(args, &config, &program)
+}
+
+/// Checks and compiles a program that is already loaded.
+pub fn build_program(
+    args: &BuildArgs,
+    config: &roop_config::Config,
+    program: &roop_syntax::Program,
+) -> Result<(), CliError> {
+    let options = host_options(config);
+    roop_check::check(program).map_err(CliError::Check)?;
+    let program = fuse_parallel(program);
     let compiled = compile_all(&program, &options).map_err(CliError::Codegen)?;
 
     if args.emit == Emit::Ir {

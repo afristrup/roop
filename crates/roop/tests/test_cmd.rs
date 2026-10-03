@@ -120,3 +120,28 @@ fn the_library_tests_pass() {
     assert!(out.status.success(), "{}{}", stdout(&out), stderr(&out));
     assert!(stdout(&out).contains(" 0 failed"), "{}", stdout(&out));
 }
+
+#[test]
+fn a_failing_test_shows_the_state_before_each_statement() {
+    let src = format!(
+        "{COUNTER}\ntest wrong {{ a: i64, k: i64; k += 2; call bump(a, k); expect a == 5; }}\n"
+    );
+    let dir = project("test-trace", "", &src);
+    let out = roop(&dir, &["test", "--filter", "wrong"]);
+    let text = stdout(&out);
+    assert!(text.contains("state before each statement"), "{text}");
+    assert!(text.contains("k += 2;"), "{text}");
+    assert!(text.contains("a=0 k=0"), "{text}");
+    assert!(text.contains("a=2 k=2"), "{text}");
+    assert!(text.contains("<- stopped here"), "{text}");
+    assert!(text.lines().last().unwrap().contains("1 failed"), "{text}");
+}
+
+#[test]
+fn a_backward_run_that_does_not_restore_shows_both_runs() {
+    let src = "test floats_do_not_come_back { x: f64; x += 0.1; x += 0.2; }";
+    let dir = project("test-trace-back", "", src);
+    let text = stdout(&roop(&dir, &["test"]));
+    assert!(text.contains("undo line"), "{text}");
+    assert!(text.contains("(backward run done)"), "{text}");
+}

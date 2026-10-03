@@ -1,6 +1,6 @@
 use crate::{
     BuildArgs, CliError, Emit, TestArgs, Verdict, build, config_for, load_with_tests, run_one_test,
-    test_driver, test_files,
+    run_trace, test_driver, test_files,
 };
 use roop_syntax::{FnDef, Item};
 use std::time::Duration;
@@ -12,7 +12,8 @@ pub fn run_test(args: &TestArgs) -> Result<(), CliError> {
     let config = config_for(&start.join("x"))?;
     let (mut passed, mut failed) = (0, 0);
     for file in test_files(&args.paths, &config.root)? {
-        let program = load_with_tests(&file, &config_for(&file)?)?;
+        let file_config = config_for(&file)?;
+        let program = load_with_tests(&file, &file_config)?;
         let tests: Vec<&FnDef> = program
             .items
             .iter()
@@ -59,12 +60,20 @@ pub fn run_test(args: &TestArgs) -> Result<(), CliError> {
                 }
                 other => {
                     failed += 1;
+                    let traced = !matches!(other, Verdict::TimedOut);
                     let why = match other {
                         Verdict::NotRestored(what) => format!("after the backward run, {what}"),
                         Verdict::TimedOut => format!("no result after {} s", args.timeout),
                         _ => "an expectation or another check failed".to_string(),
                     };
                     println!("test {} ... FAILED: {why}", test.name);
+                    if traced {
+                        let src = std::fs::read_to_string(&file)
+                            .map_err(|e| CliError::Io(file.display().to_string(), e))?;
+                        let timeout = Duration::from_secs(args.timeout);
+                        let report = run_trace(&file_config, &program, test, &src, &dir, timeout)?;
+                        print!("{report}");
+                    }
                 }
             }
         }

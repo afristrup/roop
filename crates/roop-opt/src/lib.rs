@@ -5,7 +5,7 @@ mod tests;
 
 use fusion::*;
 use rename::*;
-pub use tests::strip_tests;
+pub use tests::{split_test, stage_name, strip_tests};
 
 pub use fusion::fuse_parallel;
 use generics::*;
