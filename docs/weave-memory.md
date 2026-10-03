@@ -1,62 +1,56 @@
 # weave: memory against depth
 
 weave trains a network of leapfrog layers without storing activations. The
-backward pass runs the layers backward to get the activations back, so what it
-needs does not grow with depth. This page measures that and says what it is worth.
-Reproduce it with `python3 bench/weave_memory.py`.
+backward pass gets each layer's input back by running the layer backward, so
+what it needs does not grow with depth. This page measures that against the usual
+ways of doing it. Reproduce it with `python3 bench/weave_compare.py`.
 
-## What is measured
+## What is compared
 
-One training step of `weave::step`, width 64, a batch of 8, on an Apple M4. Every
-buffer the step uses is an argument: the weights and biases `ws`, `bs`, their
-gradients `gw`, `gb`, and four vectors `q`, `p`, `aq`, `ap` of the layer width.
-The table gives the peak resident memory of the whole process, and subtracts the
-weights and gradients, which any implementation must hold:
+One network (width 64, `weave::grad`) in the same integer arithmetic, run three
+ways on 256 samples:
 
-| layers L | weights + gradients | peak resident | the rest |
-|---:|---:|---:|---:|
-| 8 | 0.5 MB | 6.4 MB | 5.82 MB |
-| 32 | 2.1 MB | 8.5 MB | 6.37 MB |
-| 128 | 8.5 MB | 14.9 MB | 6.36 MB |
-| 512 | 34.1 MB | 40.5 MB | 6.37 MB |
-| 1024 | 68.2 MB | 74.5 MB | 6.37 MB |
+- **roop**: `grad`, whose backward pass rebuilds each layer's input with `uncall`.
+- **stored**: a Rust version (`bench/native/weave.rs`) that keeps every layer's
+  input state for every sample, then walks back reading them.
+- **checkpointed**: the same, keeping every `sqrt(L)`-th layer's input and
+  recomputing the layers in between a segment at a time.
 
-"The rest" is the same from 32 layers to 1024: a fixed 6.4 MB that is the program,
-the runtime and the driver, and nothing that depends on depth. The step's own
-working state is the four vectors, 2 KiB at this width.
+The stored and checkpointed versions hold all 256 samples at once, as a framework
+running a batch would. roop runs the samples one after another through the same
+buffers; that is not a handicap but how its working state stays fixed, and it is
+the difference being measured. The gradients agree exactly, to the last bit, in
+every row. The table gives each process's peak resident memory, and what the
+activations alone took in the two baselines:
 
-## What a stored-activation pass would need
+| layers L | weights + gradients | roop: peak | stored: peak | stored: activations | checkpointed: peak | checkpointed: activations | same gradients |
+|---:|---:|---:|---:|---:|---:|---:|:---|
+| 8 | 0.5 MB | 6.5 MB | 5.8 MB | 2.1 MB | 4.9 MB | 1.6 MB | yes |
+| 32 | 2.1 MB | 8.1 MB | 14.0 MB | 8.4 MB | 8.2 MB | 3.1 MB | yes |
+| 128 | 8.5 MB | 14.5 MB | 47.0 MB | 33.6 MB | 17.7 MB | 6.0 MB | yes |
+| 512 | 34.1 MB | 40.1 MB | 178.7 MB | 134.2 MB | 49.7 MB | 12.1 MB | yes |
+| 1024 | 68.2 MB | 74.1 MB | 354.4 MB | 268.4 MB | 88.8 MB | 16.8 MB | yes |
 
-This part is a model, not a measurement: no stored-activation version of the same
-network was built. A backward pass that keeps what it will read again holds, per
-layer, `q`, `p`, and the three vectors the adjoint reads (`z`, `sigma(z)`,
-`sigma'(z)`), five words of width per layer per sample in flight. Checkpointing every
-`sqrt(L)` layers keeps `2 sqrt(L)` layers' worth and recomputes the rest, at the
-price of extra forward work. For one sample in flight, width 64:
+Weights and gradients are the floor for all three, 68 MB at 1024 layers. roop sits
+6 MB above it, the same at every depth: the program and the runtime. The stored
+version grows by 0.26 MB a layer and reaches 354 MB, 4.8 times roop's. The
+checkpointed version needs about `2 sqrt(L)` layers' worth, 89 MB, 1.2 times
+roop's, at the price of running each layer's forward pass one more time.
 
-| layers L | roop | stored activations | checkpointed |
-|---:|---:|---:|---:|
-| 8 | 2.0 KiB | 22.0 KiB | 17.0 KiB |
-| 32 | 2.0 KiB | 82.0 KiB | 32.0 KiB |
-| 128 | 2.0 KiB | 322.0 KiB | 62.0 KiB |
-| 512 | 2.0 KiB | 1282.0 KiB | 117.0 KiB |
-| 1024 | 2.0 KiB | 2562.0 KiB | 162.0 KiB |
-
-![working memory against depth](weave-memory.svg)
+![peak memory against depth](weave-memory.svg)
 
 ## What it is worth
 
-- **The saving is real and grows with depth.** Constant against linear, and
-  against square-root for checkpointing, with no recomputation of the forward
-  pass: the backward pass is the inverse computation, so it costs about what the
-  forward pass does.
-- **At this width it is modest in absolute terms.** At 1024 layers the stored
-  activations are 2.5 MiB for a sample, against 68 MB of weights and gradients,
-  so the whole process would be 4% larger. The ratio of activations to weights is
-  about `5 / N` per layer, so it matters when the network is narrow and deep, or
-  when many samples are in flight at once, each of which multiplies the stored
-  cost and the reversible one by the same factor.
-- **Not claimed:** speed. Reversal is exact, but a training step here runs about
-  750 samples a second at width 64 and 8 layers, and the layer type, the loss and
-  the adjoints are written by hand. This shows that the memory claim holds. It is
-  not a case that roop is a faster way to train a network than the usual tools.
+- **Constant against linear, with nothing recomputed beyond what the backward
+  pass already does.** Against checkpointing the saving is smaller and the price
+  is different: checkpointing keeps a little and recomputes a lot of the forward
+  pass, while roop keeps nothing and its backward pass is the inverse computation.
+- **It depends on how many samples are in flight.** Run one sample at a time, the
+  stored version's 268 MB of activations becomes 1 MB, and the difference is
+  small: the ratio of activations to weights is about `2 / N` per layer and sample.
+  The saving matters when the network is deep and the batch is processed together,
+  or when memory is the limit.
+- **Not claimed: speed.** This page measures memory and exactness. roop's
+  `grad` runs about 750 samples a second at width 64 and 8 layers, the layer type,
+  the loss and the adjoints are written by hand, and nothing here argues roop
+  trains a network faster than the usual tools.
