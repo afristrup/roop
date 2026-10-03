@@ -18,7 +18,10 @@ static int cmp(const void *x, const void *y) {
 }
 
 int main(void) {
-    static double x[N], y[N];
+    /* y sits 64 bytes past a whole number of pages from x: with the two a multiple of
+       4096 bytes apart, loads of x and stores to y alias in the L1 and slow the loop */
+    static double buf[2 * N + 8];
+    double *x = buf, *y = buf + N + 8;
     double alpha = 1.0;
     for (long i = 0; i < (long)N; i++) {
         x[i] = (double)(i % 7) * 0.25;

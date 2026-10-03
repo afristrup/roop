@@ -38,25 +38,30 @@ grammar. `dev: open highlights tree view` shows what a theme colors.
 `tree-sitter-roop/queries/highlights.scm` is a link to the same file, so the
 tree-sitter CLI and Zed use one copy.
 
-## The language server, later
+## The language server
 
-Highlighting needs no server. A server adds diagnostics, go to definition, hover
-and semantic tokens, and most of what it needs is already in the compiler:
+`roop lsp` speaks the Language Server Protocol over stdin and stdout. It does
+four things, for the files an editor has open:
 
-- `roop-syntax` parses with spans on every statement, block, item and error
-  (`parse_spanned`, `comments`), which is also what `roop fmt` is built on.
-- `roop-check`, `roop-modules`, `roop-opt` and `roop-lean` report errors with
-  the span of what failed, which become diagnostics.
-- `roop-fmt` formats a text, which is `textDocument/formatting`.
-- `roop-modules` resolves `use` and `mod` through `Roop.toml`, which is go to
-  definition across files.
-- `roop test` and `roop lean` can report per function, which suits code lenses
-  ("run test", "proved reversible").
+- **Diagnostics.** A syntax error is reported where the parser stopped. When the
+  file stands alone, with no `use` or `mod`, what the checker rejects is reported
+  too, at the span the checker gives. A file that uses other modules gets only
+  syntax errors, since the checker's spans would be in a program assembled from
+  several files.
+- **Formatting** (`textDocument/formatting`), the same layout as `roop fmt`.
+- **An outline** (`textDocument/documentSymbol`) of the functions, structs, enums
+  and sessions.
+- Documents are synchronized whole on every change; roop files are small.
 
-The steps are a `roop-lsp` crate that speaks the protocol over stdio (and
-`roop lsp` to start it), then a Zed extension with a small Rust part, built to
-`wasm32-wasip2` with the `zed_extension_api` crate, that tells Zed to run that
-command. The commented `[language_servers.roop-lsp]` block in
+Any client that can run a command for a language works. In a client with a
+settings file for servers, point it at `roop lsp` for files ending in `.roop`.
+
+What is still missing is what needs the program resolved across files: checker
+errors in files that use modules, go to definition through `use` and `mod` (the
+resolution is `roop-modules`'s), hover, and semantic tokens. `roop test` and
+`roop lean` report per function, which would suit code lenses. And the Zed
+extension does not start the server by itself yet: that takes a small Rust part
+built to `wasm32-wasip2` with the `zed_extension_api` crate, which tells Zed to
+run `roop lsp`. The commented `[language_servers.roop-lsp]` block in
 `zed/extension.toml` and the `language_servers` line in
-`zed/languages/roop/config.toml` are where it plugs in. Until then Zed uses the
-grammar alone.
+`zed/languages/roop/config.toml` are where it plugs in.

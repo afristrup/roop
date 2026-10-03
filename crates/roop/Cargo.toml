@@ -8,6 +8,7 @@ name = "roop"
 path = "src/main.rs"
 
 [dependencies]
+serde_json = "1"
 roop-syntax = { path = "../roop-syntax" }
 roop-check = { path = "../roop-check" }
 roop-opt = { path = "../roop-opt" }

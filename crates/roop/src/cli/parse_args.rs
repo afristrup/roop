@@ -13,6 +13,7 @@ pub fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, CliErro
         Some("fmt") => return parse_fmt_args(args).map(Command::Fmt),
         Some("test") => return parse_test_args(args).map(Command::Test),
         Some("run") => return parse_run_args(args).map(Command::Run),
+        Some("lsp") => return Ok(Command::Lsp),
         _ => return Err(usage()),
     }
     let (mut input, mut output, mut emit, mut link) = (None, None, None, Vec::new());

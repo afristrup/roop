@@ -503,7 +503,8 @@ precision copy of the network (they agree to about 1%, which is the 4096 grid)
 and that the input comes back bit for bit. Another trains XOR to a 50x lower
 loss. Lean proves the forward pass and the backward pass exactly reversible, layer
 by layer and through the loop over layers (`layer_back` and `backward`, checked at
-widths 2, 4 and 8 with up to three layers): each call's own lemma settles it, so a function of eleven calls takes
+widths 2, 4 and 8 with up to three layers; width 64 with eight layers, the size of
+the benchmark, was not accepted within 30 minutes): each call's own lemma settles it, so a function of eleven calls takes
 seconds, not a case split of every outcome.
 
 This is a research library, not a framework. It has one layer type, one loss and
@@ -789,5 +790,5 @@ the program differs.
 
 `editors/` has a Tree-sitter grammar for roop and an extension for Zed, with
 highlighting, an outline, bracket matching and indentation. See
-`editors/README.md` for installing it, and for what a language server would
-build on.
+`editors/README.md` for installing it. `roop lsp` is a language server with
+diagnostics, formatting and an outline; the same file says what it covers.
