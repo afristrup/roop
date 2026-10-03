@@ -46,6 +46,11 @@ impl Lines {
         }
     }
 
+    /// Puts `doc` before everything else.
+    pub fn first(&mut self, doc: Doc) {
+        self.docs.insert(0, doc);
+    }
+
     pub fn into_docs(self) -> Vec<Doc> {
         self.docs
     }

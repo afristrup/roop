@@ -10,4 +10,7 @@ pub struct FnDef {
     /// Declared `irrev fn`: the whole body is irreversible code.
     pub irreversible: bool,
     pub public: bool,
+    /// Declared `test name { fixtures; body }`: a function over its fixtures,
+    /// which `roop test` runs forward and then backward.
+    pub test: bool,
 }

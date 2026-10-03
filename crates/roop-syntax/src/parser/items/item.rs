@@ -1,6 +1,6 @@
 use crate::{
     Err, TokenInput, block, comma_list, enum_def, generics, ident, param, session_def, stmt,
-    struct_def, use_decl,
+    struct_def, test_def, use_decl,
 };
 use crate::{FnDef, Item, Token};
 use chumsky::prelude::*;
@@ -26,10 +26,12 @@ pub fn item<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>> + Clon
                 body,
                 irreversible: irrev.is_some(),
                 public: public.is_some(),
+                test: false,
             })
         });
 
     module
+        .or(test_def())
         .or(use_decl().map(Item::Use))
         .or(session_def().map(Item::Session))
         .or(enum_def().map(Item::Enum))

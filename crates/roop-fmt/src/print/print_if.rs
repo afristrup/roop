@@ -8,6 +8,10 @@ pub fn print_if(
     else_block: &Block,
     exit: &Expr,
 ) -> Doc {
+    let bare = |b: &Block| b.stmts.is_empty() && !ctx.has_comment_in(b.span);
+    if bare(then_block) && bare(else_block) && *exit == Expr::Bool(true) {
+        return Doc::concat(vec![Doc::text("expect "), print_expr(cond), Doc::text(";")]);
+    }
     let mut parts = vec![
         Doc::text("if "),
         print_expr(cond),

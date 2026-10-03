@@ -117,11 +117,21 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
             .ignore_then(ident())
             .then(generic_args)
             .then(args)
-            .then_ignore(semi)
+            .then_ignore(semi.clone())
             .map(|((callee, generics), args)| StmtKind::Uncall {
                 callee,
                 generics,
                 args,
+            });
+
+        let expect = select! { Token::Ident("expect") => () }
+            .ignore_then(expr())
+            .then_ignore(semi.clone())
+            .map(|cond| StmtKind::If {
+                cond,
+                then_block: Block::default(),
+                else_block: Block::default(),
+                exit: Expr::Bool(true),
             });
 
         let kind = update
@@ -134,6 +144,7 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
             .or(ancilla)
             .or(call)
             .or(uncall)
+            .or(expect)
             .or(chan)
             .or(send_stmt())
             .or(recv_stmt())

@@ -1,7 +1,10 @@
-use crate::{Ctx, Doc, print_block, print_generics, print_params};
+use crate::{Ctx, Doc, print_block, print_generics, print_params, print_test};
 use roop_syntax::FnDef;
 
 pub fn print_fn(ctx: &Ctx, f: &FnDef) -> Doc {
+    if f.test {
+        return print_test(ctx, f);
+    }
     let public = if f.public { "pub " } else { "" };
     let irrev = if f.irreversible { "irrev " } else { "" };
     Doc::concat(vec![

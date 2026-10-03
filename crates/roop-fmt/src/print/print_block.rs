@@ -5,6 +5,11 @@ use roop_syntax::Block;
 /// a single simple statement is laid out with a line to break at, which the
 /// caller puts in a group: it stays on the line of its header if it fits.
 pub fn print_block(ctx: &Ctx, block: &Block, collapse: bool) -> Doc {
+    print_block_after(ctx, block, collapse, None)
+}
+
+/// The same, with a first line of its own before the statements.
+pub fn print_block_after(ctx: &Ctx, block: &Block, collapse: bool, first: Option<Doc>) -> Doc {
     let before = ctx.taken();
     let open = block.span.start + 1;
     let mut lines = Lines::new(open);
@@ -24,12 +29,16 @@ pub fn print_block(ctx: &Ctx, block: &Block, collapse: bool) -> Doc {
         lines.comment(ctx, &c, false);
     }
     let commented = ctx.taken() != before;
+    let had_first = first.is_some();
+    if let Some(doc) = first {
+        lines.first(doc);
+    }
     let docs = lines.into_docs();
     if docs.is_empty() {
         return Doc::text("{}");
     }
     let single = block.stmts.len() == 1 && is_simple(&block.stmts[0]);
-    if collapse && single && !commented {
+    if collapse && single && !commented && !had_first {
         return Doc::concat(vec![
             Doc::text("{"),
             Doc::nest(Doc::concat(vec![Doc::Line, Doc::concat(docs)])),

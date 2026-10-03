@@ -267,3 +267,26 @@ fn the_library_formats_to_itself() {
     }
     assert!(seen >= 8, "found only {seen} files");
 }
+
+#[test]
+fn tests_and_expectations_keep_their_form() {
+    let src = "test t { n: i64, a: [i64; 3]; n += 4; call f(n, a); expect n == 4 && a[0] == 0; }\n";
+    let out = fmt(src);
+    assert_eq!(
+        out,
+        "test t {\n    n: i64, a: [i64; 3];\n    n += 4;\n    call f(n, a);\n    expect n == 4 && a[0] == 0;\n}\n"
+    );
+    assert_eq!(fmt(&out), out);
+}
+
+#[test]
+fn a_test_without_fixtures_and_an_if_that_is_an_expectation() {
+    let out = fmt("test t { if true { } else { } fi true; }");
+    assert_eq!(out, "test t {\n    expect true;\n}\n");
+}
+
+#[test]
+fn an_if_with_something_inside_is_not_an_expectation() {
+    let out = fmt("fn f(a: &mut i64) { if a == 1 { a += 1; } fi true; }");
+    assert!(out.contains("if a == 1 { a += 1; } fi true;"), "{out}");
+}
