@@ -318,9 +318,10 @@ error. Labels are only names for `auto`; they change nothing else. Write `keep` 
 somewhere else, or `ancilla` when you want the checker to prove the ancilla is
 undone, which is the stronger guarantee and costs no history.
 
-The history is a stack, so a function is run backward by exactly reversing it:
-do not `uncall` something that kept values after other code has kept values of
-its own since, since the entries come back last in, first out. A kept value is
+The history is a stack, so a function is run backward by exactly reversing it,
+and the checker refuses an `uncall f` when the `call f` before it, in the same
+block, has something between it and the `uncall` that kept values of its own: the
+entries would come back last in, first out, and they are not `f`'s. A kept value is
 one you are done with. Every `roop test` runs a test backward as well, which
 checks that the kept values come back. Parallel loops and
 concurrent tasks may not call anything that changes the world or `keep`, since

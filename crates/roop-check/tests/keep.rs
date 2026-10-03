@@ -63,3 +63,27 @@ fn a_parallel_loop_may_not_keep() {
     }";
     assert!(matches!(run(src), Err(CheckError::WorldInParallel { .. })));
 }
+
+const KEEPER: &str = "fn grab(a: &i64) { ancilla x: i64 = 0; x += a; keep x; }";
+
+#[test]
+fn uncalling_a_function_that_kept_is_fine_when_nothing_was_kept_since() {
+    let src = format!("{KEEPER} fn f(a: &i64) {{ call grab(a); uncall grab(a); }}");
+    assert_eq!(run(&src), Ok(()));
+}
+
+#[test]
+fn uncalling_it_after_other_code_kept_is_refused() {
+    let src = format!(
+        "{KEEPER} fn f(a: &i64) {{ call grab(a); ancilla y: i64 = 0; y += a; keep y; uncall grab(a); }}"
+    );
+    assert!(matches!(run(&src), Err(CheckError::UncallAfterKeep { .. })));
+}
+
+#[test]
+fn calling_another_keeper_in_between_is_refused_too() {
+    let src = format!(
+        "{KEEPER} fn other(a: &i64) {{ call grab(a); }} fn f(a: &i64) {{ call grab(a); call other(a); uncall grab(a); }}"
+    );
+    assert!(matches!(run(&src), Err(CheckError::UncallAfterKeep { .. })));
+}

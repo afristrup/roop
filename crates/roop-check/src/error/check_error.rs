@@ -39,6 +39,10 @@ pub enum CheckError {
     ParallelNotLoop {
         span: Span,
     },
+    UncallAfterKeep {
+        callee: String,
+        span: Span,
+    },
     WorldInParallel {
         callee: String,
         span: Span,
@@ -162,6 +166,11 @@ impl fmt::Display for CheckError {
             Self::BorrowIndexModified { var, span } => write!(
                 f,
                 "`{var}` selects a borrowed place and is modified in the borrow at {}..{}",
+                span.start, span.end
+            ),
+            Self::UncallAfterKeep { callee, span } => write!(
+                f,
+                "`uncall {callee}` takes back what `{callee}` kept, but other code has kept values since, and the history is last in, first out; `keep` the results instead, at {}..{}",
                 span.start, span.end
             ),
             Self::WorldInParallel { callee, span } => write!(
