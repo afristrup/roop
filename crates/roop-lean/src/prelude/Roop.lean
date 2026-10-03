@@ -172,7 +172,7 @@ def janusGo {σ : Type} (entry stop : σ → Res Bool) (body step : σ → Res �
         check (!(← entry s2)) .assertion
         janusGo entry stop body step n s2
 
-def janus {σ : Type} (entry stop : σ → Res Bool) (body step : σ → Res σ) (s : σ) : Res σ := do
+@[irreducible] def janus {σ : Type} (entry stop : σ → Res Bool) (body step : σ → Res σ) (s : σ) : Res σ := do
   check (← entry s) .assertion
   janusGo entry stop body step fuelBound s
 
