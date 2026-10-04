@@ -37,6 +37,14 @@ version grows by 0.26 MB a layer and reaches 354 MB, 4.8 times roop's. The
 checkpointed version needs about `2 sqrt(L)` layers' worth, 89 MB, 1.2 times
 roop's, at the price of running each layer's forward pass one more time.
 
+The table above was measured on a quiet machine. It was rerun after weave's arithmetic
+changed to the wide contractions and Q24 gradients, with the same result for roop: the
+gradients still agree bit for bit with both baselines at every depth to 1024, and roop's
+peak is still 74.1 MB at 1024 layers. That run was made while other work loaded the
+machine, and its baseline peaks are not usable (the checkpointed one came out below the
+weights it must hold, which means resident memory was being compressed), so the figures
+above stand.
+
 ![peak memory against depth](weave-memory.svg)
 
 ## What it is worth
