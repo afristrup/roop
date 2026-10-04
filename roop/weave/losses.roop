@@ -5,10 +5,13 @@
 
 use super::act::*;
 
-// r += exp(x) for x <= 0, as (1 + x / 64) ^ 64 by six squarings, and 0 far below.
-// It is within 1 per cent down to x = -2 and about 7 per cent off at -5.
+// r += exp(x) for x <= 0, as (1 + y + y^2 / 2 + y^3 / 6) ^ 64 for y = x / 64, six squarings
+// in Q24, and 0 below -12, where exp is under a hundredth of a unit of Q12. It is within
+// 1 per cent down to -12 and within a unit of Q12 where the unit matters. The
+// first version, (1 + x / 64) ^ 64 in Q12, was 7 per cent off at -5.
 pub fn exp_neg(r: &mut i64, x: &i64) {
-    if x < -262144 {} else {
+    if x < -49152 {} else {
+        ancilla y: i64 = 0;
         ancilla e0: i64 = 0;
         ancilla e1: i64 = 0;
         ancilla e2: i64 = 0;
@@ -16,22 +19,24 @@ pub fn exp_neg(r: &mut i64, x: &i64) {
         ancilla e4: i64 = 0;
         ancilla e5: i64 = 0;
         ancilla e6: i64 = 0;
-        e0 += 4096 + x / 64;
-        e1 += e0 * e0 / 4096;
-        e2 += e1 * e1 / 4096;
-        e3 += e2 * e2 / 4096;
-        e4 += e3 * e3 / 4096;
-        e5 += e4 * e4 / 4096;
-        e6 += e5 * e5 / 4096;
-        r += e6;
-        e6 -= e5 * e5 / 4096;
-        e5 -= e4 * e4 / 4096;
-        e4 -= e3 * e3 / 4096;
-        e3 -= e2 * e2 / 4096;
-        e2 -= e1 * e1 / 4096;
-        e1 -= e0 * e0 / 4096;
-        e0 -= 4096 + x / 64;
-    } fi x < -262144;
+        y += x * 64;
+        e0 += 16777216 + y + y * y / 33554432 + y * y / 16777216 * y / 100663296;
+        e1 += e0 * e0 / 16777216;
+        e2 += e1 * e1 / 16777216;
+        e3 += e2 * e2 / 16777216;
+        e4 += e3 * e3 / 16777216;
+        e5 += e4 * e4 / 16777216;
+        e6 += e5 * e5 / 16777216;
+        r += e6 / 4096;
+        e6 -= e5 * e5 / 16777216;
+        e5 -= e4 * e4 / 16777216;
+        e4 -= e3 * e3 / 16777216;
+        e3 -= e2 * e2 / 16777216;
+        e2 -= e1 * e1 / 16777216;
+        e1 -= e0 * e0 / 16777216;
+        e0 -= 16777216 + y + y * y / 33554432 + y * y / 16777216 * y / 100663296;
+        y -= x * 64;
+    } fi x < -49152;
 }
 
 // r += the larger of a and b

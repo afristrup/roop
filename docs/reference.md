@@ -621,7 +621,8 @@ arguments to build a graph from. A test measures throughput: `cargo test -p roop
 The loss is chosen in the model: `"loss": "mse"` (half the squared error, the default),
 `"sigmoid"` or `"softmax"`. For the two cross entropies the seed of the backward pass is
 the usual `p - t`, with the sigmoid from the tanh above and an exponential computed as
-`(1 + x / 64) ^ 64` (within 1% down to -2, about 7% off at -5); the cross entropy needs a
+`(1 + y + y^2 / 2 + y^3 / 6) ^ 64` for `y = x / 64` in Q24 (within a unit of Q12 down to -8, and 0
+below -12); the cross entropy needs a
 logarithm, which weave lacks, so `total` is the squared error of the probabilities there.
 The softmax targets must sum to 1.
 

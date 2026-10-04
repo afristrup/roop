@@ -357,3 +357,22 @@ test a_batch_of_layers_runs_each_row_through_the_same_weights {
     expect q[1][0] == 1024 && p[1][0] == 0 - 4608;
     expect q[2][0] == 3072 && p[2][0] == 0 - 7680;
 }
+
+// exp(-1), exp(-2), exp(-5) and exp(-8) times 4096 are 1506.8, 554.3, 27.6 and 1.37.
+test exp_neg_is_within_a_unit_where_it_matters {
+    r: [i64; 5], x: [i64; 4];
+    x[0] += 0 - 4096;
+    x[1] += 0 - 8192;
+    x[2] += 0 - 20480;
+    x[3] += 0 - 32768;
+    call exp_neg(r[0], 0 + 0);
+    call exp_neg(r[1], x[0]);
+    call exp_neg(r[2], x[1]);
+    call exp_neg(r[3], x[2]);
+    call exp_neg(r[4], x[3]);
+    expect r[0] == 4096;
+    expect r[1] >= 1506 && r[1] <= 1508;
+    expect r[2] >= 553 && r[2] <= 555;
+    expect r[3] >= 27 && r[3] <= 28;
+    expect r[4] >= 1 && r[4] <= 2;
+}
