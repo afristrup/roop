@@ -7,4 +7,5 @@ pub struct WeaveArgs {
     pub main: bool,
     pub batch: Option<usize>,
     pub driver: Option<PathBuf>,
+    pub checked: bool,
 }
