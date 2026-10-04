@@ -147,16 +147,19 @@ def proto(arity):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--baseline", help="a checkout of an older commit, built in release")
+    parser.add_argument("--checkout", help="measure this checkout (built in release) instead of the one holding the script")
     parser.add_argument("--width", type=int, default=64)
     parser.add_argument("--batch", type=int, default=32)
+    parser.add_argument("--accelerate-only", action="store_true", help="of the Rust rows, time only Accelerate's")
     parser.add_argument("--only", default="", help="comma separated: kernels, chunks2, chunks4")
     args = parser.parse_args()
     global WIDTH, BATCH
     WIDTH, BATCH = args.width, args.batch
     os.environ["WEAVE_WIDTH"], os.environ["WEAVE_SAMPLES"] = str(WIDTH), str(BATCH)
     only = set(filter(None, args.only.split(",")))
-    roop, rt = ROOT / "target/release/roop", ROOT / "target/release/libroop_rt.a"
-    weave, einsum = ROOT / "roop/weave", ROOT / "roop/einsum"
+    root = pathlib.Path(args.checkout).resolve() if args.checkout else ROOT
+    roop, rt = root / "target/release/roop", root / "target/release/libroop_rt.a"
+    weave, einsum = root / "roop/weave", root / "roop/einsum"
     chip = subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"], capture_output=True, text=True).stdout.strip()
     load = os.getloadavg()[0]
     print(f"{chip}, {os.cpu_count()} cores, load average {load:.1f} when it started\n")
@@ -188,7 +191,7 @@ def main():
     native = pathlib.Path(tempfile.mkdtemp(prefix="roop-native-")) / "weave_speed"
     subprocess.run(["rustc", "-O", "-C", "target-cpu=native", str(HERE / "native/weave_speed.rs"), "-o", str(native)], check=True)
     print()
-    print(subprocess.run([str(native), "5"], capture_output=True, text=True, check=True).stdout)
+    print(subprocess.run([str(native), "5"] + (["accelerate"] if args.accelerate_only else []), capture_output=True, text=True, check=True).stdout)
 
 
 if __name__ == "__main__":

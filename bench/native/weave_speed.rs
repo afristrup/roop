@@ -339,6 +339,11 @@ fn main() {
     let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
     let q12 = |x: i64| x;
     let real = |x: i64| x as f64 / 4096.0;
+    if std::env::args().nth(2).as_deref() == Some("accelerate") {
+        run::<f64, Blas>("Accelerate f64, the batch as dgemm", real, false, 1, steps);
+        run::<f64, Blas>(&format!("Accelerate f64, the batch in {threads} chunks"), real, false, threads, steps);
+        return;
+    }
     run::<i64, Loops>("Rust q12, one sample at a time", q12, true, 1, steps);
     run::<i64, Loops>("Rust q12, the batch as matrices", q12, false, 1, steps);
     run::<i64, Loops>(&format!("Rust q12, the batch in {threads} chunks"), q12, false, threads, steps);
