@@ -7,12 +7,20 @@
 // unit of the Q12 weight in a carry and adds it to the next step. Without it a step
 // below a unit is dropped, and at a small learning rate most of them are.
 
-// r gets the largest number whose square is at most n, for n that is not negative.
+// r gets the largest number whose square is at most n, for n that is not negative. The
+// search starts from a bound on the root that n allows, so a small n takes few steps.
 irrev fn isqrt(r: &mut i64, n: &i64) {
     ancilla lo: i64 = 0;
     ancilla hi: i64 = 3037000499;
     ancilla mid: i64 = 0 {
         ancilla first: i64 = 1;
+        if n < 4096 { hi = 64; } else {
+            if n < 1048576 { hi = 1024; } else {
+                if n < 268435456 { hi = 16384; } else {
+                    if n < 68719476736 { hi = 262144; } else { hi = 3037000499; } fi n < 68719476736;
+                } fi n < 268435456;
+            } fi n < 1048576;
+        } fi n < 4096;
         from first == 1 {
             mid = (lo + hi + 1) / 2;
             if mid * mid <= n { lo = mid; } else { hi = mid - 1; } fi mid * mid <= n;
