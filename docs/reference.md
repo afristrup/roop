@@ -573,8 +573,11 @@ mean square of the centered copy, and the bias is added after. The adjoint of `z
 followed by the centering again (it is its own adjoint); the gain gets `u * zhat` and the bias
 `u`. Like every function here each line only adds into a place it does not read, so
 `weave::mlp_layer` (with `mlp_layer_back` and the `_batch` forms) is exactly reversible. Its
-tensors are `w1, b1, w2, b2, gain, bias`, in that order. It inherits the limit of the Newton
-chain, so Lean proves only the centering (`mean_of`, `center`), not the whole block.
+tensors are `w1, b1, w2, b2, gain, bias`, in that order. Lean proves the centering
+(`mean_of`, `center`) but not the whole block. The Newton chain is no longer what stops it, since
+the normalized perceptron is proved; with that fixed, the kernel times out on the two theorems
+of `mlp_layer_vjp`, the adjoint of the block, after about half an hour. The loop of calls
+there was not broken into smaller functions.
 
 **The residual block** is `y = x + F(x)` with `F(x) = W2 f(W1 x + b1) + b2`, the invertible
 residual connection of Behrmann et al. when `F` is a contraction, that is when its Lipschitz

@@ -152,7 +152,9 @@ class RealTorch(unittest.TestCase):
         for net in nets:
             before = [p.detach().clone() for p in net.parameters()]
             kept = 0.8 if isinstance(net[0], ResidualBlock) else None
-            losses = train(net, xs, ts, epochs=1500, rate=0.05, roop=roop, keep_contraction=kept)
+            # 0.05 diverges for the residual net since weave's steps below a unit are carried
+            # and not dropped, though the float mirror is stable there; 0.02 converges.
+            losses = train(net, xs, ts, epochs=1500, rate=0.02, roop=roop, keep_contraction=kept)
             self.assertLess(losses[-1], losses[0] / 5)
             self.assertEqual(len(losses), 1500)
             self.assertTrue(all(not torch.equal(a, b) for a, b in zip(before, net.parameters())))
