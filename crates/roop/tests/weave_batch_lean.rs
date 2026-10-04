@@ -153,7 +153,6 @@ fn back(y: &mut [[i64; 2]; 2], ay: &[[i64; 2]; 2], ax: &mut [[i64; 2]; 2],
 }
 
 #[test]
-#[ignore = "minutes: run it with --ignored"]
 fn lean_proves_the_batched_layer_normalized_perceptron_and_its_backward_step() {
     let src = "
 use weave::mlp_layer_batch;
@@ -177,6 +176,74 @@ fn back(y: &mut [[i64; 2]; 2], ay: &[[i64; 2]; 2], ax: &mut [[i64; 2]; 2],
         &[
             "weave__mlp_layer_batch__mlp_layer_batch__2_2_2",
             "weave__mlp_layer_batch__mlp_layer_back_batch__2_2_2",
+        ],
+    );
+}
+
+#[test]
+fn lean_proves_the_batched_residual_block_exactly_reversible() {
+    let src = "
+use weave::residual_batch;
+
+fn fwd(q: &mut [[i64; 2]; 2], p: &mut [[i64; 2]; 2], w1: &[[i64; 2]; 2], b1: &[i64; 2],
+       w2: &[[i64; 2]; 2], b2: &[i64; 2], kind: &i64) {
+    call residual_batch<2, 2, 3, 2>(q, p, w1, b1, w2, b2, kind);
+}
+";
+    lean_accepts(
+        "weave-lean-batch-residual",
+        src,
+        &[
+            "weave__residual_batch__fixed_point_batch__2_2_3_2",
+            "weave__residual_batch__clear_input_batch__2_2_3_2",
+            "weave__residual_batch__residual_batch__2_2_3_2",
+        ],
+    );
+}
+
+#[test]
+fn lean_proves_the_batched_residual_backward_step_exactly_reversible() {
+    let src = "
+use weave::residual_back_batch;
+
+fn back(q: &mut [[i64; 2]; 2], p: &mut [[i64; 2]; 2], aq: &mut [[i64; 2]; 2], ap: &mut [[i64; 2]; 2],
+        gw1: &mut [[i64; 2]; 2], gb1: &mut [i64; 2], gw2: &mut [[i64; 2]; 2], gb2: &mut [i64; 2],
+        w1: &[[i64; 2]; 2], b1: &[i64; 2], w2: &[[i64; 2]; 2], b2: &[i64; 2], kind: &i64) {
+    call residual_back_batch<2, 2, 3, 2>(q, p, aq, ap, gw1, gb1, gw2, gb2, w1, b1, w2, b2, kind);
+}
+";
+    lean_accepts(
+        "weave-lean-batch-residual-back",
+        src,
+        &[
+            "weave__residual_back_batch__chain_adjoint_batch__2_2_3_2",
+            "weave__residual_back_batch__clear_back_batch__2_2_3_2",
+            "weave__residual_back_batch__residual_back_batch__2_2_3_2",
+        ],
+    );
+}
+
+#[test]
+fn lean_proves_the_batched_convolution_and_its_backward_step() {
+    let src = "
+use weave::conv_batch;
+use weave::conv_back_batch;
+
+fn fwd(y: &mut [[i64; 4]; 2], w: &[[i64; 6]; 2], b: &[i64; 2], x: &[[i64; 4]; 2]) {
+    call conv_batch<2, 3, 2, 4, 6, 2, 4>(y, w, b, x);
+}
+fn back(y: &mut [[i64; 4]; 2], ay: &[[i64; 4]; 2], ax: &mut [[i64; 4]; 2],
+        gw: &mut [[i64; 6]; 2], gb: &mut [i64; 2],
+        w: &[[i64; 6]; 2], b: &[i64; 2], x: &[[i64; 4]; 2]) {
+    call conv_back_batch<2, 3, 2, 4, 6, 2, 4>(y, ay, ax, gw, gb, w, b, x);
+}
+";
+    lean_accepts(
+        "weave-lean-batch-conv",
+        src,
+        &[
+            "weave__conv_batch__conv_batch__2_3_2_4_6_2_4",
+            "weave__conv_batch__conv_back_batch__2_3_2_4_6_2_4",
         ],
     );
 }
