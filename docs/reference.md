@@ -573,11 +573,14 @@ mean square of the centered copy, and the bias is added after. The adjoint of `z
 followed by the centering again (it is its own adjoint); the gain gets `u * zhat` and the bias
 `u`. Like every function here each line only adds into a place it does not read, so
 `weave::mlp_layer` (with `mlp_layer_back` and the `_batch` forms) is exactly reversible. Its
-tensors are `w1, b1, w2, b2, gain, bias`, in that order. Lean proves the centering
-(`mean_of`, `center`) but not the whole block. The Newton chain is no longer what stops it, since
-the normalized perceptron is proved; with that fixed, the kernel times out on the two theorems
-of `mlp_layer_vjp`, the adjoint of the block, after about half an hour. The loop of calls
-there was not broken into smaller functions.
+tensors are `w1, b1, w2, b2, gain, bias`, in that order. Lean proves the block and its
+backward step (`mlp_layer`, `mlp_layer_vjp`, `mlp_layer_back` at width 2) exactly reversible.
+What once made the kernel time out on `mlp_layer_vjp` was one case of the call-chain proof: a
+call that returns two places (`layernorm_vjp` gives the adjoint of `z` and of the gain) left
+its result as a pair, so the checks that its undone ancillas are zero could not be turned
+into substitutions, the chain rewrite failed, and Lean fell back to unfolding every callee
+body. The chain proof now opens a pair result first, so each call keeps its own lemma. The
+batched forms (`mlp_layer_batch`) are proved too, by an ignored test, in about three minutes.
 
 **The residual block** is `y = x + F(x)` with `F(x) = W2 f(W1 x + b1) + b2`, the invertible
 residual connection of Behrmann et al. when `F` is a contraction, that is when its Lipschitz
