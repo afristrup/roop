@@ -18,6 +18,7 @@ import torch.nn.functional as F
 import data
 import env
 import models
+from fixed_eval import fixed_accuracy
 from mirror_net import MirrorNet
 from torch_to_weave import export
 from train_torch import fit, saved_bytes
@@ -53,6 +54,8 @@ def main(argv=None):
                    help="scales the last weights of each block, to keep a deep state small")
     a.add_argument("--norm", action="store_true", help="RMSNorm on the hidden layer of each perceptron")
     a.add_argument("--input-scale", type=float, default=1.0, help="scales the inputs")
+    a.add_argument("--fixed-eval", action="store_true",
+                   help="also run the test set through the compiled fixed point forward pass (weave only)")
     args = a.parse_args(argv)
     torch.manual_seed(args.seed)
     xs, ys, xt, yt = (data.digits(args.seed, cap=args.cap) if args.task == "digits"
@@ -79,6 +82,8 @@ def main(argv=None):
                       library=env.library(), usage=usage)
         out.update(usage)
         out["total_seconds"] = time.perf_counter() - start
+        if args.fixed_eval:
+            out["fixed_test_acc"] = fixed_accuracy(net, classes, xt, yt, env.library())
         net = MirrorNet(export(net, classes, loss="softmax"))
     else:
         if args.method == "mirror":
