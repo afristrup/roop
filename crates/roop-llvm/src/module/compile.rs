@@ -4,6 +4,13 @@ use crate::{
 };
 use roop_syntax::{Item, Program};
 
+/// The sticky flag the checked arithmetic sets, which C reads as `roop_overflow`.
+const OVERFLOW_DECLARATIONS: &str = "@roop_overflow = global i64 0, align 8\n\
+     declare { i64, i1 } @llvm.sadd.with.overflow.i64(i64, i64)\n\
+     declare { i64, i1 } @llvm.ssub.with.overflow.i64(i64, i64)\n\
+     declare { i64, i1 } @llvm.smul.with.overflow.i64(i64, i64)\n\
+     declare i1 @llvm.expect.i1(i1, i1)\n\n";
+
 /// The C `main`: records the arguments for the runtime, runs `roop_main`, and
 /// returns the status it leaves.
 fn main_shim(params: usize, declare_commit: bool, history_limit: Option<u64>) -> String {
@@ -86,6 +93,9 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
          @roop_metallib_len = external constant i64\n\
          @roop_ptx = external constant i8\n\n",
     );
+    if options.check_overflow {
+        host.push_str(OVERFLOW_DECLARATIONS);
+    }
     let variants = try_variants(&ctx);
     let mut kernels: Vec<Kernel> = Vec::new();
     for item in &program.items {

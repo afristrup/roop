@@ -12,7 +12,13 @@ pub fn host_options(config: &Config) -> Options {
         .iter()
         .filter_map(|t| parse_target(t))
         .collect();
-    let auto_gpus = if config.parallel.auto {
+    let checked = config.checks.overflow;
+    let allowed: Vec<Target> = if checked {
+        allowed.into_iter().filter(|t| *t == Target::Cpu).collect()
+    } else {
+        allowed
+    };
+    let auto_gpus = if config.parallel.auto && !checked {
         host_gpus()
             .into_iter()
             .filter(|t| allowed.contains(t))
@@ -28,9 +34,12 @@ pub fn host_options(config: &Config) -> Options {
         triple: cfg!(all(target_os = "macos", target_arch = "aarch64"))
             .then(|| "arm64-apple-macosx".into()),
         cpu,
-        sme: config.parallel.sme && detect_sme(),
+        sme: config.parallel.sme && detect_sme() && !checked,
         clear_ancillas: config.optimize.clear_ancillas,
-        q12: config.parallel.q12 && cfg!(all(target_os = "macos", target_arch = "aarch64")),
+        check_overflow: checked,
+        q12: config.parallel.q12
+            && !checked
+            && cfg!(all(target_os = "macos", target_arch = "aarch64")),
         parallel: ParallelOptions {
             allowed,
             auto_gpus,

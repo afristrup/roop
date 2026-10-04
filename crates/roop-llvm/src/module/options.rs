@@ -23,4 +23,8 @@ pub struct Options {
     /// The most bytes the history of kept values may hold, set by the program's
     /// entry point. Unlimited when absent.
     pub history_limit: Option<u64>,
+    /// Integer additions, subtractions, negations and multiplications on the
+    /// host raise the sticky `roop_overflow` flag when they wrap. The results
+    /// are unchanged.
+    pub check_overflow: bool,
 }

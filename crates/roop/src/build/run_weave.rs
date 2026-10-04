@@ -10,7 +10,7 @@ pub fn run_weave(args: &WeaveArgs) -> Result<(), CliError> {
         let batch = args.batch.ok_or_else(|| {
             CliError::Tool("--driver needs --batch, the samples a step takes".into())
         })?;
-        std::fs::write(path, emit_driver(&model, batch))
+        std::fs::write(path, emit_driver(&model, batch, args.checked))
             .map_err(|e| CliError::Io(path.display().to_string(), e))?;
     }
     let code = emit_model(&model, args.tests, args.batch, args.main);

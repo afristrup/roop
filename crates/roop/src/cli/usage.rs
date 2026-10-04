@@ -5,7 +5,7 @@ pub const USAGE: &str =
        roop test [<path>...] [--filter <text>] [--timeout <seconds>] [--lean]
        roop fmt [<path>...] [--check] [--width <columns>] [--stdin]
        roop weave <model.json> [-o <output.roop>] [--tests] [--main] [--batch <samples>]
-                  [--driver <main.c>]
+                  [--driver <main.c> [--checked]]
        roop lsp
 
   build        compile to LLVM IR, an object, or an executable
@@ -40,6 +40,8 @@ pub const USAGE: &str =
                  N samples through the network together as matrix products, and
                  `<name>_train`, a step on N samples that C can call
     --driver F   write a C program that trains the model on data files (needs --batch)
+    --checked    make that driver also stop when the step set `roop_overflow`; build with
+                 `overflow = true` under [checks] in Roop.toml
 
   lsp          language server on stdin and stdout: syntax and check errors as
                diagnostics, formatting, and an outline of the file

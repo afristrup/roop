@@ -1151,6 +1151,33 @@ backward does the same to the other of the two. Nothing observable changes, sinc
 the `uncall` would have left zero, and a test runs weave's step with and without
 it and compares the weights. `clear_ancillas = false` turns it off.
 
+**Overflow checks.** Integer arithmetic wraps, which keeps every step reversible but
+means a diverging program can report garbage. `[checks]` turns on detection:
+
+```toml
+[checks]
+overflow = true
+```
+
+Every `i64` addition, subtraction, negation and multiplication, in expressions and in
+`+=`, `-=` and `*=`, then uses LLVM's overflow intrinsics and, when one wraps, stores 1
+in the global `roop_overflow` (an `i64`, sticky, written atomically so parallel CPU
+loops may set it). The results are the same wrapped numbers as without the flag, so
+a run that does not overflow is bit-identical and an inverse still undoes its forward
+exactly. A C driver reads `extern volatile int64_t roop_overflow;` after a step. The
+default is off, and the generated code then has no flag and no intrinsics.
+
+Checked builds run on the CPU only: the SME and NEON integer kernels (which wrap
+inside the runtime) are not used, `#[parallel(metal)]` and `#[parallel(cuda)]` are
+refused, and a bare `#[parallel]` never picks a GPU. On weave's batch training step
+this costs about 2.4 times the time (1.7 for giving up the kernels, 1.4 for the
+checks). Narrower integers and bytes are not checked, and neither is the Lean
+translation, which has its own integer semantics. `roop weave ... --driver main.c
+--checked` writes a driver that, besides its limit on the loss and weights, stops
+with status 3 and a message when a step set the flag; build it with `overflow = true`
+in the `Roop.toml` next to the program. This catches a wrap deep in a step, such as a
+product in a chain cell or an activation, that leaves the loss and the weights small.
+
 Metal kernels are emitted as AIR and built with Apple's `metal` tools; NVPTX
 kernels go through LLVM's PTX backend and need a CUDA driver at run time. The
 CUDA launcher has been verified on an NVIDIA GeForce RTX 4090 with driver 595.91.07

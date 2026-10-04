@@ -1,6 +1,6 @@
 use crate::{
-    CodegenError, Dir, FnGen, Kind, gen_expr_as, gen_place, guard_scale, kind_of, llvm_type,
-    mem_load, mem_store, same_type,
+    CodegenError, Dir, FnGen, Kind, emit_int_arith, gen_expr_as, gen_place, guard_scale, kind_of,
+    llvm_type, mem_load, mem_store, same_type,
 };
 use roop_syntax::{Expr, Place, UpdateOp};
 
@@ -40,6 +40,6 @@ pub fn gen_update(
         guard_scale(g, op, kind, &old, &v)?;
     }
     let new = format!("%{}", g.fresh("t"));
-    g.emit(&format!("{new} = {instr} {ty} {}, {}", old.reg, v.reg));
+    emit_int_arith(g, &new, instr, &ty, &old.reg, &v.reg);
     mem_store(g, &slot, &new)
 }

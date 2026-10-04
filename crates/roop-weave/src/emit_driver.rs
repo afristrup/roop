@@ -12,7 +12,10 @@ use crate::Model;
 /// writes the trained weights. The arithmetic wraps, so a run that diverges would
 /// report garbage; the program stops with status 3 when the loss or a weight
 /// leaves `LIMIT` (2^31, a product of two such numbers still fits in 64 bits).
-pub fn emit_driver(model: &Model, batch: usize) -> String {
+/// With `checked` it also stops with status 3 when the step set `roop_overflow`,
+/// the flag of a program built with `overflow = true` under `[checks]`, which
+/// catches a wrap deep inside a step that the loss and weights do not show.
+pub fn emit_driver(model: &Model, batch: usize, checked: bool) -> String {
     let (n, k, name) = (model.width, model.outputs, &model.name);
     let tensors = model.tensors();
     let grads = model.gradients();
@@ -53,6 +56,14 @@ pub fn emit_driver(model: &Model, batch: usize) -> String {
         .iter()
         .map(|t| format!("    fwrite({0}, 8, {1}, out);\n", t.name, t.data.len()))
         .collect();
+    let (extern_flag, flag_check) = if checked {
+        (
+            "extern volatile int64_t roop_overflow;\n",
+            "            if (roop_overflow) {\n                fprintf(stderr, \"overflow: an intermediate value wrapped inside a step; training diverged\\n\");\n                exit(3);\n            }\n",
+        )
+    } else {
+        ("", "")
+    };
     let types = vec!["int64_t*"; pointers.len()].join(", ");
     format!(
         r#"#include <stdint.h>
@@ -63,7 +74,7 @@ pub fn emit_driver(model: &Model, batch: usize) -> String {
 static int64_t xs[{batch}][{n}], ts[{batch}][{k}];
 
 void {name}_train({types});
-
+{extern_flag}
 #define LIMIT ((int64_t)1 << 31)
 
 static void check(const char *what, const int64_t *v, size_t count) {{
@@ -109,7 +120,7 @@ int main(int argc, char **argv) {{
                 for (int j = 0; j < {k}; j++) ts[i][j] = targets[(b + i) * {k} + j];
             }}
             {name}_train({args});
-            check("loss", &total, 1);
+{flag_check}            check("loss", &total, 1);
 {guard}        }}
         printf("%lld\n", (long long)total);
     }}
