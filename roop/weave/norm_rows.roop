@@ -1,0 +1,65 @@
+// The normalizations of a hidden layer on a batch: each row is normalized by
+// itself, since its statistics are its own. The gradient of the shared gain comes
+// out one row for each sample, to be summed over the rows.
+
+use super::layer_norm::*;
+use super::norm::*;
+
+// n += rmsnorm(z) for each row
+pub fn rmsnorm_rows<M, B>(
+    n: &mut [[i64; M]; B],
+    z: &[[i64; M]; B],
+    g: &[i64; M],
+    eps: &i64,
+) {
+    ancilla r: i64 = 0;
+    from r == 0 { call rmsnorm<M>(n[r], z[r], g, eps); } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// dz += the adjoint of z and dg += the gradient of the gain, for each row
+pub fn rmsnorm_vjp_rows<M, B>(
+    dz: &mut [[i64; M]; B],
+    dg: &mut [[i64; M]; B],
+    u: &[[i64; M]; B],
+    z: &[[i64; M]; B],
+    g: &[i64; M],
+    eps: &i64,
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        call rmsnorm_vjp<M>(dz[r], dg[r], u[r], z[r], g, eps);
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// n += layernorm(z) for each row
+pub fn layernorm_rows<M, B>(
+    n: &mut [[i64; M]; B],
+    z: &[[i64; M]; B],
+    g: &[i64; M],
+    beta: &[i64; M],
+    eps: &i64,
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        call layernorm<M>(n[r], z[r], g, beta, eps);
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// dz += the adjoint of z and dg += the gradient of the gain, for each row
+pub fn layernorm_vjp_rows<M, B>(
+    dz: &mut [[i64; M]; B],
+    dg: &mut [[i64; M]; B],
+    u: &[[i64; M]; B],
+    z: &[[i64; M]; B],
+    g: &[i64; M],
+    eps: &i64,
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        call layernorm_vjp<M>(dz[r], dg[r], u[r], z[r], g, eps);
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
