@@ -561,7 +561,7 @@ starts from 1/4 and converges for `s` up to 48, and a larger one traps; `eps` ca
 1/4096. Lean proves the normalized block and its backward step (`mlp_norm`, `mlp_norm_vjp`,
 `mlp_norm_back` at width 2) exactly reversible in about two minutes; each step and each stage
 has its own call lemmas, so the proof of the chain is a few calls long instead of unfolding all
-20 steps; the batched version (`mlp_norm_batch`) is proved too, in about a minute. This is RMSNorm.
+20 steps; the batched version (`mlp_norm_batch`) is proved too, at 32 rows and width 64 (see below). This is RMSNorm.
 
 **LayerNorm** is the same block with `"center": true` and a `"bias"` of one number per hidden
 unit: `gain * (z - mean(z)) / sqrt(var(z) + eps) + bias`. The mean is taken off into a centered
@@ -579,7 +579,7 @@ call that returns two places (`layernorm_vjp` gives the adjoint of `z` and of th
 its result as a pair, so the checks that its undone ancillas are zero could not be turned
 into substitutions, the chain rewrite failed, and Lean fell back to unfolding every callee
 body. The chain proof now opens a pair result first, so each call keeps its own lemma. The
-batched forms (`mlp_layer_batch`) are proved too, by an ignored test, in about three minutes.
+batched forms (`mlp_layer_batch`) are proved too, at 32 rows and width 64 (see below).
 
 **The residual block** is `y = x + F(x)` with `F(x) = W2 f(W1 x + b1) + b2`, the invertible
 residual connection of Behrmann et al. when `F` is a contraction, that is when its Lipschitz
@@ -621,7 +621,7 @@ of the ideal `x + F(x)` by terms that also shrink as `L^K`. Costs are `K` evalua
 forward (twice, as the chain is built and then undone), several times that backward, and
 `2K` cells of `N` numbers for the chain (`4K` in the backward step). Each cell of the
 chain has a twin that holds the step, so that no call reads the array it writes; that is what
-lets Lean prove `residual` and `residual_back` at small sizes.
+lets Lean prove `residual` and `residual_back`.
 
 The batched block (`residual_batch`, `residual_back_batch`) runs B samples together. The chain is
 the same for every row, so each of its `K` steps is one `mlp_batch` (or `mlp_vjp_batch` going
@@ -630,6 +630,31 @@ instead of once per sample. Each row is what `residual` makes of it alone, and t
 the sums over the rows, bit for bit; tests compare both against the per-sample forms. On 64
 wide rows with a 64 wide hidden layer, 20 cells and 32 samples, forward and backward together
 take 3.1 ms against 12.8 ms for 32 per-sample calls (about 4 times faster, release runtime).
+
+Lean proves the batched forms at these sizes, each forward and backward together
+(`crates/roop/tests/weave_batch_scale.rs`, all in one test run about 150 seconds):
+
+| block | size proved | time |
+|---|---|---|
+| `residual_batch`, `residual_back_batch` | 32 rows, width 64, hidden 64, 20 cells | 10 s forward, 30 s backward |
+| `conv_batch`, `conv_back_batch` | 32 rows, 16 channels, kernel 3, 32 steps | 12 s |
+| `mlp_norm_batch`, `mlp_norm_back_batch` (RMS) | 32 rows, width 64, hidden 64 | 57 s |
+| `mlp_layer_batch`, `mlp_layer_back_batch` (layer) | 32 rows, width 64, hidden 64 | 58 s |
+
+The generated Lean file does not grow with the sizes, and with the ancilla fix below neither does
+the checking time: spot checks at 64 rows, width 128, hidden 128 and 40 cells (residual, 11 s),
+64 rows, 32 channels and 64 steps (conv, 14 s) and 64 rows and width 128 (layer, 63 s) took what
+the smaller sizes did. Larger sizes were not tried. Every size above is one machine's timing
+(Apple silicon, one Lean process); the layer and RMS blocks cost about a minute because of their
+20 step square root chain, not their size.
+
+What made the size matter was the start value of an ancilla array. `Vector.replicate` is an
+ordinary definition, so when the kernel compared an array of zeros with the array a callee
+returned (the check that an ancilla is restored), it evaluated the comparison element by
+element: a residual chain of 20 cells of 8 rows of 32 was 5000 values, 13 s and 8 GB of kernel
+memory for one theorem, and at 16 rows and width 32 the file swapped for a quarter of an hour.
+The prelude now builds those arrays with `Roop.zeros`, an opaque constant with a theorem that it
+equals `Vector.replicate` (the same device as `Roop.janus`), so the kernel stops there.
 
 A model's residual layer needs `L` below 0.9, which the compiler checks from the weights on
 the 1/4096 grid: the spectral norms of `W1` and `W2` (power iteration, taken 1 percent high)
