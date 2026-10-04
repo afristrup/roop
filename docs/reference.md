@@ -650,19 +650,22 @@ precision copy of the network (they agree to about 1%, which is the 4096 grid)
 and that the input comes back bit for bit. Another trains XOR to a 50x lower
 loss. Lean proves the forward pass, the backward pass and `grad` exactly reversible,
 layer by layer and through the loop over layers, at widths 16 and 32 with 4 or 8
-layers: about 30 seconds at width 16 and 50 at width 32. Each call's own lemma
-settles a function of many calls, so the proof does not grow with the number of
-layers, and the cost of a width comes from the contractions, whose loop lemmas
-are proved once per size. `crates/roop/tests/weave_scale.rs` runs those two sizes.
+layers and at the benchmark's size, width 64 with hidden width 64, eight layers and
+four outputs: the forward pass alone takes under a minute and all three functions
+together about a minute and a half. Each call's own lemma settles a function of
+many calls, so the proof does not grow with the number of layers.
+`crates/roop/tests/weave_scale.rs` runs those three sizes.
 
-The benchmark's size, width 64 with hidden width 64, eight layers and four
-outputs, was proved in about two minutes (forward 66 seconds, backward 92, `grad`
-124) before the batched, wide-contraction weave of `q12w` einsums. With that weave
-the forward pass alone had not finished after an hour, and the three functions
-together had not finished in 30 minutes, so that size is not proved today. Why
-the cost grew with the wide contractions was not looked into; their loop lemmas at
-width 64 are the first place to look. The test is kept, `#[ignore]`d, in
-`weave_scale.rs`.
+The time used to grow sharply with the width, and not because of the loop lemmas
+of the contractions. The proofs were small and quick to elaborate, but Lean's kernel
+spent minutes checking them: a proof that unfolds a function and matches on the
+result of a call makes the kernel reduce that call, and so the whole callee, to
+see whether it is a constructor. With symbolic data it ran every iteration of the
+callee's loops until it got stuck (the nested loops of a contraction, so a cost
+that grows with the cube of the width). The prelude now keeps the loop runner
+`Roop.janus` behind an opaque constant, with a theorem that it equals the real
+definition, so the kernel stops at the first loop. Nothing else about the proofs
+changed.
 
 **Batches.** `weave::step` runs one sample at a time. `layer_batch`, `forward_batch`,
 `layer_back_batch`, `backward_batch`, `grad_batch` and `step_batch` run `B`
