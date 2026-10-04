@@ -376,3 +376,13 @@ test exp_neg_is_within_a_unit_where_it_matters {
     expect r[3] >= 27 && r[3] <= 28;
     expect r[4] >= 1 && r[4] <= 2;
 }
+
+// 1 / sqrt(100) = 0.1 and 1 / sqrt(10000) = 0.01, which are 409.6 and 41.0 in Q12.
+test rsqrt_of_a_large_mean_square_is_not_zero {
+    r: i64, t: i64, big: i64, huge: i64;
+    big += 409600;
+    huge += 40960000;
+    call rsqrt(r, big);
+    call rsqrt(t, huge);
+    expect r > 405 && r < 414 && t >= 40 && t <= 41;
+}

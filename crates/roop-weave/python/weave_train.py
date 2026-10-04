@@ -43,8 +43,8 @@ def tensors(spec):
 
 
 def run(command, usage=None):
-    """The output of a command. `usage`, a dict, gets its wall `seconds` and its peak
-    resident memory `rss` in bytes."""
+    """The output of a command. `usage`, a dict, gets its wall `seconds`, its `cpu`
+    seconds and its peak resident memory `rss` in bytes."""
     start = time.perf_counter()
     with tempfile.TemporaryFile("w+") as out, tempfile.TemporaryFile("w+") as err:
         process = subprocess.Popen(command, stdout=out, stderr=err, text=True)
@@ -57,7 +57,8 @@ def run(command, usage=None):
         raise RuntimeError(f"{' '.join(command)}\n{text}{errors}")
     if usage is not None:
         scale = 1 if sys.platform == "darwin" else 1024
-        usage.update(seconds=time.perf_counter() - start, rss=used.ru_maxrss * scale)
+        usage.update(seconds=time.perf_counter() - start, cpu=used.ru_utime + used.ru_stime,
+                     rss=used.ru_maxrss * scale)
     return text
 
 

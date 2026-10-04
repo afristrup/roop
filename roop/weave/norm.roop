@@ -3,7 +3,7 @@
 // There is no square root that adds into a zero place, so 1 / sqrt(s) is found by
 // Newton's method, y = y (3 - s y^2) / 2, as a chain of 21 cells where each cell
 // takes its value from the one before and nothing is overwritten. It starts from
-// 1/4 and converges for s up to 48; a larger s fails the exit assertion and traps.
+// 1/4 and converges for s up to 48; a larger s is shrunk first (see `rsqrt`).
 
 // ss += the sum of z^2
 fn sum_squares<M>(ss: &mut i64, z: &[i64; M]) {
@@ -32,13 +32,28 @@ fn newton<K>(e: &mut [i64; K], s: &i64) {
     k -= K - 1;
 }
 
-// r += 1 / sqrt(s)
+// r += 1 / sqrt(s / shrink) / root, for shrink the square of root
+fn rsqrt_shrunk(r: &mut i64, s: &i64, shrink: &i64, root: &i64) {
+    ancilla e: [i64; 21] = 0;
+    call newton<21>(e, s / shrink);
+    r += e[20] / root;
+    uncall newton<21>(e, s / shrink);
+}
+
+// r += 1 / sqrt(s). Newton converges for s up to 48, so a larger s is shrunk by 64 or by
+// 4096 first, which reaches 196608. Beyond that r stays 0.
 pub fn rsqrt(r: &mut i64, s: &i64) {
     if s <= 196608 {
         ancilla e: [i64; 21] = 0;
         call newton<21>(e, s);
         r += e[20];
         uncall newton<21>(e, s);
+    } else {
+        if s <= 12582912 {
+            call rsqrt_shrunk(r, s, 64, 8);
+        } else {
+            if s <= 805306368 { call rsqrt_shrunk(r, s, 4096, 64); } fi s <= 805306368;
+        } fi s <= 12582912;
     } fi s <= 196608;
 }
 

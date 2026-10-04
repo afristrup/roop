@@ -51,16 +51,19 @@ def main(argv=None):
     a.add_argument("--init-scale", type=float, default=1.0, help="scales the initial weights")
     a.add_argument("--out-scale", type=float, default=1.0,
                    help="scales the last weights of each block, to keep a deep state small")
+    a.add_argument("--norm", action="store_true", help="RMSNorm on the hidden layer of each perceptron")
+    a.add_argument("--input-scale", type=float, default=1.0, help="scales the inputs")
     args = a.parse_args(argv)
     torch.manual_seed(args.seed)
     xs, ys, xt, yt = (data.digits(args.seed, cap=args.cap) if args.task == "digits"
                       else data.characters(args.seed, cap=args.cap or 2048))
+    xs, xt = xs * args.input_scale, xt * args.input_scale
     classes = 10 if args.task == "digits" else 16
     if args.method == "plain":
         net = models.plain(classes)
     else:
         net = models.reversible(args.depth, tuple(args.kinds.split(",")), args.hidden, args.act,
-                                 args.out_scale)
+                                 args.out_scale, args.norm)
         with torch.no_grad():
             for p in net.parameters():
                 p.mul_(args.init_scale)
@@ -80,11 +83,14 @@ def main(argv=None):
     else:
         if args.method == "mirror":
             net = MirrorNet(export(net, classes, loss="softmax")).double()
-        before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        used = resource.getrusage(resource.RUSAGE_SELF)
+        before = used.ru_maxrss
         out["saved"] = saved_bytes(net, xs[: args.batch], ys[: args.batch])
         curve = fit(net, xs, ys, classes, args.epochs, args.rate, args.optimizer, args.batch)
         out["seconds"] = time.perf_counter() - start
-        out["rss"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        after = resource.getrusage(resource.RUSAGE_SELF)
+        out["cpu"] = after.ru_utime + after.ru_stime - used.ru_utime - used.ru_stime
+        out["rss"] = after.ru_maxrss
         out["rss_growth"] = out["rss"] - before
     out["curve"] = [round(c / len(ys), 5) for c in curve]
     out["train_metrics"] = metrics(scores(net, xs), ys)

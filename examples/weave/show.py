@@ -6,7 +6,7 @@
 import json
 import sys
 
-COLUMNS = ["method", "optimizer", "rate", "depth", "hidden", "act", "kinds", "init_scale", "out_scale", "batch",
+COLUMNS = ["method", "optimizer", "rate", "depth", "hidden", "act", "kinds", "init_scale", "out_scale", "norm", "input_scale", "batch",
            "epochs", "seed"]
 
 
@@ -16,7 +16,7 @@ def main():
         r = json.loads(line)
         if any(str(r.get(k)) != v for k, v in filters.items()):
             continue
-        head = " ".join(f"{r[k]}" for k in COLUMNS)
+        head = " ".join(f"{r.get(k, '-')}" for k in COLUMNS)
         seconds = r.get("seconds", 0)
         mem = r.get("rss", 0) / 2**20
         print(f"{head} | train {r['train_metrics']['acc']:.3f}/{r['train_metrics']['ce']:.3f} "
