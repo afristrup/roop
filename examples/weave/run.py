@@ -1,0 +1,91 @@
+"""Trains one configuration and prints one JSON line of results.
+
+    uv run --extra torch python run.py digits --method weave --optimizer adam --rate 0.002
+
+Methods: `plain` (an ordinary torch MLP), `mirror` (the reversible network in float,
+torch's autograd), `weave` (the same network trained in Q12 by roop).
+"""
+
+import argparse
+import json
+import resource
+import sys
+import time
+
+import torch
+import torch.nn.functional as F
+
+import data
+import env
+import models
+from mirror_net import MirrorNet
+from torch_to_weave import export
+from train_torch import fit
+from weave_train import train
+
+
+def scores(net, x):
+    with torch.no_grad():
+        return net(x)
+
+
+def metrics(logits, y):
+    return {"acc": float((logits.argmax(1) == y).double().mean()),
+            "ce": float(F.cross_entropy(logits, y))}
+
+
+def main(argv=None):
+    a = argparse.ArgumentParser()
+    a.add_argument("task", choices=["digits", "chars"])
+    a.add_argument("--method", default="weave", choices=["plain", "mirror", "weave"])
+    a.add_argument("--optimizer", default="sgd", choices=["sgd", "momentum", "adam"])
+    a.add_argument("--rate", type=float, default=0.01)
+    a.add_argument("--epochs", type=int, default=10)
+    a.add_argument("--seed", type=int, default=0)
+    a.add_argument("--depth", type=int, default=8)
+    a.add_argument("--hidden", type=int, default=32)
+    a.add_argument("--act", default="tanh")
+    a.add_argument("--kinds", default="mlp", help="comma list cycled through: mlp,attention,conv")
+    a.add_argument("--cap", type=int, default=None, help="at most this many training samples")
+    a.add_argument("--batch", type=int, default=data.BATCH)
+    a.add_argument("--init-scale", type=float, default=1.0, help="scales the initial weights")
+    args = a.parse_args(argv)
+    torch.manual_seed(args.seed)
+    xs, ys, xt, yt = (data.digits(args.seed, cap=args.cap) if args.task == "digits"
+                      else data.characters(args.seed, cap=args.cap or 2048))
+    classes = 10 if args.task == "digits" else 16
+    if args.method == "plain":
+        net = models.plain(classes)
+    else:
+        net = models.reversible(args.depth, tuple(args.kinds.split(",")), args.hidden, args.act)
+        with torch.no_grad():
+            for p in net.parameters():
+                p.mul_(args.init_scale)
+    net = net.double()
+    out = {**vars(args), "train": len(ys), "test": len(yt),
+           "params": sum(p.numel() for p in net.parameters())}
+    start = time.perf_counter()
+    if args.method == "weave":
+        usage = {}
+        targets = F.one_hot(ys, classes).double()
+        curve = train(net, xs, targets, args.epochs, args.rate, loss="softmax",
+                      optimizer={"kind": args.optimizer}, batch=args.batch, roop=env.roop(),
+                      usage=usage)
+        out.update(usage)
+        out["total_seconds"] = time.perf_counter() - start
+        net = MirrorNet(export(net, classes, loss="softmax"))
+    else:
+        if args.method == "mirror":
+            net = MirrorNet(export(net, classes, loss="softmax")).double()
+        curve = fit(net, xs, ys, classes, args.epochs, args.rate, args.optimizer, args.batch)
+        out["seconds"] = time.perf_counter() - start
+        out["rss"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    out["curve"] = [round(c / len(ys), 5) for c in curve]
+    out["train_metrics"] = metrics(scores(net, xs), ys)
+    out["test_metrics"] = metrics(scores(net, xt), yt)
+    json.dump(out, sys.stdout)
+    print()
+
+
+if __name__ == "__main__":
+    main()

@@ -9,7 +9,9 @@ import json
 import os
 import struct
 import subprocess
+import sys
 import tempfile
+import time
 from pathlib import Path
 
 import torch
@@ -40,18 +42,31 @@ def tensors(spec):
     return out
 
 
-def run(command, **options):
-    done = subprocess.run(command, capture_output=True, text=True, cwd=options.get("cwd"))
-    if done.returncode != 0:
-        raise RuntimeError(f"{' '.join(command)}\n{done.stdout}{done.stderr}")
-    return done.stdout
+def run(command, usage=None):
+    """The output of a command. `usage`, a dict, gets its wall `seconds` and its peak
+    resident memory `rss` in bytes."""
+    start = time.perf_counter()
+    with tempfile.TemporaryFile("w+") as out, tempfile.TemporaryFile("w+") as err:
+        process = subprocess.Popen(command, stdout=out, stderr=err, text=True)
+        _, status, used = os.wait4(process.pid, 0)
+        process.returncode = os.waitstatus_to_exitcode(status)
+        out.seek(0)
+        err.seek(0)
+        text, errors = out.read(), err.read()
+    if process.returncode != 0:
+        raise RuntimeError(f"{' '.join(command)}\n{text}{errors}")
+    if usage is not None:
+        scale = 1 if sys.platform == "darwin" else 1024
+        usage.update(seconds=time.perf_counter() - start, rss=used.ru_maxrss * scale)
+    return text
 
 
 def train(model, xs, ts, epochs, rate, outputs=None, loss="mse", optimizer=None,
-          step=0.25, batch=None, roop="roop", name="net", library=LIBRARY):
+          step=0.25, batch=None, roop="roop", name="net", library=LIBRARY, usage=None):
     """Trains `model` in place on the samples xs (one row each) and their targets,
     and returns the loss of each epoch, summed over the samples. `library` is the
-    directory with the weave and einsum modules, the `roop` of the repository."""
+    directory with the weave and einsum modules, the `roop` of the repository. `usage`, a
+    dict, gets the seconds and peak memory of the training program."""
     xs, ts = torch.as_tensor(xs, dtype=torch.float64), torch.as_tensor(ts, dtype=torch.float64)
     outputs = ts.shape[1] if outputs is None else outputs
     spec, bound = export_bound(model.eval(), outputs, step, name, loss, optimizer or {"kind": "sgd"})
@@ -70,7 +85,7 @@ def train(model, xs, ts, epochs, rate, outputs=None, loss="mse", optimizer=None,
         with open(path("data.bin"), "wb") as f:
             f.write(pack(xs.flatten().tolist()) + pack(ts.flatten().tolist()))
         out = run([path("prog"), path("weights.bin"), path("data.bin"), str(epochs),
-                   str(round(rate * GRID)), str(len(xs)), path("trained.bin")])
+                   str(round(rate * GRID)), str(len(xs)), path("trained.bin")], usage)
         with open(path("trained.bin"), "rb") as f:
             raw = f.read()
     trained = struct.unpack(f"<{len(raw) // 8}q", raw)

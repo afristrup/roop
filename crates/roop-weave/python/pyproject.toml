@@ -6,7 +6,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
-torch = ["torch", "numpy"]
+torch = ["torch", "numpy", "scikit-learn"]
 
 [tool.uv]
 package = false
