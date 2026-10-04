@@ -1,9 +1,10 @@
 // RMS normalization of a hidden layer in Q12: n = g * z / sqrt(mean(z^2) + eps).
 //
 // There is no square root that adds into a zero place, so 1 / sqrt(s) is found by
-// Newton's method, y = y (3 - s y^2) / 2, as a chain of 21 cells where each cell
-// takes its value from the one before and nothing is overwritten. It starts from
-// 1/4 and converges for s up to 48; a larger s fails the exit assertion and traps.
+// Newton's method, y = y (3 - s y^2) / 2, as a chain of 21 values, 20 steps in
+// four stages of five, where each value is added from the one before and nothing is
+// overwritten. It starts from 1/4
+// and converges for s up to 48; a larger s fails the exit assertion and traps.
 
 // ss += the sum of z^2
 fn sum_squares<M>(ss: &mut i64, z: &[i64; M]) {
