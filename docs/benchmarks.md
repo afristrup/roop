@@ -89,7 +89,20 @@ Before: 147.5, 149.8, 113.7 and 101.6 (auto), measured with a shorter warm-up.
   apart and not the four tiles of a row, so they cannot load a row of C. Single
   threaded the kernel runs 389, 444, 453 and 413 at the four sizes in the C
   harness, so at 128 the gap to Accelerate is in the pack and the C round trip
-  that a 128-deep product cannot amortise.
+  that a 128-deep product cannot amortise. A third pass tried to hide the pack
+  by leaving ZA tiles free for it: a 16 by 24 tile (six tiles, the other two
+  transposing the next block 8 columns at a time between groups of `fmopa`s,
+  the last 8 columns of a 128-wide row as a predicated 16 by 8 tile) and a
+  16 by 16 tile (four tiles), both bit-identical to the fma reference over odd
+  sizes, alpha in {1, -1, 0.5, 0} and k up to 513. In the single-thread C
+  harness at 128 they ran at 318 and 370 GFLOP/s against 390 for the 16 by 32
+  kernel (256: 346 and 404 against 442), and moving the interleave from one
+  pack step per 2 to per 32 steps changed nothing. With the pack removed
+  altogether the 16 by 24 tile still reached only 371 at 128, so the loss is the
+  narrower tile (more loads per `fmopa`, and an 8-column edge) and not the pack:
+  the 16 by 32 kernel with the pack removed reaches 425, so the whole pack costs
+  about 0.9 microsecond of 10.7 and hiding it perfectly would still leave 128 at
+  about 0.97 of Accelerate. Not kept.
 - **daxpy: ahead of Accelerate from 1M elements up, about 25 per cent behind at
   64K.** At 4M and 16M everything is limited by memory at around 100 GB/s and
   roop is level with Accelerate. In cache the kernel moves 256 bytes a load
