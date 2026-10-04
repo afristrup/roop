@@ -18,6 +18,16 @@ pub enum Layer {
         b2: Tensor,
         norm: Option<Norm>,
     },
+    /// An invertible residual block `x + F(x)` on q, with `F` a perceptron that is a
+    /// contraction and `iters` cells in the chain that inverts it.
+    Residual {
+        act: Activation,
+        w1: Tensor,
+        b1: Tensor,
+        w2: Tensor,
+        b2: Tensor,
+        iters: usize,
+    },
     /// Half of a coupling: one half of the state takes in linear attention over
     /// the other, read as `seq` rows.
     Attention {
@@ -50,9 +60,10 @@ impl Layer {
                 ..
             } => {
                 let mut all = vec![w1, b1, w2, b2];
-                all.extend(norm.iter().map(|n| &n.gain));
+                all.extend(norm.iter().flat_map(Norm::tensors));
                 all
             }
+            Self::Residual { w1, b1, w2, b2, .. } => vec![w1, b1, w2, b2],
             Self::Attention { wq, wk, wv, .. } => vec![wq, wk, wv],
             Self::Conv { w, b, .. } => vec![w, b],
         }
@@ -70,9 +81,10 @@ impl Layer {
                 ..
             } => {
                 let mut all = vec![w1, b1, w2, b2];
-                all.extend(norm.iter_mut().map(|n| &mut n.gain));
+                all.extend(norm.iter_mut().flat_map(Norm::tensors_mut));
                 all
             }
+            Self::Residual { w1, b1, w2, b2, .. } => vec![w1, b1, w2, b2],
             Self::Attention { wq, wk, wv, .. } => vec![wq, wk, wv],
             Self::Conv { w, b, .. } => vec![w, b],
         }
@@ -81,7 +93,9 @@ impl Layer {
     /// The pointwise function, for the layers that have one.
     pub fn activation(&self) -> Option<Activation> {
         match self {
-            Self::Leapfrog { act, .. } | Self::Mlp { act, .. } => Some(*act),
+            Self::Leapfrog { act, .. } | Self::Mlp { act, .. } | Self::Residual { act, .. } => {
+                Some(*act)
+            }
             Self::Attention { .. } | Self::Conv { .. } => None,
         }
     }
@@ -98,7 +112,7 @@ impl Layer {
     pub fn hidden(&self) -> usize {
         match self {
             Self::Leapfrog { w, .. } => w.dims[0],
-            Self::Mlp { w1, .. } => w1.dims[0],
+            Self::Mlp { w1, .. } | Self::Residual { w1, .. } => w1.dims[0],
             Self::Attention { wq, .. } => wq.dims[0],
             Self::Conv { channels, .. } => *channels,
         }

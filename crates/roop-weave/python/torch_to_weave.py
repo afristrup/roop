@@ -5,6 +5,11 @@ read as a network of reversible blocks, found in an nn.Sequential:
 
     Linear(N, M), RMSNorm(M), act, Linear(M, N)
                                       the same with the hidden layer normalized
+    Linear(N, M), LayerNorm(M), act, Linear(M, N)
+                                      the same with a layer norm: centered, scaled,
+                                      shifted by its bias (a norm with "center")
+    x + F(x), F a Linear, act, Linear  a "residual" block, an invertible residual
+                                      connection (see below)
     Linear(N, M), act, Linear(M, N)   an "mlp" block: one half of the state takes
                                       in a perceptron of the other (RevNet, NICE)
     Conv1d(C, C, K, padding=K // 2)   a "conv" block, a half of a coupling like the
@@ -14,6 +19,13 @@ read as a network of reversible blocks, found in an nn.Sequential:
     Linear(N, M), act                 a "leapfrog" layer: a step of the dynamics
                                       whose force is W^T act(W q + b), with the
                                       weight tied to its transpose
+
+A residual connection is x + F(x) with F one Linear, activation, Linear block, found
+by tracing (an nn.Sequential holding such a module is traced too). It is refused
+unless F is a contraction: the spectral norms of its weights and the slope of the
+activation must multiply to less than 0.9, since weave inverts the block by
+fixed-point iteration, which only converges then. Anything else that adds two
+paths is refused.
 
 The activations are Identity, ReLU, Tanh, Softsign, Sigmoid, SiLU and GELU
 (GELU as the usual z * sigmoid(1.702 z) approximation). Everything else is
@@ -28,7 +40,10 @@ module run unchanged, and the Rust side tests it against its own reference.
 import argparse
 import importlib
 import json
+import operator
 import sys
+
+import contraction
 
 ACTIVATIONS = {
     "Identity": "identity",
@@ -43,6 +58,27 @@ ACTIVATIONS = {
 
 class Unsupported(Exception):
     """The model has a layer weave cannot run backward."""
+
+
+class Residual:
+    """The leaves of a chain F whose output is added to its input, x + F(x)."""
+
+    def __init__(self, leaves):
+        self.leaves = leaves
+
+    def children(self):
+        return iter(())
+
+
+def is_plain(module):
+    """Whether a model is made of nn.Sequential and leaf modules only, so that
+    flattening it loses nothing. A module of its own may add paths, and is traced."""
+    for child in module.children():
+        holds_modules = any(True for _ in child.children())
+        if holds_modules and kind(child) != "LinearAttention":
+            if kind(child) != "Sequential" or not is_plain(child):
+                return False
+    return True
 
 
 def flatten(module):
@@ -69,8 +105,10 @@ FUNCTIONS = {
 
 
 def traced_chain(model):
-    """The layers of a model that is not an nn.Sequential, in order, found by
-    tracing it. The graph must be a chain: each layer takes the one before."""
+    """The layers of a model that is not a plain nn.Sequential, in order, found by
+    tracing it. The graph must be a chain, except that a chain may be added to its
+    own input: x + F(x) becomes a Residual of the layers of F."""
+    import torch
     import torch.fx
 
     class Tracer(torch.fx.Tracer):
@@ -78,13 +116,24 @@ def traced_chain(model):
             return kind(module) == "LinearAttention" or super().is_leaf_module(module, name)
 
     modules = dict(model.named_modules())
-    leaves, previous = [], None
+    leaves, previous, depth = [], None, {}
     for node in Tracer().trace(model).nodes:
         if node.op == "placeholder":
             previous = node
         elif node.op == "output":
             if node.args[0] is not previous:
                 raise Unsupported("the output is not the last layer")
+        elif is_add(node, torch):
+            origin = [n for n in node.all_input_nodes if n is not previous]
+            if len(node.all_input_nodes) != 2 or len(origin) != 1 or origin[0] not in depth:
+                raise Unsupported(
+                    f"{node.name}: weave adds only a chain to its own input, x + F(x)"
+                )
+            start = depth[origin[0]]
+            if start == len(leaves):
+                raise Unsupported(f"{node.name}: x + x has no function to invert")
+            leaves[start:] = [Residual(leaves[start:])]
+            previous = node
         elif node.args[:1] != (previous,) or len(node.all_input_nodes) != 1:
             raise Unsupported(f"{node.name}: the graph branches, and weave runs a chain")
         elif node.op == "call_module":
@@ -95,7 +144,13 @@ def traced_chain(model):
             previous = node
         else:
             raise Unsupported(f"{node.name}: {node.target} is not a layer weave can run backward")
+        depth[previous] = len(leaves)
     return leaves
+
+
+def is_add(node, torch):
+    adds = node.op == "call_function" and node.target in (operator.add, torch.add)
+    return adds or (node.op == "call_method" and node.target == "add")
 
 
 def kind(module):
@@ -141,16 +196,25 @@ def attention_block(module, i, width):
     }
 
 
+NORMS = ("RMSNorm", "LayerNorm")
+
+
 def norm_of(module, i, hidden):
+    name = kind(module)
     eps = module.eps if module.eps is not None else 1.1920929e-07
     if eps * 4096 < 1:
         raise Unsupported(
-            f"layer {i}: RMSNorm eps {eps} is below 1/4096, the smallest weave holds; give it eps=1e-3"
+            f"layer {i}: {name} eps {eps} is below 1/4096, the smallest weave holds; give it eps=1e-3"
         )
     if tuple(module.normalized_shape) != (hidden,):
-        raise Unsupported(f"layer {i}: RMSNorm must normalize the {hidden} hidden units")
+        raise Unsupported(f"layer {i}: {name} must normalize the {hidden} hidden units")
     weight = module.weight
-    return {"eps": eps, "gain": [1.0] * hidden if weight is None else numbers(weight)}
+    norm = {"eps": eps, "gain": [1.0] * hidden if weight is None else numbers(weight)}
+    if name == "LayerNorm":
+        bias = module.bias
+        norm["center"] = True
+        norm["bias"] = [0.0] * hidden if bias is None else numbers(bias)
+    return norm
 
 
 def conv_block(module, i, width):
@@ -175,9 +239,42 @@ def conv_block(module, i, width):
     }
 
 
+def residual_block(body, i, width):
+    """The residual block of x + F(x) for the leaves of F, which must be one
+    Linear, activation, Linear block that is a contraction."""
+    fits = (len(body) == 3 and is_linear(body[0]) and is_linear(body[2])
+            and body[0].in_features == width and body[2].out_features == width
+            and body[0].out_features == body[2].in_features)
+    if not fits:
+        raise Unsupported(
+            f"layer {i}: a residual connection must add a Linear({width}, M), activation, "
+            f"Linear(M, {width}) to its input"
+        )
+    act = activation_of(body[1], i + 1)
+    block = {
+        "kind": "residual",
+        "activation": act,
+        "w1": numbers(body[0].weight),
+        "b1": bias_of(body[0]),
+        "w2": numbers(body[2].weight),
+        "b2": bias_of(body[2]),
+    }
+    limit = contraction.bound(act, block["w1"], block["w2"])
+    if limit >= contraction.LIMIT:
+        raise Unsupported(
+            f"layer {i}: the residual function is not a contraction: its Lipschitz bound is "
+            f"{limit:.3f}, and weave inverts the block by iteration only below "
+            f"{contraction.LIMIT}; shrink the weights (spectral norms) or the activation slope"
+        )
+    block["iters"] = contraction.iterations(limit)
+    return block
+
+
 def block_at(leaves, i, width):
     """The block that starts at leaves[i], and how many leaves it takes."""
     first = leaves[i]
+    if kind(first) == "Residual":
+        return residual_block(first.leaves, i, width), 1
     if kind(first) == "Conv1d":
         return conv_block(first, i, width), 1
     if kind(first) == "LinearAttention":
@@ -192,14 +289,17 @@ def block_at(leaves, i, width):
     if i + 1 >= len(leaves):
         raise Unsupported(f"layer {i}: a Linear with no activation is not reversible")
     hidden = first.out_features
-    normed = kind(leaves[i + 1]) == "RMSNorm"
+    normed = kind(leaves[i + 1]) in NORMS
     at = i + 2 if normed else i + 1
     if at >= len(leaves):
         raise Unsupported(f"layer {i}: a Linear and a norm with no activation is not reversible")
     act = activation_of(leaves[at], at)
     closes = at + 1 < len(leaves) and is_linear(leaves[at + 1])
     if normed and not (closes and leaves[at + 1].in_features == hidden):
-        raise Unsupported(f"layer {i}: RMSNorm must be in a Linear, RMSNorm, activation, Linear block")
+        raise Unsupported(
+            f"layer {i}: {kind(leaves[i + 1])} must be in a Linear, {kind(leaves[i + 1])}, "
+            "activation, Linear block"
+        )
     if closes and leaves[at + 1].in_features == hidden and leaves[at + 1].out_features == width:
         second = leaves[at + 1]
         block = {
@@ -231,18 +331,27 @@ def parameters(block, leaves, i):
     first = leaves[i]
     if block["kind"] in ("leapfrog", "conv"):
         return [first.weight, first.bias]
+    if block["kind"] == "residual":
+        one, two = first.leaves[0], first.leaves[2]
+        return [one.weight, one.bias, two.weight, two.bias]
     normed = "norm" in block
     second = leaves[i + 3] if normed else leaves[i + 2]
     bound = [first.weight, first.bias, second.weight, second.bias]
-    return bound + [leaves[i + 1].weight] if normed else bound
+    if normed:
+        bound.append(leaves[i + 1].weight)
+        if block["norm"].get("center"):
+            bound.append(leaves[i + 1].bias)
+    return bound
 
 
 def export_bound(model, outputs=None, step=0.25, name="model", loss="mse", optimizer=None,
                  width=None):
     """The roop-weave model for a torch module as a dict, and the torch tensors
     that hold each of its weights, in the order roop-weave keeps them."""
-    leaves = flatten(model) if kind(model) == "Sequential" else traced_chain(model)
-    heads = [m for m in leaves if is_linear(m) or kind(m) == "LinearAttention"]
+    plain = kind(model) == "Sequential" and is_plain(model)
+    leaves = flatten(model) if plain else traced_chain(model)
+    opened = [m.leaves[0] if kind(m) == "Residual" and m.leaves else m for m in leaves]
+    heads = [m for m in opened if is_linear(m) or kind(m) == "LinearAttention"]
     if kind(leaves[0]) == "Conv1d" and width is None:
         raise Unsupported("the state width is not known from a Conv1d first; pass width=")
     if not heads and width is None:

@@ -115,6 +115,34 @@ pub fn mlp_norm(act: &str, hidden: usize, width: usize, seed: usize) -> Value {
     layer
 }
 
+/// A perceptron whose hidden layer is layer normalized: centered, scaled, shifted.
+pub fn mlp_layer(act: &str, hidden: usize, width: usize, seed: usize) -> Value {
+    let mut layer = mlp(act, hidden, width, seed);
+    let gain: Vec<f64> = (0..hidden).map(|j| 0.8 + 0.1 * (j % 3) as f64).collect();
+    let bias: Vec<f64> = (0..hidden).map(|j| 0.05 * (j % 4) as f64 - 0.07).collect();
+    layer["norm"] = json!({ "eps": 0.01, "center": true, "gain": gain, "bias": bias });
+    layer
+}
+
+/// A residual block whose weights are `scale` times those of a perceptron, so that
+/// its function is a contraction for a small enough scale.
+pub fn residual(act: &str, hidden: usize, width: usize, seed: usize, scale: f64) -> Value {
+    let mut layer = mlp(act, hidden, width, seed);
+    layer["kind"] = json!("residual");
+    for key in ["w1", "w2"] {
+        let rows = layer[key].as_array().unwrap().clone();
+        let scaled = |row: &Value| -> Vec<f64> {
+            row.as_array()
+                .unwrap()
+                .iter()
+                .map(|x| x.as_f64().unwrap() * scale)
+                .collect()
+        };
+        layer[key] = json!(rows.iter().map(scaled).collect::<Vec<_>>());
+    }
+    layer
+}
+
 pub fn attention(seq: usize, dim: usize, seed: usize) -> Value {
     json!({
         "kind": "attention",

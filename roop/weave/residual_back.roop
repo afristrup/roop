@@ -1,0 +1,120 @@
+// The backward step of the residual block: the exact adjoint of its four lines,
+// found by undoing them one at a time, last first. The line that clears the input
+// goes through the fixed-point chain, so its adjoint is a chain of its own: the
+// cotangent of the last cell is minus the adjoint of q, and each cell hands
+// -J^T of its cotangent to the one before it and adds its own to the adjoint of y.
+
+use super::kernels::*;
+use super::mlp::*;
+use super::residual::*;
+use super::rows::*;
+
+// d[0] -= aq, and for each step c[m] -= J^T d[m] and d[m + 1] += c[m], with the gradients
+// of the weights taken off with it, where J is that of F at the cell e[K - 2 - m] it was
+// applied to. Like the chain it undoes, no call reads the array it writes.
+fn chain_adjoint<N, M, K>(
+    d: &mut [[i64; N]; K],
+    c: &mut [[i64; N]; K],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    aq: &[i64; N],
+    e: &[[i64; N]; K],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    kind: &i64,
+) {
+    ancilla m: i64 = 0;
+    uncall add_vec<N>(d[0], aq);
+    from m == 0 {
+        uncall mlp_vjp<N, M>(
+            c[m],
+            gw1,
+            gb1,
+            gw2,
+            gb2,
+            d[m],
+            w1,
+            b1,
+            w2,
+            e[K - 2 - m],
+            kind,
+        );
+        call add_vec<N>(d[m + 1], c[m]);
+    } loop { m += 1; } until m == K - 2;
+    m -= K - 2;
+}
+
+// ap += the sum of the cells of d
+fn sum_cells<N, K>(ap: &mut [i64; N], d: &[[i64; N]; K]) {
+    ancilla m: i64 = 0;
+    from m == 0 { call add_vec<N>(ap, d[m]); } loop { m += 1; } until m == K - 1;
+    m -= K - 1;
+}
+
+// Undoes `q -= x_K(p)`: q is restored, ap takes in what the chain does to it, and
+// the gradients of the weights take in the chain's share.
+fn clear_back<N, M, K>(
+    q: &mut [i64; N],
+    ap: &mut [i64; N],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    aq: &[i64; N],
+    p: &[i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+) {
+    ancilla e: [[i64; N]; K] = 0;
+    ancilla a: [[i64; N]; K] = 0;
+    ancilla d: [[i64; N]; K] = 0;
+    ancilla c: [[i64; N]; K] = 0;
+    ancilla hw1: [[i64; N]; M] = 0;
+    ancilla hb1: [i64; M] = 0;
+    ancilla hw2: [[i64; M]; N] = 0;
+    ancilla hb2: [i64; N] = 0;
+    call fixed_point<N, M, K>(e, a, p, w1, b1, w2, b2, kind);
+    call add_vec<N>(q, e[K - 1]);
+    call chain_adjoint<N, M, K>(d, c, hw1, hb1, hw2, hb2, aq, e, w1, b1, w2, kind);
+    call sum_cells<N, K>(ap, d);
+    call add_rows<N, M>(gw1, hw1);
+    call add_vec<M>(gb1, hb1);
+    call add_rows<M, N>(gw2, hw2);
+    call add_vec<N>(gb2, hb2);
+    uncall chain_adjoint<N, M, K>(d, c, hw1, hb1, hw2, hb2, aq, e, w1, b1, w2, kind);
+    uncall fixed_point<N, M, K>(e, a, p, w1, b1, w2, b2, kind);
+}
+
+// On entry (q, p) is the output and (aq, ap) its adjoint; on exit (q, p) is the input
+// and (aq, ap) the adjoint of the input, and the gradients have been added to.
+pub fn residual_back<N, M, K>(
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    aq: &mut [i64; N],
+    ap: &mut [i64; N],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+) {
+    uncall add_vec<N>(aq, ap);
+    call add_vec<N>(p, q);
+    call add_vec<N>(ap, aq);
+    uncall add_vec<N>(q, p);
+    call clear_back<N, M, K>(q, ap, gw1, gb1, gw2, gb2, aq, p, w1, b1, w2, b2, kind);
+    call add_vec<N>(aq, ap);
+    call mlp_vjp<N, M>(aq, gw1, gb1, gw2, gb2, ap, w1, b1, w2, q, kind);
+    uncall mlp<N, M>(p, w1, b1, w2, b2, q, kind);
+    uncall add_vec<N>(p, q);
+}

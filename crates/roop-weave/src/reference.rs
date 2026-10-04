@@ -22,30 +22,65 @@ fn leapfrog(layer: &Layer, h: f64, q: &mut [f64], p: &mut [f64]) {
     kick(q, p);
 }
 
-fn mlp(layer: &Layer, y: &mut [f64], x: &[f64]) {
-    let Layer::Mlp {
-        act,
-        w1,
-        b1,
-        w2,
-        b2,
-        norm,
-    } = layer
-    else {
-        unreachable!("an mlp layer")
+/// F(x) for a perceptron, normalized or not, or the one inside a residual block.
+fn feed(layer: &Layer, x: &[f64]) -> Vec<f64> {
+    let (act, w1, b1, w2, b2, norm) = match layer {
+        Layer::Mlp {
+            act,
+            w1,
+            b1,
+            w2,
+            b2,
+            norm,
+        } => (act, w1, b1, w2, b2, norm.as_ref()),
+        Layer::Residual {
+            act,
+            w1,
+            b1,
+            w2,
+            b2,
+            ..
+        } => (act, w1, b1, w2, b2, None),
+        _ => unreachable!("a perceptron"),
     };
     let mut z = affine(w1, b1, x);
     if let Some(norm) = norm {
+        if norm.bias.is_some() {
+            let mean = z.iter().sum::<f64>() / z.len() as f64;
+            z.iter_mut().for_each(|z| *z -= mean);
+        }
         let mean = z.iter().map(|z| z * z).sum::<f64>() / z.len() as f64;
         let scale = 1.0 / (mean + norm.eps).sqrt();
-        z.iter_mut()
-            .zip(&norm.gain.data)
-            .for_each(|(z, g)| *z *= scale * g);
+        for (j, z) in z.iter_mut().enumerate() {
+            let shift = norm.bias.as_ref().map_or(0.0, |b| b.data[j]);
+            *z = *z * scale * norm.gain.data[j] + shift;
+        }
     }
     let a: Vec<f64> = z.into_iter().map(|z| act.eval(z)).collect();
-    y.iter_mut()
-        .zip(affine(w2, b2, &a))
-        .for_each(|(y, f)| *y += f);
+    affine(w2, b2, &a)
+}
+
+fn mlp(layer: &Layer, y: &mut [f64], x: &[f64]) {
+    y.iter_mut().zip(feed(layer, x)).for_each(|(y, f)| *y += f);
+}
+
+/// The residual block as the four lines of `roop/weave/residual.roop`, in doubles.
+fn residual(layer: &Layer, q: &mut [f64], p: &mut [f64]) {
+    let Layer::Residual { iters, .. } = layer else {
+        unreachable!("a residual layer")
+    };
+    let skip: Vec<f64> = feed(layer, q);
+    p.iter_mut()
+        .zip(q.iter().zip(skip))
+        .for_each(|(p, (q, f))| *p += q + f);
+    let mut x = p.to_vec();
+    for _ in 1..*iters {
+        let f = feed(layer, &x);
+        x = p.iter().zip(f).map(|(p, f)| p - f).collect();
+    }
+    q.iter_mut().zip(&x).for_each(|(q, x)| *q -= x);
+    q.iter_mut().zip(p.iter()).for_each(|(q, p)| *q += p);
+    p.iter_mut().zip(q.iter()).for_each(|(p, q)| *p -= q);
 }
 
 /// y += (Q K^T) V for x read as `seq` rows, with Q = X Wq^T and so on.
@@ -113,6 +148,7 @@ pub fn forward(model: &Model, input: &[f64]) -> Vec<f64> {
             (Layer::Mlp { .. }, false) => mlp(layer, &mut p, &q.clone()),
             (Layer::Attention { .. }, true) => attention(layer, &mut q, &p.clone()),
             (Layer::Attention { .. }, false) => attention(layer, &mut p, &q.clone()),
+            (Layer::Residual { .. }, _) => residual(layer, &mut q, &mut p),
             (Layer::Conv { .. }, true) => conv(layer, &mut q, &p.clone()),
             (Layer::Conv { .. }, false) => conv(layer, &mut p, &q.clone()),
         }

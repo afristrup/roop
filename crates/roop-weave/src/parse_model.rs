@@ -1,4 +1,7 @@
-use crate::{Activation, Layer, LossKind, Model, Norm, Optimizer, Tensor, WeaveError, quantize};
+use crate::{
+    Activation, CONTRACTION_LIMIT, Layer, LossKind, Model, Norm, Optimizer, Tensor, WeaveError,
+    contraction_bound, quantize, residual_iterations,
+};
 use serde_json::Value;
 
 fn field<'a>(
@@ -192,7 +195,58 @@ fn parse_norm(
             found,
         });
     }
-    Ok(Some(Norm { eps, gain }))
+    let centered = spec.get("center").and_then(Value::as_bool).unwrap_or(false);
+    let bias = match centered {
+        true => Some(vector(spec, &at, "bias", format!("beta_{index}"))?),
+        false => None,
+    };
+    if let Some(bias) = &bias
+        && bias.dims[0] != hidden
+    {
+        let found = format!("{} numbers", bias.dims[0]);
+        return Err(WeaveError::Shape {
+            name: bias.name.clone(),
+            expected: format!("{hidden} numbers"),
+            found,
+        });
+    }
+    Ok(Some(Norm { eps, gain, bias }))
+}
+
+type Perceptron = (Activation, Tensor, Tensor, Tensor, Tensor);
+
+fn residual(index: usize, layer: &Value, parts: Perceptron) -> Result<Layer, WeaveError> {
+    let (act, w1, b1, w2, b2) = parts;
+    if layer.get("norm").is_some() {
+        return Err(WeaveError::Field {
+            path: format!("layers[{index}].norm"),
+            expected: "absent: a residual block has no norm",
+        });
+    }
+    let bound = contraction_bound(act, &w1.snapped(), &w2.snapped());
+    if bound >= CONTRACTION_LIMIT {
+        return Err(WeaveError::Contraction { index, bound });
+    }
+    let iters = match layer.get("iters") {
+        None => residual_iterations(bound),
+        Some(v) => match v.as_u64() {
+            Some(n) if n >= 2 => n as usize,
+            _ => {
+                return Err(WeaveError::Field {
+                    path: format!("layers[{index}].iters"),
+                    expected: "a whole number of at least 2",
+                });
+            }
+        },
+    };
+    Ok(Layer::Residual {
+        act,
+        w1,
+        b1,
+        w2,
+        b2,
+        iters,
+    })
 }
 
 fn parse_layer(index: usize, layer: &Value, width: usize) -> Result<Layer, WeaveError> {
@@ -220,7 +274,7 @@ fn parse_layer(index: usize, layer: &Value, width: usize) -> Result<Layer, Weave
             )?;
             Ok(Layer::Leapfrog { act, w, b })
         }
-        "mlp" => {
+        "mlp" | "residual" => {
             let b1 = vector(layer, &path, "b1", format!("b1_{index}"))?;
             let m = b1.dims[0];
             let w1 = matrix(layer, &path, "w1", format!("w1_{index}"), m, width)?;
@@ -233,6 +287,9 @@ fn parse_layer(index: usize, layer: &Value, width: usize) -> Result<Layer, Weave
                     expected: format!("{width} numbers"),
                     found,
                 });
+            }
+            if kind == "residual" {
+                return residual(index, layer, (act, w1, b1, w2, b2));
             }
             let norm = parse_norm(layer, &path, index, m)?;
             Ok(Layer::Mlp {

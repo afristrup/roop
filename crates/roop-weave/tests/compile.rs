@@ -1,6 +1,9 @@
 mod support;
 
-use support::{attention, compile, conv, leapfrog, mlp, mlp_norm, model, project, roop, text};
+use support::{
+    attention, compile, conv, leapfrog, mlp, mlp_layer, mlp_norm, model, project, residual, roop,
+    text,
+};
 
 fn check(name: &str, layers: Vec<serde_json::Value>, width: usize, outputs: usize) {
     let dir = project(name);
@@ -195,4 +198,31 @@ fn the_batched_functions_cover_convolution_normalization_and_cross_entropy() {
     let out = roop(&dir, &["test", "prog.roop"]);
     assert!(out.status.success(), "{}", text(&out));
     assert!(text(&out).contains("2 passed, 0 failed"), "{}", text(&out));
+}
+
+#[test]
+fn a_layer_normalized_perceptron_of_each_activation_agrees_with_the_reference() {
+    for act in ["identity", "relu", "tanh", "gelu"] {
+        let layers = vec![mlp_layer(act, 4, 4, 2), mlp_layer(act, 3, 4, 5)];
+        check(&format!("layer_{act}"), layers, 4, 2);
+    }
+}
+
+#[test]
+fn a_layer_normalized_perceptron_mixed_with_the_other_blocks_agrees_with_the_reference() {
+    let layers = vec![
+        mlp_layer("silu", 5, 6, 1),
+        mlp_norm("tanh", 4, 6, 3),
+        conv(2, 3, 2),
+        mlp_layer("relu", 4, 6, 4),
+    ];
+    check("layer_mixed", layers, 6, 3);
+}
+
+#[test]
+fn a_residual_block_of_each_activation_agrees_with_the_reference() {
+    for act in ["identity", "relu", "tanh", "gelu", "sigmoid"] {
+        let layers = vec![residual(act, 4, 4, 2, 0.3), residual(act, 3, 4, 5, 0.3)];
+        check(&format!("residual_{act}"), layers, 4, 2);
+    }
 }

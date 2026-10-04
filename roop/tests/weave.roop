@@ -357,3 +357,110 @@ test a_batch_of_layers_runs_each_row_through_the_same_weights {
     expect q[1][0] == 1024 && p[1][0] == 0 - 4608;
     expect q[2][0] == 3072 && p[2][0] == 0 - 7680;
 }
+
+test layernorm_centers_scales_and_shifts {
+    n: [i64; 2], z: [i64; 2], g: [i64; 2], beta: [i64; 2], eps: i64;
+    z[0] += 12288;
+    z[1] -= 4096;
+    g[0] += 4096;
+    g[1] += 4096;
+    beta[0] += 2048;
+    eps += 4;
+    call layernorm<2>(n, z, g, beta, eps);
+    expect n[0] > 6137 && n[0] < 6150 && n[1] > 0 - 4100 && n[1] < 0 - 4090;
+}
+
+test residual_block_adds_its_function_and_leaves_a_small_remnant {
+    q: [i64; 2],
+        p: [i64; 2],
+        kind: i64,
+        w1: [[i64; 2]; 2],
+        b1: [i64; 2],
+        w2: [[i64; 2]; 2],
+        b2: [i64; 2];
+    w1[0][0] += 1024;
+    w1[0][1] += 512;
+    w1[1][0] -= 512;
+    w1[1][1] += 1024;
+    b1[0] += 256;
+    b1[1] -= 256;
+    w2[0][0] += 1024;
+    w2[0][1] -= 512;
+    w2[1][0] += 512;
+    w2[1][1] += 1024;
+    b2[0] += 128;
+    b2[1] -= 128;
+    kind += 4;
+    q[0] += 4096;
+    q[1] -= 2048;
+    call residual<2, 2, 12>(q, p, w1, b1, w2, b2, kind);
+    expect q[0] > 4627 && q[0] < 4635 && q[1] > 0 - 2365 && q[1] < 0 - 2357;
+    expect p[0] > 0 - 4 && p[0] < 4 && p[1] > 0 - 4 && p[1] < 4;
+    uncall residual<2, 2, 12>(q, p, w1, b1, w2, b2, kind);
+    expect q[0] == 4096 && q[1] == 0 - 2048 && p[0] == 0 && p[1] == 0;
+}
+
+test a_short_chain_leaves_a_remnant_and_the_block_still_reverses_exactly {
+    q: [i64; 2],
+        p: [i64; 2],
+        kind: i64,
+        w1: [[i64; 2]; 2],
+        b1: [i64; 2],
+        w2: [[i64; 2]; 2],
+        b2: [i64; 2];
+    w1[0][0] += 1024;
+    w1[0][1] += 512;
+    w1[1][0] -= 512;
+    w1[1][1] += 1024;
+    b1[0] += 256;
+    b1[1] -= 256;
+    w2[0][0] += 1024;
+    w2[0][1] -= 512;
+    w2[1][0] += 512;
+    w2[1][1] += 1024;
+    b2[0] += 128;
+    b2[1] -= 128;
+    kind += 4;
+    q[0] += 4096;
+    q[1] -= 2048;
+    call residual<2, 2, 2>(q, p, w1, b1, w2, b2, kind);
+    expect p[0] != 0 && p[0] * p[0] + p[1] * p[1] < 40000;
+    uncall residual<2, 2, 2>(q, p, w1, b1, w2, b2, kind);
+    expect q[0] == 4096 && q[1] == 0 - 2048 && p[0] == 0 && p[1] == 0;
+}
+
+// A contraction with a bound near 0.84 (the weights are 245 / 4096 times integers of
+// spectral norm 15.3, tanh has slope 1): the chain of 50 cells leaves no remnant at all.
+test a_wide_contraction_leaves_no_remnant_and_the_block_reverses_exactly {
+    q: [i64; 8],
+        p: [i64; 8],
+        kind: i64,
+        w1: [[i64; 8]; 8],
+        b1: [i64; 8],
+        w2: [[i64; 8]; 8],
+        b2: [i64; 8],
+        j: i64,
+        i: i64,
+        s: i64;
+    from j == 0 {
+        from i == 0 {
+            w1[j][i] += ((j * 5 + i * 3) % 9 - 4) * 245;
+            w2[j][i] += ((j * 5 + i * 3 + 1) % 9 - 4) * 245;
+        } loop { i += 1; } until i == 7;
+        i -= 7;
+        b1[j] += 100 * j - 300;
+        b2[j] += 50 * j - 150;
+    } loop { j += 1; } until j == 7;
+    j -= 7;
+    kind += 4;
+    from i == 0 {
+        q[i] += (i * 3 + 1) % 7 * 1024 - 3072;
+    } loop { i += 1; } until i == 7;
+    i -= 7;
+    call residual<8, 8, 50>(q, p, w1, b1, w2, b2, kind);
+    from i == 0 { s += p[i] * p[i]; } loop { i += 1; } until i == 7;
+    i -= 7;
+    expect s == 0;
+    uncall residual<8, 8, 50>(q, p, w1, b1, w2, b2, kind);
+    expect p[0] == 0 && p[7] == 0 && q[0] == 0 - 2048;
+}

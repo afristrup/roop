@@ -6,10 +6,13 @@ so the gradients torch finds can be compared with the reference of roop-weave.
 
 import torch
 
+import contraction
+
 GRID = 4096.0
 
 KEYS = {"leapfrog": [("w", "weight"), ("b", "bias")],
         "mlp": [("w1", "w1"), ("b1", "b1"), ("w2", "w2"), ("b2", "b2")],
+        "residual": [("w1", "w1"), ("b1", "b1"), ("w2", "w2"), ("b2", "b2")],
         "attention": [("wq", "wq"), ("wk", "wk"), ("wv", "wv")],
         "conv": [("w", "weight"), ("b", "bias")]}
 
@@ -77,9 +80,26 @@ def leapfrog(layer, h, q, p):
 def perceptron(layer, x):
     z = layer["w1"] @ x + layer["b1"]
     if layer.get("g") is not None:
+        if layer.get("beta") is not None:
+            z = z - z.mean()
         z = z * torch.rsqrt((z * z).mean() + layer["eps"]) * layer["g"]
+        if layer.get("beta") is not None:
+            z = z + layer["beta"]
     hidden = activate(layer["activation"], z)
     return layer["w2"] @ hidden + layer["b2"]
+
+
+def residual(layer, q, p):
+    """The four lines of the residual block of weave: p takes in x + F(x), q is cleared
+    of x by the fixed-point iteration x_(k+1) = y - F(x_k) run `iters - 1` times from
+    y, then q and p are rotated so that q is y and p is minus the remnant."""
+    p = p + q + perceptron(layer, q)
+    x = p
+    for _ in range(layer["iters"] - 1):
+        x = p - perceptron(layer, x)
+    q = q - x
+    q = q + p
+    return q, p - q
 
 
 def convolve(layer, x):
@@ -102,6 +122,11 @@ HALVES = {"attention": lambda layer, x: attention(layer, x),
           "conv": lambda layer, x: convolve(layer, x)}
 
 
+def iterations(raw):
+    """The chain length roop-weave takes for a residual block that gives none."""
+    return contraction.iterations(contraction.bound(raw["activation"], raw["w1"], raw["w2"]))
+
+
 def build_layer(raw, make):
     """The layer of a spec with each tensor made by `make`, and those tensors in the
     order roop-weave keeps them."""
@@ -114,6 +139,11 @@ def build_layer(raw, make):
     if raw.get("norm"):
         layer["g"], layer["eps"] = make(raw["norm"]["gain"]), raw["norm"]["eps"]
         made.append(layer["g"])
+        if raw["norm"].get("center"):
+            layer["beta"] = make(raw["norm"]["bias"])
+            made.append(layer["beta"])
+    if raw["kind"] == "residual":
+        layer["iters"] = raw.get("iters") or iterations(raw)
     return layer, made
 
 
@@ -122,6 +152,8 @@ def run_layers(layers, h, x):
     for layer in layers:
         if layer["kind"] == "leapfrog":
             q, p = leapfrog(layer, h, q, p)
+        elif layer["kind"] == "residual":
+            q, p = residual(layer, q, p)
         else:
             half = HALVES.get(layer["kind"], perceptron)
             if into_q:
@@ -146,7 +178,7 @@ def evaluate(spec, xs, ts):
 def mirror(spec):
     """The loss of the sample and the gradient of every tensor, in the order of
     the layers' tensors: w, b for a leapfrog layer and w1, b1, w2, b2 for a
-    perceptron."""
+    perceptron or a residual block, then the gain and the bias of its norm."""
     width, h = spec["width"], float(snap(spec["step"]))
     layers, leaves = [], []
     for raw in spec["layers"]:

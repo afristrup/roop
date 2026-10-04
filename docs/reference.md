@@ -562,8 +562,72 @@ starts from 1/4 and converges for `s` up to 48, and a larger one traps; `eps` ca
 `mlp_norm_back` at width 2) exactly reversible in about two minutes; each step and each stage
 has its own call lemmas, so the proof of the chain is a few calls long instead of unfolding all
 20 steps; the batched version (`mlp_norm_batch`) is proved too, in about four minutes, by an
-ignored test. This is RMSNorm. LayerNorm subtracts a mean
-as well, which is left out.
+ignored test. This is RMSNorm.
+
+**LayerNorm** is the same block with `"center": true` and a `"bias"` of one number per hidden
+unit: `gain * (z - mean(z)) / sqrt(var(z) + eps) + bias`. The mean is taken off into a centered
+copy (`weave::mean_of`, `center`), which `rmsnorm` then scales, since the variance of `z` is the
+mean square of the centered copy, and the bias is added after. The adjoint of `z` is
+`r (g u - mean(g u) - zhat * mean(g u zhat))` with `r = 1 / sqrt(var + eps)` and
+`zhat = (z - mean) r`, which the code finds as the adjoint of `rmsnorm` on the centered copy
+followed by the centering again (it is its own adjoint); the gain gets `u * zhat` and the bias
+`u`. Like every function here each line only adds into a place it does not read, so
+`weave::mlp_layer` (with `mlp_layer_back` and the `_batch` forms) is exactly reversible. Its
+tensors are `w1, b1, w2, b2, gain, bias`, in that order. It inherits the limit of the Newton
+chain, so Lean proves only the centering (`mean_of`, `center`), not the whole block.
+
+**The residual block** is `y = x + F(x)` with `F(x) = W2 f(W1 x + b1) + b2`, the invertible
+residual connection of Behrmann et al. when `F` is a contraction, that is when its Lipschitz
+constant `L` is below 1. `x + F(x)` writes the place it reads, so it is not a constructive
+update and has no `uncall`. weave's block computes `y` into the other half of the state with the
+input kept, then clears the input with the inverse that fixed-point iteration finds,
+`x_0 = y`, `x_(k+1) = y - F(x_k)`, run as a chain of `K` cells where each step adds into a fresh
+cell. On `(q, p)` it is four lines (`weave::residual`):
+
+```
+p += q + F(q)       p is y
+q -= x_K(p)         q is x - x_K(y), the remnant r
+q += p              q is y + r
+p -= q              p is -r
+```
+
+Every line adds into a place it does not read, so the block is an exact bijection on `(q, p)`
+whatever `F` and `K` are, and `uncall` rebuilds `(x, 0)` from the output bit for bit. That is
+the guarantee: the forward pass is bit-exactly deterministic and the backward pass reverses it
+exactly, with no tolerance, because the iteration is part of the definition of the block and not
+an approximation to its inverse. What the contraction buys is the meaning of the output. The
+iteration's error shrinks by `L` a step, so `x_K` is within `L^(K-1) |F(x)|` of `x`, the remnant
+`r = x - x_K(y)` is then small, and with `p` zero on entry `q` leaves as `x + F(x)` up to `r`
+and `p` as `-r`. With `K = ceil(12 ln 2 / ln(1 / L)) + 1` cells the bound is below one unit of Q12
+(`L` = 0.5 takes 13 cells, 0.8 takes 39 and the limit 0.9 takes 80), and rounding in `F` leaves
+a floor of a few units: in the tests the remnant is zero for `L` near 0.84 and `K` = 50, and a
+unit or two when `K` is too short. A block whose `p` is not zero on entry, as after a leapfrog
+layer, is still exactly reversible, but then `q` is not `x + F(x)`. Do not read the block as
+exactly inverting `y = x + F(x)` on `q` alone: from `q` alone, `x` is the iteration's result,
+approximate to `r`. The other direction was not chosen: running the iteration as the forward pass
+would need `F` and the chain adjoint to be inverted by a loop of unknown length.
+
+The backward step (`weave::residual_back`) is the exact adjoint of the four lines, taken in
+reverse: the third and fourth are `aq -= ap` and `ap += aq`, the second is a chain of its own
+(each cell hands `-J^T` of its cotangent to the one before and adds its own to `ap`, with the
+gradients of the weights taken off on the way, in `K - 1` steps of `mlp_vjp`), and the first is
+`aq += ap + J^T ap`. The gradients are those of the block as computed, which differ from those
+of the ideal `x + F(x)` by terms that also shrink as `L^K`. Costs are `K` evaluations of `F`
+forward (twice, as the chain is built and then undone), several times that backward, and
+`2K` cells of `N` numbers for the chain (`4K` in the backward step). Each cell of the
+chain has a twin that holds the step, so that no call reads the array it writes; that is what
+lets Lean prove `residual` and `residual_back` at small sizes.
+
+A model's residual layer needs `L` below 0.9, which the compiler checks from the weights on
+the 1/4096 grid: the spectral norms of `W1` and `W2` (power iteration, taken 1 percent high)
+times the slope of the activation (1 for the identity, cauchy, softsign, ReLU and tanh, 0.2501
+for sigmoid, 1.1205 for SiLU and GELU). A model above it is refused, with the bound, and its
+chain is `"iters"` cells, which defaults to the length above for the bound. The bound is not
+kept by weave's own training step: the update can take the weights past it, which leaves the
+block exactly reversible but makes `r` large. `weave_train.train(..., keep_contraction=0.8)`
+trains a few epochs at a time and scales the residual weights back to that bound after each
+stretch (with the state of momentum and Adam started again at each); the iteration count is
+then fixed from that bound for the whole run.
 
 ```rust
 use weave::step;
@@ -702,14 +766,17 @@ Most torch layers lose information, so it reads the model as blocks that do not.
 alone is a leapfrog layer whose weight is tied to its transpose, and
 `LinearAttention(seq, dim)`, from `weave_modules.py`, is an attention block, and an
 `nn.Conv1d(C, C, K, padding=K // 2)` is a convolution block. `Linear, RMSNorm, act, Linear` is a
-perceptron block with normalization (`nn.RMSNorm` needs `eps` of at least 1/4096).
-A residual connection is refused: `x + F(x)` writes what it reads, and inverting it needs an
-iteration that is not a constructive update, so use the coupling blocks above instead. The activations
+perceptron block with normalization (`nn.RMSNorm` needs `eps` of at least 1/4096), and
+`Linear, LayerNorm, act, Linear` is one with a layer norm (its weight and bias are the gain and
+the bias, and `eps` of at least 1/4096 is needed as well). A residual connection `x + F(x)`, with
+`F` one `Linear, act, Linear`, is a residual block, found by tracing (an `nn.Sequential` that
+holds a module of its own is traced too); it is refused unless its contraction bound is below 0.9,
+and anything else that adds two paths is refused. The activations
 are `Identity`, `ReLU`, `Tanh`, `Softsign`, `Sigmoid`, `SiLU` and `GELU`; any other layer is refused, naming
 it, since turning it into something else would not be the model. The compiled
 network is the network of those blocks run on `(q, p)` with the input in `q` and
 `p` zero, so it is a reversible network trained like the torch one, and not the
-same module run unchanged. A graph that branches, a residual connection for one, is refused. The exporter is
+same module run unchanged. A graph that branches, other than an `x + F(x)`, is refused. The exporter is
 tested on real torch with uv (`uv run --extra torch python -m unittest`, in that
 directory), where a mirror of the compiled network in torch finds the same
 gradients as the reference that the generated test uses.

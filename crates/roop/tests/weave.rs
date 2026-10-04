@@ -521,3 +521,77 @@ fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
     assert!(report.contains("weave__conv__conv__2_3_2_4_6"), "{report}");
     assert!(report.contains("Lean accepted the file"), "{report}");
 }
+
+#[test]
+fn lean_proves_the_residual_block_exactly_reversible() {
+    let src = "
+use weave::residual;
+
+fn fwd(q: &mut [i64; 2], p: &mut [i64; 2], w1: &[[i64; 2]; 2], b1: &[i64; 2],
+       w2: &[[i64; 2]; 2], b2: &[i64; 2], kind: &i64) {
+    call residual<2, 2, 3>(q, p, w1, b1, w2, b2, kind);
+}
+";
+    let dir = project("weave-lean-residual", &config(), src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    for name in [
+        "weave__residual__fixed_point__2_2_3",
+        "weave__residual__clear_input__2_2_3",
+        "weave__residual__residual__2_2_3",
+        "fwd",
+    ] {
+        assert!(report.contains(name), "{name} missing: {report}");
+    }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}
+
+#[test]
+fn lean_proves_the_residual_backward_step_exactly_reversible() {
+    let src = "
+use weave::residual_back;
+
+fn back(q: &mut [i64; 2], p: &mut [i64; 2], aq: &mut [i64; 2], ap: &mut [i64; 2],
+        gw1: &mut [[i64; 2]; 2], gb1: &mut [i64; 2], gw2: &mut [[i64; 2]; 2], gb2: &mut [i64; 2],
+        w1: &[[i64; 2]; 2], b1: &[i64; 2], w2: &[[i64; 2]; 2], b2: &[i64; 2], kind: &i64) {
+    call residual_back<2, 2, 3>(q, p, aq, ap, gw1, gb1, gw2, gb2, w1, b1, w2, b2, kind);
+}
+";
+    let dir = project("weave-lean-residual-back", &config(), src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    for name in [
+        "weave__residual_back__chain_adjoint__2_2_3",
+        "weave__residual_back__clear_back__2_2_3",
+        "weave__residual_back__residual_back__2_2_3",
+        "back",
+    ] {
+        assert!(report.contains(name), "{name} missing: {report}");
+    }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}
+
+#[test]
+fn lean_proves_the_centering_of_a_layer_norm_exactly_reversible() {
+    let src = "
+use weave::mean_of;
+use weave::center;
+
+fn mean(m: &mut i64, z: &[i64; 3]) {
+    call mean_of<3>(m, z);
+}
+fn centered(zc: &mut [i64; 3], z: &[i64; 3], m: &i64) {
+    call center<3>(zc, z, m);
+}
+";
+    let dir = project("weave-lean-center", &config(), src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    for name in ["weave__layer_norm__mean_of__3", "weave__layer_norm__center__3"] {
+        assert!(report.contains(name), "{name} missing: {report}");
+    }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}
