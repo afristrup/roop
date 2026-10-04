@@ -34,10 +34,12 @@ pub fn host_options(config: &Config) -> Options {
         triple: cfg!(all(target_os = "macos", target_arch = "aarch64"))
             .then(|| "arm64-apple-macosx".into()),
         cpu,
-        sme: config.parallel.sme && detect_sme(),
+        sme: config.parallel.sme && detect_sme() && !checked,
         clear_ancillas: config.optimize.clear_ancillas,
         check_overflow: checked,
-        q12: config.parallel.q12 && cfg!(all(target_os = "macos", target_arch = "aarch64")),
+        q12: config.parallel.q12
+            && !checked
+            && cfg!(all(target_os = "macos", target_arch = "aarch64")),
         parallel: ParallelOptions {
             allowed,
             auto_gpus,

@@ -1,6 +1,6 @@
 use crate::{
-    CodegenError, Dir, FnGen, Kind, emit_int_arith, gen_expr_as, gen_place, guard_scale, kind_of, llvm_type,
-    mem_load, mem_store, same_type,
+    CodegenError, Dir, FnGen, Kind, emit_int_arith, gen_expr_as, gen_place, guard_scale, kind_of,
+    llvm_type, mem_load, mem_store, same_type,
 };
 use roop_syntax::{Expr, Place, UpdateOp};
 
