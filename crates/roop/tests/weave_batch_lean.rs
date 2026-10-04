@@ -153,7 +153,6 @@ fn back(y: &mut [[i64; 2]; 2], ay: &[[i64; 2]; 2], ax: &mut [[i64; 2]; 2],
 }
 
 #[test]
-#[ignore = "minutes: run it with --ignored"]
 fn lean_proves_the_batched_layer_normalized_perceptron_and_its_backward_step() {
     let src = "
 use weave::mlp_layer_batch;

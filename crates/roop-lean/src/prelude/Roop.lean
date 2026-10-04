@@ -223,6 +223,22 @@ theorem janus_def {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ) (s :
   exact janusBox.spec E S B P s
 
 
+/-- `Vector.replicate` behind an opaque constant, for the start value of an
+ancilla array. The kernel then never evaluates a comparison with an array of
+zeros element by element, which costs as much as the array is large. -/
+structure ZerosBox where
+  run : ∀ {α : Type}, (n : Nat) → α → Vector α n
+  spec : ∀ {α : Type} (n : Nat) (x : α), run n x = Vector.replicate n x
+
+opaque zerosBox : ZerosBox := ⟨fun n x => Vector.replicate n x, fun _ _ => rfl⟩
+
+@[irreducible] def zeros {α : Type} (n : Nat) (x : α) : Vector α n := zerosBox.run n x
+
+theorem zeros_def {α : Type} (n : Nat) (x : α) : zeros n x = Vector.replicate n x := by
+  unfold zeros
+  exact zerosBox.spec n x
+
+
 /-- A terminating run of a loop: `k` steps from `s` to the exit state `r`. -/
 inductive RunN {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ) : Nat → σ → σ → Prop
   | stop {s t : σ} : B s = .ok t → S t = .ok true → RunN E S B P 0 s t

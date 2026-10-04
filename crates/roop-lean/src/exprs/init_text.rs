@@ -12,7 +12,7 @@ pub fn init_text(cx: &Ctx, env: &Env, ty: &Type, init: &Expr) -> Result<String, 
     }
     if let (Expr::Int(0), Type::Array(elem, len)) = (init, ty) {
         let zero = array_zero(elem)?;
-        return Ok(format!("(Vector.replicate {len} {zero})"));
+        return Ok(format!("(Roop.zeros {len} {zero})"));
     }
     lean_expr_as(cx, env, init, ty)
 }
