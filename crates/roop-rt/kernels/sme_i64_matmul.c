@@ -71,7 +71,7 @@ static void plain(const Job *j) {
 
 // The largest magnitude among them, as a double.
 static inline __attribute__((always_inline)) double magnitude(svint64_t top, svint64_t bottom)
-    __arm_streaming {
+    __arm_streaming __arm_inout("za") {
   svbool_t all = svptrue_b64();
   uint64_t up = (uint64_t)svmaxv_s64(all, top);
   uint64_t down = -(uint64_t)svminv_s64(all, bottom);
@@ -80,7 +80,7 @@ static inline __attribute__((always_inline)) double magnitude(svint64_t top, svi
 
 static inline __attribute__((always_inline)) void convert(
     double *dst, const int64_t *src, int64_t len, svint64_t *top, svint64_t *bottom)
-    __arm_streaming {
+    __arm_streaming __arm_inout("za") {
   svbool_t all = svptrue_b64();
   svint64_t t = *top, u = *bottom;
   for (int64_t i = 0; i < len; i += VL) {
@@ -192,7 +192,7 @@ static int64_t need(const Job *j, int64_t rows) {
   return j->kk * j->n + blocks(rows) * 2 * VL * j->kk;
 }
 
-__arm_locally_streaming
+__arm_new("za") __arm_locally_streaming
 static int fits(const Job *j) {
   svint64_t zero = svdup_s64(0);
   svint64_t at = zero, ab = zero, bt = zero, bb = zero;
@@ -212,9 +212,9 @@ static int fits(const Job *j) {
 // Rows [lo, hi) of the product. Returns 0, having changed nothing, when
 // `check` is set and the product might not be exact.
 __arm_new("za") __arm_locally_streaming
-static int rows(const Job *j, int64_t lo, int64_t hi, int check) {
+static int rows(const Job *j, double *bd, int64_t lo, int64_t hi, int check) {
   int64_t n = j->n, kk = j->kk;
-  double *bd = take(need(j, hi - lo)), *panels = bd + kk * n;
+  double *panels = bd + kk * n;
   svint64_t zero = svdup_s64(0);
   svint64_t at = zero, ab = zero, bt = zero, bb = zero;
   if (j->layout == NT) {
@@ -248,7 +248,8 @@ static int rows(const Job *j, int64_t lo, int64_t hi, int check) {
 static void chunk(void *env, int64_t idx) {
   const Job *j = env;
   int64_t lo = idx * CHUNK;
-  rows(j, lo, j->m - lo < CHUNK ? j->m : lo + CHUNK, 0);
+  int64_t hi = j->m - lo < CHUNK ? j->m : lo + CHUNK;
+  rows(j, take(need(j, hi - lo)), lo, hi, 0);
 }
 
 void roop_i64_matmul(int64_t *c, const int64_t *a, const int64_t *b, int64_t sign,
@@ -258,11 +259,12 @@ void roop_i64_matmul(int64_t *c, const int64_t *a, const int64_t *b, int64_t sig
   if (work < SMALL_WORK) {
     plain(&job);
   } else if (m <= BLOCK) {
-    if (!rows(&job, 0, m, 1)) plain(&job);
+    if (!rows(&job, take(need(&job, m)), 0, m, 1)) plain(&job);
   } else if (!fits(&job)) {
     plain(&job);
   } else if (work < THREADED_WORK) {
-    for (int64_t lo = 0; lo < m; lo += BLOCK) rows(&job, lo, m - lo < BLOCK ? m : lo + BLOCK, 0);
+    double *space = take(need(&job, BLOCK));
+    for (int64_t lo = 0; lo < m; lo += BLOCK) rows(&job, space, lo, m - lo < BLOCK ? m : lo + BLOCK, 0);
   } else {
     roop_parallel_for(0, (m + CHUNK - 1) / CHUNK, 1, chunk, &job);
   }

@@ -9,7 +9,9 @@
 #include <arm_sme.h>
 #include <stdint.h>
 
+#ifndef KC
 #define KC 256
+#endif
 #define VL 8
 
 #define CW (4 * VL)
