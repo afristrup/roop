@@ -49,3 +49,11 @@ fn the_history_limit_is_unlimited_unless_set() {
     let config = parse_config("Roop.toml", "[world]\nhistory_limit = 1048576\n").unwrap();
     assert_eq!(config.world.history_limit, Some(1_048_576));
 }
+
+#[test]
+fn overflow_checks_are_off_unless_asked_for() {
+    assert!(!parse_config("Roop.toml", "").unwrap().checks.overflow);
+    let on = parse_config("Roop.toml", "[checks]\noverflow = true").unwrap();
+    assert!(on.checks.overflow);
+    assert!(parse_config("Roop.toml", "[checks]\nbounds = true").is_err());
+}
