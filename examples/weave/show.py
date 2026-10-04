@@ -6,7 +6,7 @@
 import json
 import sys
 
-COLUMNS = ["method", "optimizer", "rate", "depth", "hidden", "act", "kinds", "init_scale", "batch",
+COLUMNS = ["method", "optimizer", "rate", "depth", "hidden", "act", "kinds", "init_scale", "out_scale", "batch",
            "epochs", "seed"]
 
 

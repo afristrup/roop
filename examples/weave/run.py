@@ -49,6 +49,8 @@ def main(argv=None):
     a.add_argument("--cap", type=int, default=None, help="at most this many training samples")
     a.add_argument("--batch", type=int, default=data.BATCH)
     a.add_argument("--init-scale", type=float, default=1.0, help="scales the initial weights")
+    a.add_argument("--out-scale", type=float, default=1.0,
+                   help="scales the last weights of each block, to keep a deep state small")
     args = a.parse_args(argv)
     torch.manual_seed(args.seed)
     xs, ys, xt, yt = (data.digits(args.seed, cap=args.cap) if args.task == "digits"
@@ -57,7 +59,8 @@ def main(argv=None):
     if args.method == "plain":
         net = models.plain(classes)
     else:
-        net = models.reversible(args.depth, tuple(args.kinds.split(",")), args.hidden, args.act)
+        net = models.reversible(args.depth, tuple(args.kinds.split(",")), args.hidden, args.act,
+                                 args.out_scale)
         with torch.no_grad():
             for p in net.parameters():
                 p.mul_(args.init_scale)
