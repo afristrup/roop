@@ -102,7 +102,26 @@ Before: 147.5, 149.8, 113.7 and 101.6 (auto), measured with a shorter warm-up.
   narrower tile (more loads per `fmopa`, and an 8-column edge) and not the pack:
   the 16 by 32 kernel with the pack removed reaches 425, so the whole pack costs
   about 0.9 microsecond of 10.7 and hiding it perfectly would still leave 128 at
-  about 0.97 of Accelerate. Not kept.
+  about 0.97 of Accelerate. Not kept. A fourth pass went after the C tiles
+  instead and found them cheap. At 128 a tile of C is loaded once and stored
+  once (k is below the 256 block), and the stores overlap the next tile's
+  loads. Removing every C load and store from the single-thread harness left
+  128 within a few per cent of the full kernel (the machine was loaded, so the
+  runs ranged by 10 per cent; the ordering held over 20 rounds), and with the
+  pack removed, also chaining the first tile's store into the second's load
+  (the pack's use of all eight ZA tiles is what breaks that chain today) made
+  no difference (421 against 423). What the pack costs is not its
+  instructions but that it uses every ZA tile, so the matrix unit idles while
+  it runs. Tried and not kept: loading the four B vectors of a column group
+  with one multi-vector `ld1d` (bit-identical, no change at 128 or 256);
+  a transposing pack in vector registers with `zip1` and `zip2` (three rounds
+  per 8 by 8 block, bit-identical, but about a third slower than the ZA pack,
+  since streaming-mode vector operations are slow); and the ZA array
+  multi-vector moves (`mova za.d[w, vgx4]`) for loading and storing a row of
+  C or A across four tiles, which do not exist: the four vectors of a group
+  are 16 array vectors apart, which is four rows of one tile 2 apart, not one
+  row of four tiles (checked by writing a group and dumping the array). The
+  gap at 128 stays in the pack.
 - **daxpy: ahead of Accelerate from 1M elements up, about 25 per cent behind at
   64K.** At 4M and 16M everything is limited by memory at around 100 GB/s and
   roop is level with Accelerate. In cache the kernel moves 256 bytes a load
