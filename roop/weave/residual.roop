@@ -25,9 +25,11 @@ use super::act::*;
 use super::kernels::*;
 use super::mlp::*;
 
-// e[0] += y, and e[k + 1] += y - F(e[k])
+// e[0] += y, and for each step a[k] += y - F(e[k]) and e[k + 1] += a[k]. The cells a
+// keep the step apart from the chain, so no call reads the array it writes.
 pub fn fixed_point<N, M, K>(
     e: &mut [[i64; N]; K],
+    a: &mut [[i64; N]; K],
     y: &[i64; N],
     w1: &[[i64; N]; M],
     b1: &[i64; M],
@@ -38,12 +40,11 @@ pub fn fixed_point<N, M, K>(
     ancilla k: i64 = 0;
     call add_vec<N>(e[0], y);
     from k == 0 {
-        if k < K - 1 {
-            call add_vec<N>(e[k + 1], y);
-            uncall mlp<N, M>(e[k + 1], w1, b1, w2, b2, e[k], kind);
-        } fi k < K - 1;
-    } loop { k += 1; } until k == K - 1;
-    k -= K - 1;
+        call add_vec<N>(a[k], y);
+        uncall mlp<N, M>(a[k], w1, b1, w2, b2, e[k], kind);
+        call add_vec<N>(e[k + 1], a[k]);
+    } loop { k += 1; } until k == K - 2;
+    k -= K - 2;
 }
 
 // q -= the last cell of the chain from p
@@ -57,9 +58,10 @@ fn clear_input<N, M, K>(
     kind: &i64,
 ) {
     ancilla e: [[i64; N]; K] = 0;
-    call fixed_point<N, M, K>(e, p, w1, b1, w2, b2, kind);
+    ancilla a: [[i64; N]; K] = 0;
+    call fixed_point<N, M, K>(e, a, p, w1, b1, w2, b2, kind);
     uncall add_vec<N>(q, e[K - 1]);
-    uncall fixed_point<N, M, K>(e, p, w1, b1, w2, b2, kind);
+    uncall fixed_point<N, M, K>(e, a, p, w1, b1, w2, b2, kind);
 }
 
 // The block, with p zero on entry: q leaves as x + F(x) up to the remnant, p as minus it.

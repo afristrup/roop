@@ -17,7 +17,7 @@ fn sum_of<M>(c: &mut i64, z: &[i64; M]) {
 }
 
 // m += mean(z)
-fn mean_of<M>(m: &mut i64, z: &[i64; M]) {
+pub fn mean_of<M>(m: &mut i64, z: &[i64; M]) {
     ancilla c: i64 = 0;
     call sum_of<M>(c, z);
     m += c / M;
@@ -25,7 +25,7 @@ fn mean_of<M>(m: &mut i64, z: &[i64; M]) {
 }
 
 // zc += z - m
-fn center<M>(zc: &mut [i64; M], z: &[i64; M], m: &i64) {
+pub fn center<M>(zc: &mut [i64; M], z: &[i64; M], m: &i64) {
     ancilla j: i64 = 0;
     from j == 0 { zc[j] += z[j] - m; } loop { j += 1; } until j == M - 1;
     j -= M - 1;

@@ -371,8 +371,13 @@ test layernorm_centers_scales_and_shifts {
 }
 
 test residual_block_adds_its_function_and_leaves_a_small_remnant {
-    q: [i64; 2], p: [i64; 2], kind: i64,
-        w1: [[i64; 2]; 2], b1: [i64; 2], w2: [[i64; 2]; 2], b2: [i64; 2];
+    q: [i64; 2],
+        p: [i64; 2],
+        kind: i64,
+        w1: [[i64; 2]; 2],
+        b1: [i64; 2],
+        w2: [[i64; 2]; 2],
+        b2: [i64; 2];
     w1[0][0] += 1024;
     w1[0][1] += 512;
     w1[1][0] -= 512;
@@ -396,8 +401,13 @@ test residual_block_adds_its_function_and_leaves_a_small_remnant {
 }
 
 test a_short_chain_leaves_a_remnant_and_the_block_still_reverses_exactly {
-    q: [i64; 2], p: [i64; 2], kind: i64,
-        w1: [[i64; 2]; 2], b1: [i64; 2], w2: [[i64; 2]; 2], b2: [i64; 2];
+    q: [i64; 2],
+        p: [i64; 2],
+        kind: i64,
+        w1: [[i64; 2]; 2],
+        b1: [i64; 2],
+        w2: [[i64; 2]; 2],
+        b2: [i64; 2];
     w1[0][0] += 1024;
     w1[0][1] += 512;
     w1[1][0] -= 512;
@@ -417,4 +427,40 @@ test a_short_chain_leaves_a_remnant_and_the_block_still_reverses_exactly {
     expect p[0] != 0 && p[0] * p[0] + p[1] * p[1] < 40000;
     uncall residual<2, 2, 2>(q, p, w1, b1, w2, b2, kind);
     expect q[0] == 4096 && q[1] == 0 - 2048 && p[0] == 0 && p[1] == 0;
+}
+
+// A contraction with a bound near 0.84 (the weights are 245 / 4096 times integers of
+// spectral norm 15.3, tanh has slope 1): the chain of 50 cells leaves no remnant at all.
+test a_wide_contraction_leaves_no_remnant_and_the_block_reverses_exactly {
+    q: [i64; 8],
+        p: [i64; 8],
+        kind: i64,
+        w1: [[i64; 8]; 8],
+        b1: [i64; 8],
+        w2: [[i64; 8]; 8],
+        b2: [i64; 8],
+        j: i64,
+        i: i64,
+        s: i64;
+    from j == 0 {
+        from i == 0 {
+            w1[j][i] += ((j * 5 + i * 3) % 9 - 4) * 245;
+            w2[j][i] += ((j * 5 + i * 3 + 1) % 9 - 4) * 245;
+        } loop { i += 1; } until i == 7;
+        i -= 7;
+        b1[j] += 100 * j - 300;
+        b2[j] += 50 * j - 150;
+    } loop { j += 1; } until j == 7;
+    j -= 7;
+    kind += 4;
+    from i == 0 {
+        q[i] += (i * 3 + 1) % 7 * 1024 - 3072;
+    } loop { i += 1; } until i == 7;
+    i -= 7;
+    call residual<8, 8, 50>(q, p, w1, b1, w2, b2, kind);
+    from i == 0 { s += p[i] * p[i]; } loop { i += 1; } until i == 7;
+    i -= 7;
+    expect s == 0;
+    uncall residual<8, 8, 50>(q, p, w1, b1, w2, b2, kind);
+    expect p[0] == 0 && p[7] == 0 && q[0] == 0 - 2048;
 }

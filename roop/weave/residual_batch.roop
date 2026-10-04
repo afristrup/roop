@@ -37,7 +37,21 @@ pub fn residual_back_batch<N, M, K, B>(
 ) {
     ancilla r: i64 = 0;
     from r == 0 {
-        call residual_back<N, M, K>(q[r], p[r], aq[r], ap[r], gw1, gb1, gw2, gb2, w1, b1, w2, b2, kind);
+        call residual_back<N, M, K>(
+            q[r],
+            p[r],
+            aq[r],
+            ap[r],
+            gw1,
+            gb1,
+            gw2,
+            gb2,
+            w1,
+            b1,
+            w2,
+            b2,
+            kind,
+        );
     } loop { r += 1; } until r == B - 1;
     r -= B - 1;
 }
