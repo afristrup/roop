@@ -9,8 +9,9 @@ const XS: [[i64; 4]; 4] = [[1, 1, 1, 0], [1, -1, 1, 0], [-1, 1, 1, 0], [-1, -1, 
 const TS: [f64; 4] = [-0.5, 0.5, 0.5, -0.5];
 
 /// A C program that trains the compiled model on xor and exits 0 when the loss
-/// has fallen to a fifth.
-fn driver(model: &roop_weave::Model, rate: f64, epochs: usize) -> String {
+/// has fallen to a fifth, or, when `settled`, to a hundredth and has stayed there for
+/// the last quarter of the epochs.
+fn driver(model: &roop_weave::Model, rate: f64, epochs: usize, settled: bool) -> String {
     let tensors = model.tensors();
     let numbers = |data: &[f64]| {
         let items: Vec<String> = data.iter().map(|x| quantize(*x).to_string()).collect();
@@ -44,17 +45,20 @@ fn driver(model: &roop_weave::Model, rate: f64, epochs: usize) -> String {
     c += &format!("static int64_t ts[4][1] = {{{{{}}}}};\n", ts.join("}, {"));
     let types = vec!["int64_t*"; pointers.len()].join(", ");
     c += &format!("void {}_train({types});\n", model.name);
+    let settled = settled as u8;
     c += &format!(
         "int main(void) {{
     int64_t lr = {};
-    double first = 0, last = 0;
+    double first = 0, last = 0, worst = 0;
     for (int e = 0; e < {epochs}; e++) {{
         int64_t total = 0;
         {}_train({});
         last = total / 4096.0;
         if (e == 0) first = last;
+        if (e >= {epochs} * 3 / 4 && last > worst) worst = last;
     }}
     fprintf(stderr, \"loss %.4f -> %.4f\\n\", first, last);
+    if ({settled}) return worst < first / 100 ? 0 : 1;
     return last >= 0 && last < first / 5 ? 0 : 1;
 }}
 ",
@@ -80,6 +84,16 @@ fn train_layers(
     optimizer: serde_json::Value,
     default_rate: f64,
 ) {
+    train_layers_until(name, layers, optimizer, default_rate, false);
+}
+
+fn train_layers_until(
+    name: &str,
+    layers: Vec<serde_json::Value>,
+    optimizer: serde_json::Value,
+    default_rate: f64,
+    settled: bool,
+) {
     let mut spec = model(name, 4, 1, layers);
     spec["optimizer"] = optimizer;
     let dir = project(name);
@@ -87,7 +101,7 @@ fn train_layers(
     let parsed = parse_model(&spec.to_string()).unwrap();
     let rate = std::env::var("WEAVE_LR").map_or(default_rate, |v| v.parse().unwrap());
     let epochs = std::env::var("WEAVE_EPOCHS").map_or(3000, |v| v.parse().unwrap());
-    std::fs::write(dir.join("main.c"), driver(&parsed, rate, epochs)).unwrap();
+    std::fs::write(dir.join("main.c"), driver(&parsed, rate, epochs, settled)).unwrap();
     let built = roop(
         &dir,
         &["build", "prog.roop", "--link", "main.c", "-o", "prog"],
@@ -171,6 +185,12 @@ fn adam_trains_residual_blocks_with_a_kept_contraction_on_xor() {
 }
 
 #[test]
+fn adam_settles_on_xor_with_a_kept_contraction() {
+    let adam = json!({"kind": "adam"});
+    train_layers_until("xor_settled_adam", kept_residuals(), adam, 0.01, true);
+}
+
+#[test]
 fn the_per_sample_and_the_batched_step_project_after_every_optimizer() {
     let optimizers = [
         ("sgd_carry_", json!({"kind": "sgd"})),
@@ -183,6 +203,12 @@ fn the_per_sample_and_the_batched_step_project_after_every_optimizer() {
         let parsed = parse_model(&spec.to_string()).unwrap();
         for batched in [false, true] {
             let step = roop_weave::emit_step(&parsed, batched);
+            assert_eq!(step.matches("call project_gradient<4, 6>").count(), 3);
+            let filter = step.rfind("call project_gradient").unwrap();
+            assert!(
+                filter < step.find(&format!("call {update}")).unwrap(),
+                "{step}"
+            );
             assert_eq!(step.matches("call project_contraction<4, 6>").count(), 3);
             let project = step.find("call project_contraction").unwrap();
             assert!(

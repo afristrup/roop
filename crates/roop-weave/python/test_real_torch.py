@@ -185,6 +185,7 @@ class RealTorch(unittest.TestCase):
             losses = train(net, xs, ts, epochs=1500, rate=rate, roop=roop, optimizer=optimizer,
                            keep_contraction=0.8)
             self.assertLess(losses[-1], losses[0] / 5, optimizer)
+            self.assertLess(max(losses[-375:]), losses[0] / 50, optimizer)
             for block in net:
                 weights = [block.f[0].weight.tolist(), block.f[2].weight.tolist()]
                 self.assertLess(contraction.bound("tanh", *weights), 0.81, optimizer)

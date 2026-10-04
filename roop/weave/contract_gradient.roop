@@ -1,0 +1,49 @@
+// Projected gradient for `project_contraction`. At the bound the gradient of the loss
+// keeps pushing the weights outward, and the rescale after the step undoes the push,
+// which an optimizer that steps about the rate however small the gradient (Adam) never
+// stops answering. So, when the bound of F is within five percent of the cap, the part
+// of the gradients of w1 and w2 along the outward normal of the bound is removed
+// before the optimizer sees it. The normal of the product of the spectral norms is the
+// rank one matrix u v^T of each weight scaled by the norm of the other weight and the
+// slope; the gradients are in Q24 times the loss scale.
+
+use super::contract::*;
+use super::contract_dot::*;
+use super::contract_normal::*;
+use super::contract_pull::*;
+
+pub irrev fn project_gradient<N, M>(
+    g1: &mut [[i64; N]; M],
+    g2: &mut [[i64; M]; N],
+    w1: &[[i64; N]; M],
+    w2: &[[i64; M]; N],
+    slope: &i64,
+    cap: &i64,
+) {
+    ancilla h1: [[i64; N]; N] = 0;
+    ancilla h2: [[i64; M]; M] = 0;
+    ancilla a: i64 = 0;
+    ancilla b: i64 = 0;
+    ancilla bound: i64 = 0;
+    call dominant<N, M>(h1, a, w1);
+    call dominant<M, N>(h2, b, w2);
+    bound = a * b / 4096 * slope / 4096;
+    if bound * 100 >= cap * 95 {
+        ancilla n1: [[i64; N]; M] = 0;
+        ancilla n2: [[i64; M]; N] = 0;
+        ancilla s: i64 = 0;
+        ancilla nn: i64 = 0;
+        ancilla lam: i64 = 0;
+        call normal<N, M>(n1, w1, h1, a, b * slope / 4096);
+        call normal<M, N>(n2, w2, h2, b, a * slope / 4096);
+        call dot<N, M>(s, g1, n1);
+        call dot<M, N>(s, g2, n2);
+        call dot<N, M>(nn, n1, n1);
+        call dot<M, N>(nn, n2, n2);
+        if s < 0 {
+            lam = s / (nn + 1);
+            call pull<N, M>(g1, n1, lam);
+            call pull<M, N>(g2, n2, lam);
+        } else {} fi s < 0;
+    } else {} fi bound * 100 >= cap * 95;
+}

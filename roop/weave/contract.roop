@@ -71,11 +71,11 @@ irrev fn square<D>(h: &mut [[i64; D]; D], tau: &mut i64) {
     } loop { i += 1; } until i == D - 1;
 }
 
-// r gets a bound on the spectral norm of w in Q12, a percent above what the squares
-// allow.
-irrev fn spectral_bound<D, R>(r: &mut i64, w: &[[i64; D]; R]) {
+// h gets the projector onto the top right singular vector of w (Q12, trace 4096), the
+// squares of the trace-normalized Gram matrix being a rank one matrix when the top
+// singular value stands out, and r a bound on the spectral norm of w in Q12.
+pub irrev fn dominant<D, R>(h: &mut [[i64; D]; D], r: &mut i64, w: &[[i64; D]; R]) {
     ancilla g: [[i64; D]; D] = 0;
-    ancilla h: [[i64; D]; D] = 0;
     ancilla tau: [i64; 6] = 0;
     ancilla t: i64 = 0;
     ancilla k: i64 = 0;
@@ -93,7 +93,15 @@ irrev fn spectral_bound<D, R>(r: &mut i64, w: &[[i64; D]; R]) {
         lambda = root;
     } loop { k += 1; } until k == 5;
     call isqrt(root, t * lambda / 4096);
-    r = root * 101 / 100;
+    r = root;
+}
+
+// r gets a bound on the spectral norm of w in Q12, a percent above what the squares
+// allow.
+irrev fn spectral_bound<D, R>(r: &mut i64, w: &[[i64; D]; R]) {
+    ancilla h: [[i64; D]; D] = 0;
+    call dominant<D, R>(h, r, w);
+    r = r * 101 / 100;
 }
 
 // w = w * f / 4096

@@ -652,22 +652,41 @@ optimizer are not touched. `weave_train.train(..., keep_contraction=0.8)` sets t
 chain length; a rate of 0.05 on the xor residual net of the tests diverges without it and
 converges with it.
 
-The projection runs after the optimizer in both `step` and `step_batch` (the same code emits it),
-so it works with SGD, momentum and Adam, and tests train the xor residual net and the torch
-round trip with each, ending at or under the bound. Its limits with the stateful optimizers:
-the moments (`m`, `v`) and the carry are not rescaled with the weights, and nothing needs it
-for correctness (the carry holds less than one unit of a weight, and the moments are
-gradient statistics, which a rescale of a percent or so changes little). What does show is that
-a projection that fires every step fights an optimizer that keeps pushing outward. Momentum and
-SGD settle (the xor net stays near a loss of 0.05, higher than the net reaches unconstrained,
-since the uniform scaling of `W1` and `W2` is not a Euclidean projection). Adam does not: its
-step is about the rate for every weight however small the gradient, and at the bound the
-gradient does not vanish, so its loss falls to a few hundredths and then wanders between 0.01
-and 0.2 for as long as it runs, at 0.01 and still at 0.001. Without the key the same Adam run
-reaches zero exactly. Use a small rate and, if the constraint is active, stop at the best loss
-rather than the last, or use SGD or momentum. A rate that is too high still diverges
-(0.3 for SGD and for momentum with beta 0.9 on this net); the projection bounds the weights of
-the blocks, not their biases.
+The projection runs after the optimizer in both `step` and `step_batch` (the same code emits
+it), so it works with SGD, momentum and Adam. A rescale alone is a poor projection: the
+bound of `F` is the product of the spectral norms of `W1` and `W2`, so its outward normal is
+the rank one matrix `u v^T` of each weight, not the weights themselves, and a step followed by
+a uniform rescale only stops where the gradient is along the weights, which is not where the
+loss is smallest on the bound. And an optimizer that steps about the rate however small the
+gradient (Adam) never stops answering a gradient that keeps pushing outward, while the rescale
+keeps undoing it. So before the optimizer sees them, `project_gradient` (in
+`contract_gradient.roop`) takes the part along that outward normal out of the gradients of `W1`
+and `W2` whenever the bound is within about 5 percent of the cap and the gradient points
+outward. The normal comes from the same squares of the Gram matrix as the bound: the squares
+tend to the projector `H` onto the top right singular vector of `W`, and `W H / sigma` is
+`u v^T`. What is left of the gradient vanishes at a minimum on the bound, the optimizer settles,
+and the rescale after it only has the second order growth of a step along the bound to undo.
+The biases and the carry of the optimizer are not touched, and neither are the moments, which
+now see the gradient without its outward part. A model without `keep_contraction` emits
+nothing new.
+
+On the xor residual net of the tests (three blocks, bound 0.8), before and after, the loss at
+epochs 1000, 2000 and 3000 and the worst in the last quarter of 3000 epochs:
+
+| optimizer | before | after |
+| --- | --- | --- |
+| SGD, rate 0.05 | 0.032, 0.050, 0.052 (plateau) | 0.0000 from epoch 400 |
+| momentum 0.9, rate 0.01 | 0.050, 0.051, 0.051 (plateau) | 0.0000 from epoch 200 |
+| Adam, rate 0.01 | 0.016, 0.076, 0.085 (worst 0.17) | 0.0000 from epoch 200, to 12000 |
+
+The 3-block torch round trip (`test_real_torch.py`, 3000 epochs) ends at 0.0000 with the bound
+under 0.81 for SGD 0.05, momentum 0.01 and Adam at 0.003, 0.01 and 0.05; before, Adam ended
+between 0.08 and 0.10 at every one of those rates and SGD and momentum at 0.053. A test trains
+the xor net with Adam and requires the loss to stay under a hundredth of its first value for
+the last quarter of the run. Removing the part of the step along the normal as well, after the
+optimizer, was tried and changes nothing on these nets. A rate that is too high still
+diverges (0.3 for SGD and for momentum with beta 0.9 on this net); the projection bounds the
+weights of the blocks, not their biases.
 
 ```rust
 use weave::step;
