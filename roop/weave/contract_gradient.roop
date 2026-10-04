@@ -36,14 +36,14 @@ pub irrev fn project_gradient<N, M>(
         ancilla lam: i64 = 0;
         call normal<N, M>(n1, w1, h1, a, b * slope / 4096);
         call normal<M, N>(n2, w2, h2, b, a * slope / 4096);
-        call dot<N, M>(s, g1, n1, 4096);
-        call dot<M, N>(s, g2, n2, 4096);
-        call dot<N, M>(nn, n1, n1, 4096);
-        call dot<M, N>(nn, n2, n2, 4096);
+        call dot<N, M>(s, g1, n1);
+        call dot<M, N>(s, g2, n2);
+        call dot<N, M>(nn, n1, n1);
+        call dot<M, N>(nn, n2, n2);
         if s < 0 {
             lam = s / (nn + 1);
-            call pull<N, M>(g1, n1, lam, 1);
-            call pull<M, N>(g2, n2, lam, 1);
+            call pull<N, M>(g1, n1, lam);
+            call pull<M, N>(g2, n2, lam);
         } else {} fi s < 0;
     } else {} fi bound * 100 >= cap * 95;
 }
