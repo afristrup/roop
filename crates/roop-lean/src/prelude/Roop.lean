@@ -199,9 +199,28 @@ def janusGo {σ : Type} (entry stop : σ → Res Bool) (body step : σ → Res �
         check (!(← entry s2)) .assertion
         janusGo entry stop body step n s2
 
-@[irreducible] def janus {σ : Type} (entry stop : σ → Res Bool) (body step : σ → Res σ) (s : σ) : Res σ := do
+def janusImpl {σ : Type} (entry stop : σ → Res Bool) (body step : σ → Res σ) (s : σ) : Res σ := do
   check (← entry s) .assertion
   janusGo entry stop body step fuelBound s
+
+/-- `janusImpl` behind an opaque constant. The kernel cannot unfold an opaque
+constant, so when it reduces a function that runs a loop on symbolic data it
+stops at the loop, instead of running the loop's iterations (a cost that grows
+with the loop bounds). `spec` says it is `janusImpl` all the same. -/
+structure JanusBox where
+  run : ∀ {σ : Type}, (σ → Res Bool) → (σ → Res Bool) → (σ → Res σ) → (σ → Res σ) → σ → Res σ
+  spec : ∀ {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ) (s : σ),
+    run E S B P s = janusImpl E S B P s
+
+opaque janusBox : JanusBox := ⟨janusImpl, fun _ _ _ _ _ => rfl⟩
+
+@[irreducible] def janus {σ : Type} (entry stop : σ → Res Bool) (body step : σ → Res σ) (s : σ) : Res σ :=
+  janusBox.run entry stop body step s
+
+theorem janus_def {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ) (s : σ) :
+    janus E S B P s = janusImpl E S B P s := by
+  unfold janus
+  exact janusBox.spec E S B P s
 
 
 /-- A terminating run of a loop: `k` steps from `s` to the exit state `r`. -/
@@ -282,7 +301,7 @@ run with the inverse body and step. -/
 theorem janus_inv {σ : Type} (E S : σ → Res Bool) (B P Bi Pi : σ → Res σ)
     (hb : ∀ a b, B a = .ok b → Bi b = .ok a) (hp : ∀ a b, P a = .ok b → Pi b = .ok a)
     (s r : σ) (h : janus E S B P s = .ok r) : janus S E Bi Pi r = .ok s := by
-  simp only [janus, bind, Except.bind] at h ⊢
+  simp only [janus_def, janusImpl, bind, Except.bind] at h ⊢
   rcases he : E s with e | c
   · simp [he] at h
   · cases c
@@ -298,7 +317,7 @@ theorem janus_inv {σ : Type} (E S : σ → Res Bool) (B P Bi Pi : σ → Res σ
 counter at the upper bound. -/
 theorem janus_stop {σ : Type} (E S : σ → Res Bool) (B P : σ → Res σ)
     (s r : σ) (h : janus E S B P s = .ok r) : S r = .ok true := by
-  simp only [janus, bind, Except.bind] at h
+  simp only [janus_def, janusImpl, bind, Except.bind] at h
   rcases he : E s with e | c
   · simp [he] at h
   · cases c
@@ -344,7 +363,7 @@ theorem janus_no_ancilla {σ : Type} (E S : σ → Res Bool) (B P : σ → Res �
     (hB : ∀ s, B s ≠ .error .ancilla) (hP : ∀ s, P s ≠ .error .ancilla) (s : σ) :
     janus E S B P s ≠ .error .ancilla := by
   intro h
-  simp only [janus, bind, Except.bind] at h
+  simp only [janus_def, janusImpl, bind, Except.bind] at h
   rcases he : E s with e | c
   · simp only [he, Except.error.injEq] at h; exact hE s (he ▸ h ▸ rfl)
   · simp only [he, check] at h
