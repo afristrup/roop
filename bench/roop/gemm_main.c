@@ -15,7 +15,7 @@ static int cmp(const void *x, const void *y) {
 }
 
 int main(void) {
-    static double a[N * N], b[N * N], c[N * N];
+    static double a[N * N] __attribute__((aligned(128))), b[N * N] __attribute__((aligned(128))), c[N * N] __attribute__((aligned(128)));
     double alpha = 1.0;
     for (long i = 0; i < (long)N * N; i++) {
         a[i] = (double)(i % 7) * 0.25;
