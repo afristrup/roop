@@ -253,7 +253,148 @@ and no intrinsics, in the same arithmetic as roop or in doubles; a tuned integer
 Rust program could use the same trick of summing in doubles. Accelerate's
 `dgemm` is not reversible and keeps its activations; it is 1.8 times faster than
 roop's best single-thread step, which is the answer to whether a reversible step
-can match it: not here. The old row is `0baf7b8`, built from a `git archive` into
+can match it: not here (the section after this one measures the step again
+with a faster integer kernel). The old row is `0baf7b8`, built from a `git archive` into
 its own target directory. Other work on the machine, including Lean runs, was
 active throughout, and the numbers that were taken when the load average was
 above 15 are not reported.
+
+## weave against Accelerate
+
+The step of the section above, measured again after the integer kernel moved
+entirely onto the matrix unit. The machine was the same Apple M4 (10 cores) with
+other agents running Lean and benchmarks on it: the load average was between 4
+and 8 for every figure below, and went up to 25 during some other runs, which
+are not reported. Each figure is a range over four to six rounds in which the old
+build, the new build and Accelerate ran one after the other, so within a round
+the ratios are fair; across rounds a figure moves by 20 to 40 per cent, and the
+same Accelerate program ran at 47 000 samples a second in the section above and
+at 57 000 to 71 000 today. Read the ratios, not the digits.
+`bench/weave_speed.py` prints one build (new options: `--width`, `--batch`,
+`--only`, `--checkout` to measure another checkout, `--accelerate-only`); the
+comparison below ran `origin/main` and this branch alternately.
+
+### What changed
+
+- **One streaming pass for an `i64` product** (`crates/roop-rt/kernels/
+  sme_i64_matmul.c`, replacing `i64_matmul.c`). The kernel used to convert the
+  three matrices to doubles in normal mode, call `roop_dgemm`, which entered
+  streaming mode, and convert back. In a C harness a 32 by 64 by 64 call spent
+  about three times as long converting as multiplying. Now it enters streaming
+  mode once, converts the operands into panels (A is transposed through the ZA
+  tiles on the way, B is converted, or transposed for `imatmul_nt`), accumulates
+  in ZA, and converts each finished tile back and adds it to C as it leaves. A
+  helper that is not inlined into the streaming function is a call with a lazy
+  save of ZA around it, and made the first version of this several times slower;
+  they are all `always_inline` with the same ZA state as the caller now.
+- **The exactness check costs no pass of its own.** The kernel must know that
+  every product and sum is below 2^52 before it touches C. It first scanned both
+  operands for the largest entry (a sixth of the step in a profile of the first
+  version); it now tracks the largest and smallest entry while it converts, before
+  any tile runs, and goes to the plain loops with C untouched when the bound
+  fails. Products with more than 512 rows are checked in a pass of their own first
+  and then run in blocks, so the panels stay small.
+- **The matrix kernels are declared `nocapture nounwind`** in the generated IR.
+  This did not change the speed measurably, and is kept because it is true.
+- A negative sign (`uncall`) subtracts the converted tile, so it restores C to the
+  bit. `crates/roop-rt/tests/i64_matmul.rs` checks the kernel against the loops
+  for awkward sizes, more than a block of rows, the threaded path, products that
+  overflow the doubles, the edge of the exact range and `i64::MIN`, forward and
+  backward; the weave tests that compare kernels on and off pass unchanged.
+
+One call, in a C harness (microseconds, best of 37 batches of 100, load 3.7):
+
+| m x n x k | old kernel NN / NT / TN | new kernel NN / NT / TN | roop dgemm (f64) | Accelerate dgemm |
+|:---|---:|---:|---:|---:|
+| 32 x 64 x 64 | 4.4 / 5.4 / 5.4 | 1.6 / 1.8 / 1.5 | 1.16 | 0.81 |
+| 128 x 64 x 64 | 13.1 / 14.2 / 11.8 | 4.9 / 5.0 / 4.4 | 4.6 | 3.0 |
+| 256 x 64 x 64 | 24.4 / 26.5 / 32.2 | 9.7 / 9.7 / 8.4 | 9.3 | 6.0 |
+| 32 x 128 x 128 | 11.5 / 35.8 / 18.8 | 5.0 / 5.9 / 5.0 | 3.0 | 2.6 |
+| 128 x 128 x 128 | 30.1 / 46.5 / 49.2 | 16.1 / 15.4 / 16.4 | 12.6 | 10.8 |
+| 256 x 128 x 128 | 51.7 / 68.0 / 130.7 | 27.2 / 29.9 / 28.3 | 23.7 | 19.9 |
+
+The kernel is 2 to 4 times faster than before, 1.05 to 1.7 times the cost of the
+f64 `dgemm` it is built on, and 1.4 to 2 times Accelerate's. The harness runs
+with the matrices hot in L1, which a step does not.
+
+### The training step, samples a second
+
+Eight layers, four outputs, the weights and data of `throughput_of_a_training_step`.
+"Before" is `origin/main`, "after" is this branch, both the batch as matrix
+products with the kernels on; "2 chunks" is `step_parallel` with two chunks on
+threads; Accelerate is the hand-written Rust step of `bench/native/weave_speed.rs`
+with every product a `cblas_dgemm`, on one thread, and in 10 chunks on threads.
+Every roop row ends three steps with the same weights to the bit (checksum
+6843866773079962822 at width 64, batch 32).
+
+| width, batch | before | after | before, 2 chunks | after, 2 chunks | Accelerate, 1 thread | Accelerate, 10 chunks |
+|:---|---:|---:|---:|---:|---:|---:|
+| 64, 32 | 23 000 to 36 000 | 36 000 to 52 000 | 32 000 to 48 000 | 47 000 to 68 000 | 57 000 to 71 000 | 38 000 to 43 000 |
+| 64, 128 | 28 000 to 40 000 | 43 000 to 60 000 | 45 000 to 65 000 | 74 000 to 88 000 | 62 000 to 77 000 | 78 000 to 117 000 |
+| 64, 256 | 34 000 to 41 000 | 61 000 to 63 000 | 64 000 to 75 000 | 88 000 to 102 000 | 69 000 to 77 000 | 145 000 to 151 000 |
+| 128, 32 | 9 200 to 9 700 | 13 800 to 17 500 | 8 300 to 10 700 | 14 600 to 20 000 | 18 000 to 26 000 | 13 600 to 18 500 |
+| 128, 128 | 12 700 to 15 000 | 22 100 to 26 800 | 18 800 to 24 600 | 27 500 to 29 300 | 23 400 to 26 200 | 34 000 to 35 500 |
+| 128, 256 | 14 800 to 18 300 | 23 900 to 30 300 | 28 200 to 31 400 | 31 000 to 42 200 | 28 900 to 33 800 | 44 600 to 54 200 |
+
+The first row is two runs (six and four rounds, load 3.7 and 4.4), the others one
+run of four rounds at load 8.1 (64, 128), 5.0, 4.7, 4.4 and 4.1. Batch 32 by
+width 64 is the case of the section above, where the old step was 1.8 times
+slower than Accelerate on one thread; its gap is smaller now and is not closed.
+
+What the table says. The reversible step on one thread is 1.3 to 1.8 times faster
+than before and runs at about 0.6 to 0.75 of Accelerate's speed at width 64 and
+batch 32, 0.7 to 0.8 at batch 128, 0.8 to 0.9 at batch 256, and at width 128 about
+0.7 at batch 32, 1.0 at batch 128 (within the noise) and 0.85 at batch 256. So
+Accelerate's `dgemm` on one thread is still faster at the shape the question was
+asked about, and the larger the batch the closer roop gets. With two chunks on
+threads roop is above Accelerate on one thread at batches of 128 and 256 (and
+about equal at batch 32, width 64), but Accelerate on ten threads is ahead at
+the large batches, where we did not try more than four chunks. Four chunks, which
+were slower than one before, are now about as fast as two (47 000 to 50 000 at
+width 64, batch 32, in a separate run of four rounds, against 47 000 to 68 000
+for two); that is probably because the conversions, which ran in normal mode and
+in parallel, now run on the matrix unit with the products, and the unit is shared
+by the cores of a cluster, but that was not isolated.
+
+### Where the rest of the gap is
+
+A profile of the batched step at width 64 and batch 32, with the first version of
+the new kernel: 54 per cent in the kernel (a third of it the scan for the largest
+entry, since removed), 16 per cent in the activations and their slopes inside
+`force_back_batch`, 9 in `force_batch`, 5 in `adjoint_batch`, 11 in `memset` (the
+ancillas are zeroed when they are made and again when they are unmade, and the
+compiler cannot fold the first zero into the first `+=`), the rest small. Replacing
+the matrix kernel with a call that does nothing leaves 0.40 ms a step, which is 80
+000 samples a second, measured with the real kernel at 1.1 ms in the same minutes:
+the elementwise code of roop alone costs about as much as the whole Accelerate
+step (0.43 to 0.47 ms). So even a free matrix product would only make roop equal
+to Accelerate here, and with the kernel as it is (a 32 by 64 by 64 call in 1.6
+microseconds in the harness and about 2.7 in the step, where the operands were just
+written in normal mode and have to reach the matrix unit through L2) the step
+is at 0.75 to 0.8 ms.
+
+A streaming loop here is limited by the bytes it moves through L2 and not by its
+instruction count: four-vector loads and `min`/`max`, four ZA tiles loading in
+parallel with four reading, a branch on the sign in place of a multiply, 128-byte
+aligned scratch, `-O3` and non-trivial loop unswitching for the generated code,
+and a larger or smaller `KC` in the f64 kernel were each tried and were within the
+noise, so none is in the code.
+
+What was not done:
+
+- The f64 `dgemm` of PR 13 still trails Accelerate at 128 and 256 (about 0.8 to
+  0.85 of its speed in the harness above, as before). Its tile loop issues about
+  1.9 FMOPA a nanosecond and Accelerate's about 2.9, and the load variants tried
+  did not move it.
+- Batched attention, convolution and the norm MLP are still loops over rows with
+  no matrix kernel. The convolution and the attention products are `q12` einsums
+  per sample, so they run on the NEON kernel; one product over all rows would be a
+  rewrite of those library functions and of their Lean models, and was not
+  attempted.
+- The activations, the elementwise adds and `kick` are scalar code, since NEON has
+  no 64-bit multiply or divide. The division of the cauchy force can be done in
+  doubles, exactly while the numerator is below 2^53, but a vector double divide
+  issues about as slowly as a scalar integer divide, so it would not be faster.
+- Contractions that share an operand are not fused: the two products of
+  `force_back_batch` that read W with the same layout each convert W again, which
+  is about 0.2 microsecond of the 1.6.
