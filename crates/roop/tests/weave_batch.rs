@@ -340,7 +340,7 @@ static int check_residual(int64_t kind) {
     memset(pa, 0, sizeof pa); memset(pb, 0, sizeof pb); memset(fpa, 0, sizeof fpa); memset(fpb, 0, sizeof fpb);
     memcpy(qa, x, sizeof qa); memcpy(qb, x, sizeof qb); memcpy(fa, x, sizeof fa); memcpy(fb, x, sizeof fb);
     memcpy(aqa, ay, sizeof aqa); memcpy(aqb, ay, sizeof aqb);
-    memcpy(apa, ay, sizeof apa); memcpy(apb, ay, sizeof apb);
+    memset(apa, 0, sizeof apa); memset(apb, 0, sizeof apb);
     for (int s = 0; s < B; s++)
         res_fwd_one(fa[s], fpa[s], (int64_t*)rw1, rb1, (int64_t*)rw2, rb2, &kind);
     res_fwd_all((int64_t*)fb, (int64_t*)fpb, (int64_t*)rw1, rb1, (int64_t*)rw2, rb2, &kind);
@@ -370,7 +370,7 @@ int main(void) {
     fill((int64_t*)x, B * N, 6000); fill((int64_t*)t, B * K, 3000);
     fill((int64_t*)w1, M * N, 2000); fill(b1, M, 1000); fill((int64_t*)w2, N * M, 2000); fill(b2, N, 1000);
     fill((int64_t*)ay, B * N, 3000);
-    fill((int64_t*)rw1, M * N, 120); fill(rb1, M, 300); fill((int64_t*)rw2, N * M, 120); fill(rb2, N, 300);
+    fill((int64_t*)rw1, M * N, 1200); fill(rb1, M, 300); fill((int64_t*)rw2, N * M, 1200); fill(rb2, N, 300);
     fill(gain, M, 4096); fill(beta, M, 2000);
     fill((int64_t*)filters, C * CK, 3000); fill(bias, C, 1000);
     fill((int64_t*)wq, D * D, 3000); fill((int64_t*)wk, D * D, 3000); fill((int64_t*)wv, D * D, 3000);

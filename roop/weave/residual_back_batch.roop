@@ -2,6 +2,7 @@
 // every cell of its chains holding B rows, so each step is one batched
 // perceptron adjoint. The gradients added are the sums over the rows.
 
+use super::kernels::*;
 use super::mlp_batch::*;
 use super::residual_batch::*;
 use super::rows::*;
@@ -70,11 +71,19 @@ fn clear_back_batch<N, M, K, B>(
     ancilla a: [[[i64; N]; B]; K] = 0;
     ancilla d: [[[i64; N]; B]; K] = 0;
     ancilla c: [[[i64; N]; B]; K] = 0;
+    ancilla hw1: [[i64; N]; M] = 0;
+    ancilla hb1: [i64; M] = 0;
+    ancilla hw2: [[i64; M]; N] = 0;
+    ancilla hb2: [i64; N] = 0;
     call fixed_point_batch<N, M, K, B>(e, a, p, w1, b1, w2, b2, kind);
     call add_rows<N, B>(q, e[K - 1]);
-    call chain_adjoint_batch<N, M, K, B>(d, c, gw1, gb1, gw2, gb2, aq, e, w1, b1, w2, kind);
+    call chain_adjoint_batch<N, M, K, B>(d, c, hw1, hb1, hw2, hb2, aq, e, w1, b1, w2, kind);
     call sum_cells_batch<N, K, B>(ap, d);
-    uncall chain_adjoint_batch<N, M, K, B>(d, c, gw1, gb1, gw2, gb2, aq, e, w1, b1, w2, kind);
+    call add_rows<N, M>(gw1, hw1);
+    call add_vec<M>(gb1, hb1);
+    call add_rows<M, N>(gw2, hw2);
+    call add_vec<N>(gb2, hb2);
+    uncall chain_adjoint_batch<N, M, K, B>(d, c, hw1, hb1, hw2, hb2, aq, e, w1, b1, w2, kind);
     uncall fixed_point_batch<N, M, K, B>(e, a, p, w1, b1, w2, b2, kind);
 }
 

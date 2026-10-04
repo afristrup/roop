@@ -4,7 +4,8 @@ use roop_weave::{Model, Tensor, decl, names, parse_model};
 use serde_json::Value;
 use std::fmt::Write;
 use support::{
-    attention, compile, conv, leapfrog, mlp, mlp_layer, mlp_norm, model, project, roop, text,
+    attention, compile, conv, leapfrog, mlp, mlp_layer, mlp_norm, model, project, residual, roop,
+    text,
 };
 
 const ROWS: usize = 3;
@@ -130,4 +131,23 @@ fn a_batched_mixed_model_equals_its_rows_one_at_a_time() {
         mlp("tanh", 3, 6, 4),
     ];
     check("exact_mixed", model("exactmixed", 6, 3, layers));
+}
+
+#[test]
+fn a_batched_residual_block_equals_its_rows_one_at_a_time() {
+    let layers = vec![
+        residual("tanh", 4, 6, 2, 0.3),
+        residual("silu", 5, 6, 3, 0.3),
+    ];
+    check("exact_residual", model("exactresidual", 6, 3, layers));
+}
+
+#[test]
+fn a_batched_residual_block_among_other_layers_equals_its_rows_one_at_a_time() {
+    let layers = vec![
+        mlp("tanh", 3, 6, 4),
+        residual("relu", 4, 6, 5, 0.3),
+        leapfrog("tanh", 3, 6, 1),
+    ];
+    check("exact_residual_mixed", model("exactresmixed", 6, 3, layers));
 }
