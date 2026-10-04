@@ -2,6 +2,10 @@ use crate::LoopLemmas;
 
 pub const SIMP_BASE: &str = "beq_iff_eq, Prod.eta, Vector.getElem_set_self, Vector.set_set, Vector.set_getElem_self, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero, BitVec.add_sub_cancel, BitVec.sub_add_cancel, Roop.neg_add_self, Roop.add_neg_self, Roop.divOk_mul, Roop.sdiv_mul, Roop.mulOk_div, Roop.mul_sdiv";
 
+/// Accesses at literal indices, and the binds of what they return, settled one
+/// call at a time in the proofs by chains of calls.
+pub const LITERALS: &str = "Roop.agetN_ok, Roop.asetN_ok, Roop.ok_bind, Vector.getElem_set_self, Vector.getElem_set_ne, Vector.set_set, Vector.set_getElem_self";
+
 /// Calls in sequence feed each other's results, one loop per round. A function
 /// with many calls gets a round for each, up to a limit.
 pub const ROUNDS: usize = 4;
@@ -48,7 +52,7 @@ pub fn proof_script(loop_lemmas: &LoopLemmas, calls: usize) -> String {
 {}  all_goals (try simp [{with_ext}] at *)
   all_goals (try (repeat' (apply And.intro)))
   all_goals (try (first | done | ((try (repeat roop_ands)); (try subst_vars); (try roop_fields); (try simp at *); ext : 1 <;> simp [*]; done) | ((try (repeat roop_ands)); (try subst_vars); roop_unfold_cyclic; simp [{simp}]; done) | ((try (repeat roop_ands)); (try subst_vars); roop_pointwise; simp [Vector.getElem_set] at *; (repeat' split) <;> (try subst_vars) <;> (try simp_all) <;> (try omega); done)))
-  all_goals first | done | assumption | omega | bv_omega | bv_decide | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))",
+  all_goals first | done | assumption | roop_vec | omega | bv_omega | bv_decide | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))",
         round.repeat(rounds)
     )
 }

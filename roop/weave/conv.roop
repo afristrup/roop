@@ -1,6 +1,7 @@
 // A reversible block of one-dimensional convolution, a half of a coupling like `mlp`:
 //
-//     y += conv(x)        conv(x)[c][t] = b[c] + sum over c', k of w[c][c' * K + k] x[c'][t + k - K / 2]
+// y += conv(x)        conv(x)[c][t] = b[c] + sum over c', k of w[c][c' * K + k] x[c'][t
+// + k - K / 2]
 //
 // The state of width N = C * T is C channels of T numbers, the input and output have
 // as many channels, and the kernel size K is odd, so the length stays T with zeros
@@ -104,7 +105,8 @@ pub fn conv_vjp<C, K, T, N, CK>(
     uncall im2col<C, K, T, N, CK>(col, x);
 }
 
-// The backward step of `conv`: on entry y is the output and ay its adjoint; on exit y is
+// The backward step of `conv`: on entry y is the output and ay its adjoint; on exit y
+// is
 // what it was before, and ax and the gradients have been added to.
 pub fn conv_back<C, K, T, N, CK>(
     y: &mut [i64; N],

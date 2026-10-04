@@ -1,4 +1,4 @@
-use crate::{LoopLemmas, SIMP_BASE, esc_fn, esc_thm};
+use crate::{LITERALS, LoopLemmas, SIMP_BASE, esc_fn, esc_thm};
 use std::collections::HashMap;
 
 /// The proof that a function made of calls never fails on an unrestored
@@ -18,7 +18,10 @@ pub fn chain_proof(
             .get(callee)
             .is_some_and(|l| field(l).contains(&esc_thm(&format!("{callee}_{suffix}"))))
     };
-    let mut out = format!("  simp only [{}] at {target}\n", esc_fn(name));
+    let mut out = format!(
+        "  simp only [{}] at {target}\n  try simp (disch := simp [{SIMP_BASE}]) only [{LITERALS}] at {target}\n",
+        esc_fn(name)
+    );
     for (k, (callee, inverse)) in calls.iter().enumerate() {
         let suffix = if *inverse {
             "inv_no_ancilla"
@@ -47,12 +50,12 @@ pub fn chain_proof(
             n = k + 1,
         ));
         out.push_str(&format!(
-            "  try simp (disch := simp [{SIMP_BASE}]) only [Roop.guard_ok] at {target}\n  first\n    | {}\n",
+            "  try simp (disch := simp [{SIMP_BASE}]) only [Roop.guard_ok, {LITERALS}] at {target}\n  first\n    | {}\n",
             options.join("\n    | ")
         ));
     }
     out.push_str(&format!(
-        "  try simp (disch := simp [{SIMP_BASE}]) only [Roop.guard_ok] at {target}\n  simp [{SIMP_BASE}, Roop.check, Roop.aget, Roop.aset, bind, Except.bind, pure, Except.pure] at {target}\n"
+        "  try simp (disch := simp [{SIMP_BASE}]) only [Roop.guard_ok, {LITERALS}] at {target}\n  simp [{SIMP_BASE}, Roop.check, Roop.agetN_ok, Roop.asetN_ok, Roop.aget, Roop.aset, bind, Except.bind, pure, Except.pure] at {target}\n"
     ));
     Some(out)
 }

@@ -1,4 +1,4 @@
-use crate::{Ctx, Env, LeanError, Out, esc, lean_expr, read_place};
+use crate::{Ctx, Env, LeanError, Out, esc, lean_expr, literal_index, read_place};
 use roop_syntax::Place;
 
 /// Writes `value` into a place by rebuilding the enclosing struct or array
@@ -21,11 +21,17 @@ pub fn assign_place(
             assign_place(cx, env, out, base, &whole)?;
         }
         Place::Index(base, index) => {
-            let whole = format!(
-                "(\u{2190} Roop.aset {} {} {value})",
-                read_place(cx, env, base)?,
-                lean_expr(cx, env, index)?
-            );
+            let whole = match literal_index(index) {
+                Some(k) => format!(
+                    "(\u{2190} Roop.asetN {} {k} {value})",
+                    read_place(cx, env, base)?
+                ),
+                None => format!(
+                    "(\u{2190} Roop.aset {} {} {value})",
+                    read_place(cx, env, base)?,
+                    lean_expr(cx, env, index)?
+                ),
+            };
             assign_place(cx, env, out, base, &whole)?;
         }
     }

@@ -1,4 +1,5 @@
-// `mlp_norm` on B samples, one row of the state each, taken in turn: the contributions to the
+// `mlp_norm` on B samples, one row of the state each, taken in turn: the contributions
+// to the
 // shared weights add up, the same as the sum over samples.
 
 use super::mlp_norm::*;

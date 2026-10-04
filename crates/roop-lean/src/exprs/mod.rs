@@ -3,6 +3,7 @@ mod init_text;
 mod lean_cast;
 mod lean_expr;
 mod lean_expr_as;
+mod literal_index;
 mod read_place;
 
 pub use assign_place::*;
@@ -10,4 +11,5 @@ pub use init_text::*;
 pub use lean_cast::*;
 pub use lean_expr::*;
 pub use lean_expr_as::*;
+pub use literal_index::*;
 pub use read_place::*;

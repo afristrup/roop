@@ -10,8 +10,7 @@ use crate::{
 /// train on that many samples. With `tests` it adds the tests that check the rest
 /// against a reference in doubles, with `<name>_load` to give them the weights, and
 /// with `main` a `main` that runs the model on its arguments, which needs the loader
-/// as well. The loader is left out otherwise, since Lean cannot prove a long run of
-/// writes into the rows of a matrix and a model without it is proved whole.
+/// as well. The loader is only for those two, so it is left out otherwise.
 pub fn emit_model(model: &Model, tests: bool, batch: Option<usize>, main: bool) -> String {
     let mut parts = vec![
         "// Written by roop-weave. Every layer is reversible, so the backward pass\n// rebuilds the input from the output and stores no activation.\n\nuse weave::*;\n"

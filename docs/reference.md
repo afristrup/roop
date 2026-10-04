@@ -578,12 +578,21 @@ part, clearing the buffers between samples, in an `irrev` function.
 A test checks the gradients against central finite differences on a double
 precision copy of the network (they agree to about 1%, which is the 4096 grid)
 and that the input comes back bit for bit. Another trains XOR to a 50x lower
-loss. Lean proves the forward pass and the backward pass exactly reversible, layer
-by layer and through the loop over layers (`layer_back` and `backward`, checked at
-widths 2, 4 and 8 with up to three layers, and the perceptron block at 4 by 3; width
-64 with eight layers, the size of the benchmark, was not accepted within 30
-minutes): each call's own lemma settles it, so a function of eleven calls takes
-seconds, not a case split of every outcome.
+loss. Lean proves the forward pass, the backward pass and `grad` exactly reversible,
+layer by layer and through the loop over layers, at widths 16 and 32 with 4 or 8
+layers: about 30 seconds at width 16 and 50 at width 32. Each call's own lemma
+settles a function of many calls, so the proof does not grow with the number of
+layers, and the cost of a width comes from the contractions, whose loop lemmas
+are proved once per size. `crates/roop/tests/weave_scale.rs` runs those two sizes.
+
+The benchmark's size, width 64 with hidden width 64, eight layers and four
+outputs, was proved in about two minutes (forward 66 seconds, backward 92, `grad`
+124) before the batched, wide-contraction weave of `q12w` einsums. With that weave
+the forward pass alone had not finished after an hour, and the three functions
+together had not finished in 30 minutes, so that size is not proved today. Why
+the cost grew with the wide contractions was not looked into; their loop lemmas at
+width 64 are the first place to look. The test is kept, `#[ignore]`d, in
+`weave_scale.rs`.
 
 **Batches.** `weave::step` runs one sample at a time. `layer_batch`, `forward_batch`,
 `layer_back_batch`, `backward_batch`, `grad_batch` and `step_batch` run `B`
@@ -671,7 +680,9 @@ it adds a second test that runs B different samples through the batched
 functions and compares the outputs, the summed loss and the summed gradients
 with the sum of the reference over the samples. Like every roop
 test it also runs backward. Lean proves a compiled model's forward, backward and gradient exactly reversible
-(`roop lean net.roop --check`; it does not take the loader, which is only for the test).
+(`roop lean net.roop --check`), and the loader too when there is one (`--tests` or `--main`). The loader is
+written as one small helper per few weights of a row, called on the row, so that Lean proves each helper
+and the chain of calls.
 A model that is not well formed is refused with the
 name of the field, or the tensor, that is wrong.
 
@@ -768,6 +779,22 @@ test true, which is how Lean knows a counter loop ends at its bound and the
 counter ancilla around it is restored. Loops inside loops, calls between
 functions and loops in a branch all compose, and a loop whose body is not
 reversible is rejected like any other function.
+
+What keeps the proofs fast at size, for anyone changing the generator. The loop
+function `Roop.janus` is `@[irreducible]`: otherwise `subst_vars` and `simp`
+evaluate a loop with literal bounds step by step to see whether it is a
+variable, and that cost grows with the bound, so width 32 did not finish. A
+function that calls others is proved from their lemmas, never by unfolding them,
+and so is one that only updates array elements (it gets lemmas of its own).
+An array access at a literal index, `w[1]`, is written with the index as a
+natural number (`Roop.agetN`, `Roop.asetN`), so that simplification settles its
+bound at once instead of proving it again from a 64-bit literal, which made the
+proof terms a hundred times larger. A chain of calls on elements of nested
+arrays (`call f(w[0]); call g(w[1]);`) is proved call by call, and `roop_vec`
+closes the equation between arrays that differ by `set`s that write back what
+they replaced. Writes into the rows of a nested array in one function without
+calls stay slow: a run of more than three or four in a function takes minutes,
+so split it into functions of a few writes each, as the weight loader does.
 
 A reversible loop over a finite state also ends, which Lean proves in the
 prelude as `Roop.janus_terminates` (the result of Yokoyama, Axelsen and Glück

@@ -150,6 +150,33 @@ def aget {α : Type} {n : Nat} (v : Vector α n) (i : I64) : Res α :=
 def aset {α : Type} {n : Nat} (v : Vector α n) (i : I64) (x : α) : Res (Vector α n) :=
   if h : i.toNat < n then .ok (v.set i.toNat x h) else .error .outOfBounds
 
+/-- Reading at an index that is a literal in the program. The index is a natural
+number here, which is what `aget` makes of a 64-bit one (`agetN_eq`), so that
+simplification settles the bound at once instead of proving it again from a
+64-bit literal, which makes proofs a hundred times larger. -/
+def agetN {α : Type} {n : Nat} (v : Vector α n) (k : Nat) : Res α :=
+  if h : k < n then .ok (v[k]'h) else .error .outOfBounds
+
+/-- Writing at an index that is a literal in the program; see `agetN`. -/
+def asetN {α : Type} {n : Nat} (v : Vector α n) (k : Nat) (x : α) : Res (Vector α n) :=
+  if h : k < n then .ok (v.set k x h) else .error .outOfBounds
+
+theorem agetN_eq {α : Type} {n : Nat} (v : Vector α n) (k : Nat) (hk : k < 2 ^ 64) :
+    agetN v k = aget v (BitVec.ofNat 64 k) := by
+  simp [agetN, aget, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hk]
+
+theorem asetN_eq {α : Type} {n : Nat} (v : Vector α n) (k : Nat) (x : α) (hk : k < 2 ^ 64) :
+    asetN v k x = aset v (BitVec.ofNat 64 k) x := by
+  simp [asetN, aset, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hk]
+
+theorem agetN_ok {α : Type} {n : Nat} (v : Vector α n) (k : Nat) (h : k < n) :
+    agetN v k = .ok v[k] := by
+  simp [agetN, h]
+
+theorem asetN_ok {α : Type} {n : Nat} (v : Vector α n) (k : Nat) (x : α) (h : k < n) :
+    asetN v k x = .ok (v.set k x h) := by
+  simp [asetN, h]
+
 def fuelBound : Nat := 1000000
 
 /-- Two runs agree when both fail, whatever the reason, or both end in the same
@@ -172,7 +199,7 @@ def janusGo {σ : Type} (entry stop : σ → Res Bool) (body step : σ → Res �
         check (!(← entry s2)) .assertion
         janusGo entry stop body step n s2
 
-def janus {σ : Type} (entry stop : σ → Res Bool) (body step : σ → Res σ) (s : σ) : Res σ := do
+@[irreducible] def janus {σ : Type} (entry stop : σ → Res Bool) (body step : σ → Res σ) (s : σ) : Res σ := do
   check (← entry s) .assertion
   janusGo entry stop body step fuelBound s
 
@@ -937,6 +964,14 @@ open Lean Elab Tactic in
 not recover from, into an ordinary failure. -/
 elab "roop_catch " t:tactic : tactic =>
   tryCatchRuntimeEx (evalTactic t) fun _ => throwError "recursion limit"
+
+/-- Proves an equation between arrays, nested to any depth, whose two sides
+differ by `set`s that write back what they replaced: it compares one index at
+a time, resolves the index conditions of `set` and goes one level down. It
+also reads a pair or a conjunction part by part. -/
+syntax "roop_vec" : tactic
+macro_rules
+  | `(tactic| roop_vec) => `(tactic| first | rfl | (apply And.intro <;> roop_vec) | (apply Prod.ext <;> (try dsimp only) <;> roop_vec) | (apply Vector.ext; intro _ _; simp only [Vector.getElem_set]; (repeat' split) <;> first | rfl | (subst_vars; first | rfl | roop_vec) | simp_all))
 
 theorem neg_add_self (x : BitVec 64) : -x + x = 0 := by bv_omega
 

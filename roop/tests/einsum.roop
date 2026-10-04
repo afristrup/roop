@@ -1163,7 +1163,8 @@ test imatmul_tn_on_the_kernel_equals_its_loops {
     call same<16>(out, by);
 }
 
-// Products of 2^50 overflow what doubles hold exactly, so the kernel leaves them to the loops.
+// Products of 2^50 overflow what doubles hold exactly, so the kernel leaves them to
+// the loops.
 test imatmul_of_large_numbers_equals_its_loops {
     out: [[i64; 16]; 16],
         by: [[i64; 16]; 16],

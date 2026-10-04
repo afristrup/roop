@@ -1,7 +1,7 @@
 use crate::{
     Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, SESSION_PRELUDE, Translation, call_lemmas,
-    esc_fn, lean_commute, lean_enum, lean_fn, lean_loop_lemmas, lean_session, lean_struct,
-    lean_theorems, lean_try_lemmas,
+    element_writes, esc_fn, lean_commute, lean_enum, lean_fn, lean_loop_lemmas, lean_session,
+    lean_struct, lean_theorems, lean_try_lemmas,
 };
 use roop_check::{calls_in, is_irreversible_fn};
 use roop_syntax::{FnDef, Item, Program};
@@ -178,10 +178,12 @@ fn translate_fn(
         text.push_str(&backward.lifted);
         text.push_str(&backward.text);
         // A function with calls is itself called through its theorems, which
-        // include never failing on an unrestored ancilla. A plain leaf is
+        // include never failing on an unrestored ancilla. A short plain leaf is
         // unfolded where it is called instead.
-        let ancillas =
-            forward.ancillas > 0 || backward.ancillas > 0 || !calls_in(&def.body, false).is_empty();
+        let ancillas = forward.ancillas > 0
+            || backward.ancillas > 0
+            || !calls_in(&def.body, false).is_empty()
+            || element_writes(def);
         if !inexact && proofs {
             for info in &forward.pieces {
                 let (lemma_text, names) = match info.construct {

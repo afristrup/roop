@@ -1,4 +1,4 @@
-use crate::{HYP, LoopLemmas, esc_fn, esc_thm};
+use crate::{HYP, LITERALS, LoopLemmas, esc_fn, esc_thm};
 use std::collections::HashMap;
 
 /// The roundtrip theorem of a function made of calls, proved from what each
@@ -26,11 +26,15 @@ pub fn chain_roundtrip(
             return None;
         }
         rewrites.push(format!(
-            "  try simp (disch := simp [{}]) only [Roop.guard_ok]\n  rw [{lemma} hx{index}, Roop.ok_bind]\n",
+            "  try simp (disch := simp [{}]) only [Roop.guard_ok, {LITERALS}]\n  rw [{lemma} hx{index}, Roop.ok_bind]\n",
             crate::SIMP_BASE
         ));
     }
-    let mut out = format!("  simp only [{}] at {HYP}\n", esc_fn(from));
+    let mut out = format!(
+        "  simp only [{}] at {HYP}\n  try simp (disch := simp [{}]) only [{LITERALS}] at {HYP}\n",
+        esc_fn(from),
+        crate::SIMP_BASE
+    );
     let guards = format!(
         "  repeat (with_reducible (obtain \u{27e8}_, hc, {HYP}\u{27e9} := Roop.bind_ok (x := Roop.check _ _) {HYP}); replace hc := beq_iff_eq.mp (Roop.check_ok hc); try subst hc)\n"
     );
@@ -42,12 +46,13 @@ pub fn chain_roundtrip(
     }
     out.push_str(&guards);
     out.push_str(&format!(
-        "  have \u{ab}__e\u{bb} := Except.ok.inj {HYP}\n  subst \u{ab}__e\u{bb}\n  simp only [{}]\n",
-        esc_fn(to)
+        "  have \u{ab}__e\u{bb} := Except.ok.inj {HYP}\n  subst \u{ab}__e\u{bb}\n  simp only [{}]\n  try simp (disch := simp [{}]) only [{LITERALS}]\n",
+        esc_fn(to),
+        crate::SIMP_BASE
     ));
     out.extend(rewrites);
     out.push_str(&format!(
-        "  simp [{}, Roop.check, bind, Except.bind, pure, Except.pure]\n",
+        "  simp [{}, Roop.check, Roop.agetN_ok, Roop.asetN_ok, bind, Except.bind, pure, Except.pure]\n  all_goals roop_vec\n",
         crate::SIMP_BASE
     ));
     Some(out)

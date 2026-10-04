@@ -11,5 +11,5 @@ pub fn guarded_proof(chain: Option<String>, general: String) -> String {
             .join("\n")
     };
     let (chain, general) = (indent(&chain), indent(&general));
-    format!("  first\n    | (\n{chain})\n    | (\n{general})\n")
+    format!("  first\n    | (\n{chain}\n        done)\n    | (\n{general})\n")
 }
