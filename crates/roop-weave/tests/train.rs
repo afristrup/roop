@@ -16,7 +16,7 @@ fn driver(model: &roop_weave::Model, rate: f64, epochs: usize) -> String {
         let items: Vec<String> = data.iter().map(|x| quantize(*x).to_string()).collect();
         items.join(", ")
     };
-    let mut c = String::from("#include <stdint.h>\n#include <stdio.h>\n");
+    let mut c = String::from("#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n");
     let mut pointers = vec!["&total".to_string()];
     for t in &tensors {
         c += &format!(
@@ -44,6 +44,7 @@ fn driver(model: &roop_weave::Model, rate: f64, epochs: usize) -> String {
     c += &format!("static int64_t ts[4][1] = {{{{{}}}}};\n", ts.join("}, {"));
     let types = vec!["int64_t*"; pointers.len()].join(", ");
     c += &format!("void {}_train({types});\n", model.name);
+    let dump: String = tensors.iter().map(|t| format!("    if (getenv(\"WEAVE_DUMP\")) {{ fprintf(stderr, \"T {}\"); for (int i = 0; i < {}; i++) fprintf(stderr, \" %g\", ((int64_t*){})[i] / 4096.0); fprintf(stderr, \"\\n\"); }}\n", t.name, t.data.len(), t.name)).collect();
     c += &format!(
         "int main(void) {{
     int64_t lr = {};
@@ -53,14 +54,17 @@ fn driver(model: &roop_weave::Model, rate: f64, epochs: usize) -> String {
         {}_train({});
         last = total / 4096.0;
         if (e == 0) first = last;
+        if (getenv(\"WEAVE_TRACE\") && e % 100 == 99) fprintf(stderr, \"%d %.4f\\n\", e + 1, last);
     }}
     fprintf(stderr, \"loss %.4f -> %.4f\\n\", first, last);
+{}
     return last >= 0 && last < first / 5 ? 0 : 1;
 }}
 ",
         quantize(rate),
         model.name,
-        pointers.join(", ")
+        pointers.join(", "),
+        dump
     );
     c
 }

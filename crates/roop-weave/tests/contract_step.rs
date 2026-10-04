@@ -59,3 +59,43 @@ fn a_step_below_a_unit_is_carried_and_not_lost_for_either_sign() {
     let check = "w[0] == 2 && c[0] == 0 - 1808 && w[1] == 0 - 2 && c[1] == 1808";
     assert!(holds("carry", setup, call, check));
 }
+
+const OUTWARD: &str = "    ancilla w1: [[i64; 2]; 2] = 0;
+    ancilla w2: [[i64; 2]; 2] = 0;
+    ancilla g1: [[i64; 2]; 2] = 0;
+    ancilla g2: [[i64; 2]; 2] = 0;
+    w1[0][0] += 8192;
+    w1[1][1] += 4096;
+    w2[0][0] += 2048;
+    w2[1][1] += 2048;
+    g1[0][0] -= 4194304;";
+
+#[test]
+fn an_outward_gradient_at_the_bound_loses_its_part_along_the_normal() {
+    let call = "call project_gradient<2, 2>(g1, g2, w1, w2, 4096, 4096);";
+    let check = "g1[0][0] < 0 - 3600000 && g1[0][0] > 0 - 3800000 && g2[0][0] > 800000 && g2[0][0] < 1000000 && g2[1][1] > 800000 && g1[1][1] == 0";
+    assert!(holds("grad_outward", OUTWARD, call, check));
+}
+
+#[test]
+fn an_inward_gradient_at_the_bound_is_left_alone() {
+    let setup = format!("{OUTWARD}\n    g1[0][0] += 8388608;");
+    let call = "call project_gradient<2, 2>(g1, g2, w1, w2, 4096, 4096);";
+    assert!(holds(
+        "grad_inward",
+        &setup,
+        call,
+        "g1[0][0] == 4194304 && g2[0][0] == 0"
+    ));
+}
+
+#[test]
+fn a_gradient_below_the_bound_is_left_alone() {
+    let call = "call project_gradient<2, 2>(g1, g2, w1, w2, 4096, 8192);";
+    assert!(holds(
+        "grad_below",
+        OUTWARD,
+        call,
+        "g1[0][0] == 0 - 4194304 && g2[0][0] == 0"
+    ));
+}

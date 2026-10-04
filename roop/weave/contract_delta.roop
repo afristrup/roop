@@ -1,0 +1,10 @@
+// d = a - b
+pub irrev fn delta<D, R>(d: &mut [[i64; D]; R], a: &[[i64; D]; R], b: &[[i64; D]; R]) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla i: i64 = 0;
+        from i == 0 {
+            d[r][i] = a[r][i] - b[r][i];
+        } loop { i += 1; } until i == D - 1;
+    } loop { r += 1; } until r == R - 1;
+}

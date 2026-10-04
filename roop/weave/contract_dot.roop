@@ -1,0 +1,10 @@
+// s += sum of a * b / unit.
+pub irrev fn dot<D, R>(s: &mut i64, a: &[[i64; D]; R], b: &[[i64; D]; R], unit: &i64) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla i: i64 = 0;
+        from i == 0 {
+            s = s + a[r][i] * b[r][i] / unit;
+        } loop { i += 1; } until i == D - 1;
+    } loop { r += 1; } until r == R - 1;
+}
