@@ -1,5 +1,7 @@
 mod support;
 
+use roop_weave::parse_model;
+use serde_json::json;
 use support::{attention, compile, conv, leapfrog, mlp, mlp_norm, model, project, roop, text};
 
 fn check(name: &str, layers: Vec<serde_json::Value>, width: usize, outputs: usize) {
@@ -115,6 +117,36 @@ fn check_loss(name: &str, loss: &str, outputs: usize) {
     let out = roop(&dir, &["test", "prog.roop"]);
     assert!(out.status.success(), "{}", text(&out));
     assert!(text(&out).contains("1 passed, 0 failed"), "{}", text(&out));
+}
+
+/// The generated tests, single and batched, of a model whose loss is scaled by 16.
+fn check_scaled_loss(name: &str, loss: &str) {
+    let dir = project(name);
+    let layers = vec![mlp("tanh", 3, 4, 2), mlp("relu", 3, 4, 5)];
+    let mut spec = model(name, 4, 3, layers);
+    spec["loss"] = loss.into();
+    spec["loss_scale"] = 16.into();
+    compile(&dir, &spec, &["--tests", "--batch", "3"]);
+    let out = roop(&dir, &["test", "prog.roop"]);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(text(&out).contains("2 passed, 0 failed"), "{}", text(&out));
+}
+
+#[test]
+fn a_loss_scale_multiplies_the_gradients_and_nothing_else() {
+    for loss in ["mse", "sigmoid", "softmax"] {
+        check_scaled_loss(&format!("scaled_{loss}"), loss);
+    }
+}
+
+#[test]
+fn a_loss_scale_that_is_not_a_whole_number_in_range_is_refused() {
+    for bad in [json!(0), json!(4097), json!(1.5), json!("big")] {
+        let mut spec = model("bad_scale", 4, 1, vec![mlp("tanh", 3, 4, 2)]);
+        spec["loss_scale"] = bad;
+        let err = parse_model(&spec.to_string()).unwrap_err().to_string();
+        assert!(err.contains("loss_scale"), "{err}");
+    }
 }
 
 #[test]

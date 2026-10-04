@@ -63,14 +63,17 @@ def run(command, usage=None):
 
 
 def train(model, xs, ts, epochs, rate, outputs=None, loss="mse", optimizer=None,
-          step=0.25, batch=None, roop="roop", name="net", library=LIBRARY, usage=None):
+          step=0.25, batch=None, roop="roop", name="net", library=LIBRARY, usage=None,
+          loss_scale=1):
     """Trains `model` in place on the samples xs (one row each) and their targets,
     and returns the loss of each epoch, summed over the samples. `library` is the
     directory with the weave and einsum modules, the `roop` of the repository. `usage`, a
-    dict, gets the seconds and peak memory of the training program."""
+    dict, gets the seconds and peak memory of the training program. `loss_scale` multiplies
+    the seed of the backward pass, and the optimizer divides it out again."""
     xs, ts = torch.as_tensor(xs, dtype=torch.float64), torch.as_tensor(ts, dtype=torch.float64)
     outputs = ts.shape[1] if outputs is None else outputs
-    spec, bound = export_bound(model.eval(), outputs, step, name, loss, optimizer or {"kind": "sgd"})
+    spec, bound = export_bound(model.eval(), outputs, step, name, loss, optimizer or {"kind": "sgd"},
+                               loss_scale=loss_scale)
     batch = batch or min(len(xs), 32)
     with tempfile.TemporaryDirectory(prefix="weave-train-") as work:
         path = lambda f: os.path.join(work, f)

@@ -34,7 +34,7 @@ uv run --project ../../crates/roop-weave/python --extra torch python run.py digi
     --method weave --optimizer adam --rate 0.001 --epochs 40 --depth 8 --seed 0
 ```
 
-Options: `--task` is `digits` or `chars`; `--depth` is the number of layers (a leapfrog layer
+The first argument is the task, `digits` or `chars`. Options: `--depth` is the number of layers (a leapfrog layer
 and `depth - 1` blocks); `--kinds mlp,attention,conv` cycles the block kinds; `--hidden`,
 `--act`, `--norm` (RMSNorm in the perceptrons), `--init-scale`, `--out-scale`, `--input-scale`,
 `--batch`, `--cap` (fewer training samples), `--fixed-eval` (also test the compiled fixed point

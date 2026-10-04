@@ -52,8 +52,12 @@ def main(argv=None):
     a.add_argument("--init-scale", type=float, default=1.0, help="scales the initial weights")
     a.add_argument("--out-scale", type=float, default=1.0,
                    help="scales the last weights of each block, to keep a deep state small")
+    a.add_argument("--loss-scale", type=int, default=1,
+                   help="weave multiplies the backward pass by this and the optimizer divides it out")
     a.add_argument("--norm", action="store_true", help="RMSNorm on the hidden layer of each perceptron")
     a.add_argument("--input-scale", type=float, default=1.0, help="scales the inputs")
+    a.add_argument("--dtype", default="float64", choices=["float64", "float32"],
+                   help="precision of the plain torch MLP (the mirror is always in doubles)")
     a.add_argument("--fixed-eval", action="store_true",
                    help="also run the test set through the compiled fixed point forward pass (weave only)")
     args = a.parse_args(argv)
@@ -70,7 +74,8 @@ def main(argv=None):
         with torch.no_grad():
             for p in net.parameters():
                 p.mul_(args.init_scale)
-    net = net.double()
+    dtype = getattr(torch, args.dtype) if args.method == "plain" else torch.float64
+    net, xs, xt = net.to(dtype), xs.to(dtype), xt.to(dtype)
     out = {**vars(args), "train": len(ys), "test": len(yt),
            "params": sum(p.numel() for p in net.parameters())}
     start = time.perf_counter()
@@ -79,7 +84,7 @@ def main(argv=None):
         targets = F.one_hot(ys, classes).double()
         curve = train(net, xs, targets, args.epochs, args.rate, loss="softmax",
                       optimizer={"kind": args.optimizer}, batch=args.batch, roop=env.roop(),
-                      library=env.library(), usage=usage)
+                      library=env.library(), usage=usage, loss_scale=args.loss_scale)
         out.update(usage)
         out["total_seconds"] = time.perf_counter() - start
         if args.fixed_eval:

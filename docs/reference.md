@@ -621,10 +621,17 @@ arguments to build a graph from. A test measures throughput: `cargo test -p roop
 The loss is chosen in the model: `"loss": "mse"` (half the squared error, the default),
 `"sigmoid"` or `"softmax"`. For the two cross entropies the seed of the backward pass is
 the usual `p - t`, with the sigmoid from the tanh above and an exponential computed as
-`(1 + y + y^2 / 2 + y^3 / 6) ^ 64` for `y = x / 64` in Q24 (within a unit of Q12 down to -8, and 0
-below -12); the cross entropy needs a
+`(1 + y + y^2 / 2 + y^3 / 6) ^ 64` for `y = x / 64` in Q24 (in Q24, within 1% down to -16, and 0
+below -16); the cross entropy needs a
 logarithm, which weave lacks, so `total` is the squared error of the probabilities there.
 The softmax targets must sum to 1.
+
+`"loss_scale": S` (a whole number from 1 to 4096, default 1) multiplies the seed of the backward
+pass, so every adjoint and gradient is `S` times as large, and each optimizer divides it out in
+its step (Adam's epsilon is scaled with it). Q12 adjoints lose what is below 1/4096 at every
+layer on the way back, and the scale keeps it: with weights near 0.01 the gradients of a deep
+network are zero without it. The softmax and sigmoid seeds are computed at the resolution of the
+scale, and `total` is not scaled. In Python, `train(..., loss_scale=256)`.
 
 `"optimizer"` is `{"kind": "sgd"}`, `{"kind": "momentum", "beta": 0.9}` or
 `{"kind": "adam", "beta1": 0.9, "beta2": 0.999}`. The optimizers are `irrev`, since they

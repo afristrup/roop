@@ -36,6 +36,24 @@ pub fn seed_batch<N, K, B>(
     r -= B - 1;
 }
 
+// aq += (q - t) * scale over the first K outputs of each row
+pub fn seed_scaled_batch<N, K, B>(
+    aq: &mut [[i64; N]; B],
+    q: &[[i64; N]; B],
+    t: &[[i64; K]; B],
+    scale: &i64,
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla k: i64 = 0;
+        from k == 0 {
+            aq[r][k] += (q[r][k] - t[r][k]) * scale;
+        } loop { k += 1; } until k == K - 1;
+        k -= K - 1;
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
 // The loss of B samples and their summed gradients, with q holding the inputs
 // and p zero. Everything else is rebuilt, so on exit q and p are as they were.
 pub fn grad_batch<N, M, L, K, B>(

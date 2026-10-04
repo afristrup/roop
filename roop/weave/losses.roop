@@ -5,12 +5,11 @@
 
 use super::act::*;
 
-// r += exp(x) for x <= 0, as (1 + y + y^2 / 2 + y^3 / 6) ^ 64 for y = x / 64, six squarings
-// in Q24, and 0 below -12, where exp is under a hundredth of a unit of Q12. It is within
-// 1 per cent down to -12 and within a unit of Q12 where the unit matters. The
-// first version, (1 + x / 64) ^ 64 in Q12, was 7 per cent off at -5.
+// r += exp(x) in Q24 for x <= 0 in Q12, as (1 + y + y^2 / 2 + y^3 / 6) ^ 64 for y = x / 64,
+// six squarings in Q24, and 0 below -16, where exp is about 2 units of Q24. It is within
+// 1 per cent down to -16. The first version, (1 + x / 64) ^ 64 in Q12, was 20 per cent off at -5.
 pub fn exp_neg(r: &mut i64, x: &i64) {
-    if x < -49152 {} else {
+    if x < -65536 {} else {
         ancilla y: i64 = 0;
         ancilla e0: i64 = 0;
         ancilla e1: i64 = 0;
@@ -27,7 +26,7 @@ pub fn exp_neg(r: &mut i64, x: &i64) {
         e4 += e3 * e3 / 16777216;
         e5 += e4 * e4 / 16777216;
         e6 += e5 * e5 / 16777216;
-        r += e6 / 4096;
+        r += e6;
         e6 -= e5 * e5 / 16777216;
         e5 -= e4 * e4 / 16777216;
         e4 -= e3 * e3 / 16777216;
@@ -36,7 +35,7 @@ pub fn exp_neg(r: &mut i64, x: &i64) {
         e1 -= e0 * e0 / 16777216;
         e0 -= 16777216 + y + y * y / 33554432 + y * y / 16777216 * y / 100663296;
         y -= x * 64;
-    } fi x < -49152;
+    } fi x < -65536;
 }
 
 // r += the larger of a and b
@@ -68,28 +67,33 @@ fn total_of<K>(s: &mut i64, ex: &[i64; K]) {
     k -= K - 1;
 }
 
-// aq[k] += p[k] - t[k] for p = ex / s, and total += (p - t)^2 / 2
+// aq[k] += (p[k] - t[k]) * scale for p = ex / s, with p computed at the resolution of the
+// scale, and total += (p - t)^2 / 2
 fn probabilities<N, K>(
     aq: &mut [i64; N],
     total: &mut i64,
     ex: &[i64; K],
     s: &i64,
     t: &[i64; K],
+    scale: &i64,
 ) {
     ancilla k: i64 = 0;
     from k == 0 {
-        aq[k] += ex[k] * 4096 / s - t[k];
+        aq[k] += ex[k] * 4096 * scale / s - t[k] * scale;
         total += (ex[k] * 4096 / s - t[k]) * (ex[k] * 4096 / s - t[k]) / 8192;
     } loop { k += 1; } until k == K - 1;
     k -= K - 1;
 }
 
-// The softmax cross entropy over the first K outputs, seeded as aq += softmax(q) - t.
+// The softmax cross entropy over the first K outputs, seeded as aq += (softmax(q) - t) * scale.
+// A scale above 1 lifts everything the backward pass computes, so that what is below a unit
+// of Q12 is not lost on the way; the optimizer divides it out.
 pub fn seed_softmax<N, K>(
     aq: &mut [i64; N],
     total: &mut i64,
     q: &[i64; N],
     t: &[i64; K],
+    scale: &i64,
 ) {
     ancilla mx: [i64; K] = 0;
     ancilla ex: [i64; K] = 0;
@@ -97,7 +101,7 @@ pub fn seed_softmax<N, K>(
     call maxes<N, K>(mx, q);
     call exps<N, K>(ex, q, mx[K - 1] + 0);
     call total_of<K>(s, ex);
-    call probabilities<N, K>(aq, total, ex, s, t);
+    call probabilities<N, K>(aq, total, ex, s, t, scale);
     uncall total_of<K>(s, ex);
     uncall exps<N, K>(ex, q, mx[K - 1] + 0);
     uncall maxes<N, K>(mx, q);
@@ -110,49 +114,52 @@ fn sigmoids<N, K>(p: &mut [i64; K], q: &[i64; N]) {
     k -= K - 1;
 }
 
-// The sigmoid cross entropy over the first K outputs, seeded as aq += sigmoid(q) - t.
+// The sigmoid cross entropy over the first K outputs, seeded as aq += (sigmoid(q) - t) * scale.
 pub fn seed_sigmoid<N, K>(
     aq: &mut [i64; N],
     total: &mut i64,
     q: &[i64; N],
     t: &[i64; K],
+    scale: &i64,
 ) {
     ancilla p: [i64; K] = 0;
     ancilla k: i64 = 0;
     call sigmoids<N, K>(p, q);
     from k == 0 {
-        aq[k] += p[k] - t[k];
+        aq[k] += (p[k] - t[k]) * scale;
         total += (p[k] - t[k]) * (p[k] - t[k]) / 8192;
     } loop { k += 1; } until k == K - 1;
     k -= K - 1;
     uncall sigmoids<N, K>(p, q);
 }
 
-// The seed of each of B rows: aq[r] += softmax(q[r]) - t[r], and the squared errors
+// The seed of each of B rows: aq[r] += (softmax(q[r]) - t[r]) * scale, and the squared errors
 // added to total.
 pub fn seed_softmax_batch<N, K, B>(
     aq: &mut [[i64; N]; B],
     total: &mut i64,
     q: &[[i64; N]; B],
     t: &[[i64; K]; B],
+    scale: &i64,
 ) {
     ancilla r: i64 = 0;
     from r == 0 {
-        call seed_softmax<N, K>(aq[r], total, q[r], t[r]);
+        call seed_softmax<N, K>(aq[r], total, q[r], t[r], scale);
     } loop { r += 1; } until r == B - 1;
     r -= B - 1;
 }
 
-// The seed of each of B rows: aq[r] += sigmoid(q[r]) - t[r].
+// The seed of each of B rows: aq[r] += (sigmoid(q[r]) - t[r]) * scale.
 pub fn seed_sigmoid_batch<N, K, B>(
     aq: &mut [[i64; N]; B],
     total: &mut i64,
     q: &[[i64; N]; B],
     t: &[[i64; K]; B],
+    scale: &i64,
 ) {
     ancilla r: i64 = 0;
     from r == 0 {
-        call seed_sigmoid<N, K>(aq[r], total, q[r], t[r]);
+        call seed_sigmoid<N, K>(aq[r], total, q[r], t[r], scale);
     } loop { r += 1; } until r == B - 1;
     r -= B - 1;
 }

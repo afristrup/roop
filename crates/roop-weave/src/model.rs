@@ -12,6 +12,9 @@ pub struct Model {
     pub layers: Vec<Layer>,
     pub loss: LossKind,
     pub optimizer: Optimizer,
+    /// What the seed of the backward pass is multiplied by, and the optimizer divides out:
+    /// it keeps what is below a unit of Q12 from being lost on the way back.
+    pub loss_scale: i64,
 }
 
 impl Model {

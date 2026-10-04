@@ -30,8 +30,8 @@ impl Optimizer {
         }
     }
 
-    /// The call that updates a tensor from its gradient.
-    pub fn update(&self, tensor: &Tensor) -> String {
+    /// The call that updates a tensor from its gradient, which is `scale` times too large.
+    pub fn update(&self, tensor: &Tensor, scale: i64) -> String {
         let (w, state) = (&tensor.name, self.state(tensor));
         let generics = match tensor.dims.as_slice() {
             [rows, cols] => format!("<{cols}, {rows}>"),
@@ -44,17 +44,17 @@ impl Optimizer {
         let names: Vec<&str> = state.iter().map(|t| t.name.as_str()).collect();
         match self {
             Self::Sgd => format!(
-                "    call sgd_carry_{shape}{generics}({w}, g{w}, {}, lr);\n",
+                "    call sgd_carry_{shape}{generics}({w}, g{w}, {}, lr, {scale});\n",
                 names[0]
             ),
             Self::Momentum { beta } => format!(
-                "    call momentum_{shape}{generics}({w}, g{w}, {}, {}, lr, {}{unit});\n",
+                "    call momentum_{shape}{generics}({w}, g{w}, {}, {}, lr, {}{unit}, {scale});\n",
                 names[0],
                 names[1],
                 quantize(*beta)
             ),
             Self::Adam { beta1, beta2 } => format!(
-                "    call adam_{shape}{generics}({w}, g{w}, {}, {}, {}, {}, lr, {}, {}{unit});\n",
+                "    call adam_{shape}{generics}({w}, g{w}, {}, {}, {}, {}, lr, {}, {}{unit}, {scale});\n",
                 names[0],
                 names[1],
                 names[2],
