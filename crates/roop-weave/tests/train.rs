@@ -137,8 +137,7 @@ fn residual_blocks_train_on_xor() {
     train_layers("xor_residual", layers, json!({"kind": "sgd"}), 0.05);
 }
 
-#[test]
-fn residual_blocks_with_a_kept_contraction_train_on_xor() {
+fn kept_residuals() -> Vec<serde_json::Value> {
     let mut layers = vec![
         residual("tanh", 6, 4, 2, 0.6),
         residual("tanh", 6, 4, 5, 0.6),
@@ -147,5 +146,50 @@ fn residual_blocks_with_a_kept_contraction_train_on_xor() {
     for layer in &mut layers {
         layer["keep_contraction"] = json!(0.8);
     }
-    train_layers("xor_kept", layers, json!({"kind": "sgd"}), 0.05);
+    layers
+}
+
+#[test]
+fn residual_blocks_with_a_kept_contraction_train_on_xor() {
+    train_layers("xor_kept", kept_residuals(), json!({"kind": "sgd"}), 0.05);
+}
+
+#[test]
+fn momentum_trains_residual_blocks_with_a_kept_contraction_on_xor() {
+    let optimizer = json!({"kind": "momentum", "beta": 0.9});
+    train_layers("xor_kept_momentum", kept_residuals(), optimizer, 0.01);
+}
+
+#[test]
+fn adam_trains_residual_blocks_with_a_kept_contraction_on_xor() {
+    train_layers(
+        "xor_kept_adam",
+        kept_residuals(),
+        json!({"kind": "adam"}),
+        0.01,
+    );
+}
+
+#[test]
+fn the_per_sample_and_the_batched_step_project_after_every_optimizer() {
+    let optimizers = [
+        ("sgd_carry_", json!({"kind": "sgd"})),
+        ("momentum_", json!({"kind": "momentum", "beta": 0.9})),
+        ("adam_", json!({"kind": "adam"})),
+    ];
+    for (update, optimizer) in optimizers {
+        let mut spec = model("net", 4, 1, kept_residuals());
+        spec["optimizer"] = optimizer;
+        let parsed = parse_model(&spec.to_string()).unwrap();
+        for batched in [false, true] {
+            let step = roop_weave::emit_step(&parsed, batched);
+            assert_eq!(step.matches("call project_contraction<4, 6>").count(), 3);
+            let project = step.find("call project_contraction").unwrap();
+            assert!(
+                project > step.rfind(&format!("call {update}")).unwrap(),
+                "{step}"
+            );
+            assert!(step[project..].contains("call clear<"), "{step}");
+        }
+    }
 }
