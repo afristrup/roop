@@ -46,8 +46,16 @@ fn loops(c: &mut [i64], a: &[i64], b: &[i64], dims: (usize, usize, usize), layou
     for i in 0..m {
         for col in 0..n {
             for j in 0..k {
-                let x = if layout == 2 { a[j * m + i] } else { a[i * k + j] };
-                let y = if layout == 1 { b[col * k + j] } else { b[j * n + col] };
+                let x = if layout == 2 {
+                    a[j * m + i]
+                } else {
+                    a[i * k + j]
+                };
+                let y = if layout == 1 {
+                    b[col * k + j]
+                } else {
+                    b[j * n + col]
+                };
                 c[i * n + col] = c[i * n + col].wrapping_add(x.wrapping_mul(y));
             }
         }
@@ -82,7 +90,10 @@ fn agrees(dims: (usize, usize, usize), range: i64, seed: u64) {
         call(&mut got, &a, &b, 1, dims, layout);
         assert_eq!(got, expected, "{dims:?} layout {layout} range {range}");
         call(&mut got, &a, &b, -1, dims, layout);
-        assert_eq!(got, start, "{dims:?} layout {layout} range {range} backward");
+        assert_eq!(
+            got, start,
+            "{dims:?} layout {layout} range {range} backward"
+        );
     }
 }
 
