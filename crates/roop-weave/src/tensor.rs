@@ -15,6 +15,19 @@ impl Tensor {
         }
     }
 
+    /// The same numbers as weave holds them, on the 1/4096 grid.
+    pub fn snapped(&self) -> Self {
+        let data = self
+            .data
+            .iter()
+            .map(|x| crate::quantize(*x) as f64 / 4096.0)
+            .collect();
+        Self {
+            data,
+            ..self.clone()
+        }
+    }
+
     pub fn at(&self, row: usize, col: usize) -> f64 {
         self.data[row * self.dims[1] + col]
     }

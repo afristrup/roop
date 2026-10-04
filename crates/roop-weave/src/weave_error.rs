@@ -1,6 +1,7 @@
+use crate::CONTRACTION_LIMIT;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub enum WeaveError {
     Json(String),
     Field {
@@ -28,6 +29,10 @@ pub enum WeaveError {
     Name(String),
     Loss(String),
     Optimizer(String),
+    Contraction {
+        index: usize,
+        bound: f64,
+    },
 }
 
 impl fmt::Display for WeaveError {
@@ -48,7 +53,7 @@ impl fmt::Display for WeaveError {
             ),
             Self::Layer { index, kind } => write!(
                 f,
-                "layer {index}: no layer `{kind}`; weave layers are leapfrog and mlp, and a layer that is not reversible cannot be run backward"
+                "layer {index}: no layer `{kind}`; weave layers are leapfrog, mlp, residual, attention and conv, and a layer that is not reversible cannot be run backward"
             ),
             Self::NoLayers => write!(f, "the model has no layers"),
             Self::Outputs { outputs, width } => {
@@ -58,6 +63,10 @@ impl fmt::Display for WeaveError {
             Self::Optimizer(name) => {
                 write!(f, "no optimizer `{name}`; weave has sgd, momentum and adam")
             }
+            Self::Contraction { index, bound } => write!(
+                f,
+                "layer {index}: the residual function is not a contraction: its Lipschitz bound is {bound:.3}, and it must be below {CONTRACTION_LIMIT}, so that the inverse can be found by iteration; shrink the weights"
+            ),
             Self::Name(name) => write!(f, "`{name}` is not a name for roop functions"),
         }
     }

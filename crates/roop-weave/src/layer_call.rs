@@ -1,4 +1,4 @@
-use crate::{Activation, Layer, batch_suffix, quantize};
+use crate::{Activation, Layer, Norm, batch_suffix, quantize};
 
 /// The call that runs a layer, or its backward step when `back` is set. `into_q`
 /// says which half a perceptron adds into, and `batched` that the state holds `B`
@@ -24,6 +24,90 @@ pub fn layer_call(
         (Layer::Leapfrog { w, b: bias, .. }, true) => format!(
             "call layer_back{s}<{width}, {m}{b}>(q, p, aq, ap, g{0}, g{1}, {0}, {1}, {h}, {kind});",
             w.name, bias.name
+        ),
+        (
+            Layer::Mlp {
+                w1,
+                b1,
+                w2,
+                b2,
+                norm:
+                    Some(Norm {
+                        eps,
+                        gain,
+                        bias: Some(beta),
+                    }),
+                ..
+            },
+            false,
+        ) => {
+            let (y, x) = if into_q { ("q", "p") } else { ("p", "q") };
+            format!(
+                "call mlp_layer{s}<{width}, {m}{b}>({y}, {}, {}, {}, {}, {}, {}, {x}, {kind}, {});",
+                w1.name,
+                b1.name,
+                gain.name,
+                beta.name,
+                w2.name,
+                b2.name,
+                quantize(*eps)
+            )
+        }
+        (
+            Layer::Mlp {
+                w1,
+                b1,
+                w2,
+                b2,
+                norm:
+                    Some(Norm {
+                        eps,
+                        gain,
+                        bias: Some(beta),
+                    }),
+                ..
+            },
+            true,
+        ) => {
+            let (y, ay, ax, x) = if into_q {
+                ("q", "aq", "ap", "p")
+            } else {
+                ("p", "ap", "aq", "q")
+            };
+            let (g, e) = (&gain.name, quantize(*eps));
+            let be = &beta.name;
+            format!(
+                "call mlp_layer_back{s}<{width}, {m}{b}>({y}, {ay}, {ax}, g{0}, g{1}, g{g}, g{be}, g{2}, g{3}, {0}, {1}, {g}, {be}, {2}, {3}, {x}, {kind}, {e});",
+                w1.name, b1.name, w2.name, b2.name
+            )
+        }
+        (
+            Layer::Residual {
+                w1,
+                b1,
+                w2,
+                b2,
+                iters,
+                ..
+            },
+            false,
+        ) => format!(
+            "call residual{s}<{width}, {m}, {iters}{b}>(q, p, {}, {}, {}, {}, {kind});",
+            w1.name, b1.name, w2.name, b2.name
+        ),
+        (
+            Layer::Residual {
+                w1,
+                b1,
+                w2,
+                b2,
+                iters,
+                ..
+            },
+            true,
+        ) => format!(
+            "call residual_back{s}<{width}, {m}, {iters}{b}>(q, p, aq, ap, g{0}, g{1}, g{2}, g{3}, {0}, {1}, {2}, {3}, {kind});",
+            w1.name, b1.name, w2.name, b2.name
         ),
         (
             Layer::Mlp {

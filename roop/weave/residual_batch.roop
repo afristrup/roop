@@ -1,0 +1,43 @@
+// The residual block on B samples, one row of the state each, taken in turn: the
+// contributions to the shared weights add up, the same as the sum over samples.
+
+use super::residual::*;
+use super::residual_back::*;
+
+pub fn residual_batch<N, M, K, B>(
+    q: &mut [[i64; N]; B],
+    p: &mut [[i64; N]; B],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        call residual<N, M, K>(q[r], p[r], w1, b1, w2, b2, kind);
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+pub fn residual_back_batch<N, M, K, B>(
+    q: &mut [[i64; N]; B],
+    p: &mut [[i64; N]; B],
+    aq: &mut [[i64; N]; B],
+    ap: &mut [[i64; N]; B],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        call residual_back<N, M, K>(q[r], p[r], aq[r], ap[r], gw1, gb1, gw2, gb2, w1, b1, w2, b2, kind);
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
