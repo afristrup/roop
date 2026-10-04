@@ -1,6 +1,6 @@
 use crate::{
     Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, SESSION_PRELUDE, Translation, call_lemmas,
-    element_writes, esc_fn, lean_commute, lean_enum, lean_fn, lean_loop_lemmas, lean_session,
+    updates_only, esc_fn, lean_commute, lean_enum, lean_fn, lean_loop_lemmas, lean_session,
     lean_struct, lean_theorems, lean_try_lemmas,
 };
 use roop_check::{calls_in, is_irreversible_fn};
@@ -183,7 +183,7 @@ fn translate_fn(
         let ancillas = forward.ancillas > 0
             || backward.ancillas > 0
             || !calls_in(&def.body, false).is_empty()
-            || element_writes(def);
+            || updates_only(def);
         if !inexact && proofs {
             for info in &forward.pieces {
                 let (lemma_text, names) = match info.construct {
