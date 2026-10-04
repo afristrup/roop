@@ -1,4 +1,4 @@
-use crate::{Model, Tensor, batch_suffix, decl, names, param_list, state_type};
+use crate::{Model, Tensor, batch_suffix, decl, emit_project, names, param_list, state_type};
 
 fn clear(weight: &Tensor) -> String {
     match weight.dims.as_slice() {
@@ -36,6 +36,7 @@ pub fn emit_step(model: &Model, batched: bool) -> String {
         .into_iter()
         .map(|t| model.optimizer.update(t, model.loss_scale))
         .collect();
+    let projects = emit_project(model);
     let clears: String = model.tensors().into_iter().map(clear).collect();
     let samples = match batched {
         true => format!(
@@ -61,7 +62,7 @@ pub fn emit_step(model: &Model, batched: bool) -> String {
         ),
     };
     format!(
-        "pub irrev fn {name}_step{s}<B>(\n{}) {{\n{samples}{updates}{clears}}}\n",
+        "pub irrev fn {name}_step{s}<B>(\n{}) {{\n{samples}{updates}{projects}{clears}}}\n",
         param_list(&params)
     )
 }

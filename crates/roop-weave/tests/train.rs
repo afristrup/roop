@@ -55,7 +55,7 @@ fn driver(model: &roop_weave::Model, rate: f64, epochs: usize) -> String {
         if (e == 0) first = last;
     }}
     fprintf(stderr, \"loss %.4f -> %.4f\\n\", first, last);
-    return last < first / 5 ? 0 : 1;
+    return last >= 0 && last < first / 5 ? 0 : 1;
 }}
 ",
         quantize(rate),
@@ -135,4 +135,17 @@ fn residual_blocks_train_on_xor() {
         residual("tanh", 6, 4, 8, 0.3),
     ];
     train_layers("xor_residual", layers, json!({"kind": "sgd"}), 0.05);
+}
+
+#[test]
+fn residual_blocks_with_a_kept_contraction_train_on_xor() {
+    let mut layers = vec![
+        residual("tanh", 6, 4, 2, 0.6),
+        residual("tanh", 6, 4, 5, 0.6),
+        residual("tanh", 6, 4, 8, 0.6),
+    ];
+    for layer in &mut layers {
+        layer["keep_contraction"] = json!(0.8);
+    }
+    train_layers("xor_kept", layers, json!({"kind": "sgd"}), 0.05);
 }

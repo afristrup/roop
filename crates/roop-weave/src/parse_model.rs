@@ -217,6 +217,27 @@ fn parse_norm(
 
 type Perceptron = (Activation, Tensor, Tensor, Tensor, Tensor);
 
+/// The bound `keep_contraction` asks training to hold the block to, which the weights
+/// must already meet.
+fn kept(index: usize, layer: &Value, bound: f64) -> Result<Option<f64>, WeaveError> {
+    let Some(value) = layer.get("keep_contraction") else {
+        return Ok(None);
+    };
+    let keep = match value.as_f64() {
+        Some(k) if k > 0.0 && k < CONTRACTION_LIMIT => k,
+        _ => {
+            return Err(WeaveError::Field {
+                path: format!("layers[{index}].keep_contraction"),
+                expected: "a number above 0 and below the contraction limit 0.9",
+            });
+        }
+    };
+    if bound >= keep {
+        return Err(WeaveError::Kept { index, bound, keep });
+    }
+    Ok(Some(keep))
+}
+
 fn residual(index: usize, layer: &Value, parts: Perceptron) -> Result<Layer, WeaveError> {
     let (act, w1, b1, w2, b2) = parts;
     if layer.get("norm").is_some() {
@@ -229,8 +250,9 @@ fn residual(index: usize, layer: &Value, parts: Perceptron) -> Result<Layer, Wea
     if bound >= CONTRACTION_LIMIT {
         return Err(WeaveError::Contraction { index, bound });
     }
+    let keep = kept(index, layer, bound)?;
     let iters = match layer.get("iters") {
-        None => residual_iterations(bound),
+        None => residual_iterations(keep.unwrap_or(bound)),
         Some(v) => match v.as_u64() {
             Some(n) if n >= 2 => n as usize,
             _ => {
@@ -248,6 +270,7 @@ fn residual(index: usize, layer: &Value, parts: Perceptron) -> Result<Layer, Wea
         w2,
         b2,
         iters,
+        keep,
     })
 }
 

@@ -1,0 +1,129 @@
+// Keeping a residual block a contraction. The update of a step can take the weights of
+// F(x) = W2 f(W1 x + b1) + b2 past the bound under which the fixed-point chain of the
+// block converges, and then its K cells multiply what they hold by L each, which is
+// huge for L above 1 and, in Q12, wraps around in 64 bits. `project_contraction`
+// scales both weights back whenever the bound of F is above the one asked for.
+//
+// The bound is the product of the spectral norms of W1 and W2 and the slope of f, and a
+// spectral norm is found from above, so the projection is never too lax: the squares
+// of the Gram matrix G = W^T W, each divided by its trace t, have a trace that is at
+// least the square of their largest eigenvalue, and the largest eigenvalue of G is at
+// most the product of the traces' nested roots.
+
+use super::optim::*;
+
+// g = W^T W in Q24.
+irrev fn gram<D, R>(g: &mut [[i64; D]; D], w: &[[i64; D]; R]) {
+    ancilla i: i64 = 0;
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            ancilla r: i64 = 0;
+            g[i][j] = 0;
+            from r == 0 {
+                g[i][j] = g[i][j] + w[r][i] * w[r][j];
+            } loop { r += 1; } until r == R - 1;
+        } loop { j += 1; } until j == D - 1;
+    } loop { i += 1; } until i == D - 1;
+}
+
+// h = g / trace g, in Q12 from g in Q24, with the trace in Q24 in t.
+irrev fn unit_trace<D>(h: &mut [[i64; D]; D], t: &mut i64, g: &[[i64; D]; D]) {
+    ancilla i: i64 = 0;
+    t = 1;
+    from i == 0 {
+        t = t + g[i][i];
+    } loop { i += 1; } until i == D - 1;
+    i = 0;
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            h[i][j] = g[i][j] * 4096 / t;
+        } loop { j += 1; } until j == D - 1;
+    } loop { i += 1; } until i == D - 1;
+}
+
+// s = h h in Q12, h = s / trace s, and the trace of s in Q12 in tau.
+irrev fn square<D>(h: &mut [[i64; D]; D], tau: &mut i64) {
+    ancilla s: [[i64; D]; D] = 0;
+    ancilla i: i64 = 0;
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            ancilla l: i64 = 0;
+            s[i][j] = 0;
+            from l == 0 {
+                s[i][j] = s[i][j] + h[i][l] * h[l][j] / 4096;
+            } loop { l += 1; } until l == D - 1;
+        } loop { j += 1; } until j == D - 1;
+    } loop { i += 1; } until i == D - 1;
+    tau = 1;
+    i = 0;
+    from i == 0 {
+        tau = tau + s[i][i];
+    } loop { i += 1; } until i == D - 1;
+    i = 0;
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            h[i][j] = s[i][j] * 4096 / tau;
+        } loop { j += 1; } until j == D - 1;
+    } loop { i += 1; } until i == D - 1;
+}
+
+// r gets a bound on the spectral norm of w in Q12, a percent above what the squares allow.
+irrev fn spectral_bound<D, R>(r: &mut i64, w: &[[i64; D]; R]) {
+    ancilla g: [[i64; D]; D] = 0;
+    ancilla h: [[i64; D]; D] = 0;
+    ancilla tau: [i64; 6] = 0;
+    ancilla t: i64 = 0;
+    ancilla k: i64 = 0;
+    ancilla root: i64 = 0;
+    ancilla lambda: i64 = 0;
+    call gram<D, R>(g, w);
+    call unit_trace<D>(h, t, g);
+    from k == 0 {
+        call square<D>(h, tau[k]);
+    } loop { k += 1; } until k == 5;
+    lambda = 4096;
+    k = 0;
+    from k == 0 {
+        call isqrt(root, tau[5 - k] * lambda);
+        lambda = root;
+    } loop { k += 1; } until k == 5;
+    call isqrt(root, t * lambda / 4096);
+    r = root * 101 / 100;
+}
+
+// w = w * f / 4096
+irrev fn shrink<D, R>(w: &mut [[i64; D]; R], f: &i64) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla i: i64 = 0;
+        from i == 0 {
+            w[r][i] = w[r][i] * f / 4096;
+        } loop { i += 1; } until i == D - 1;
+    } loop { r += 1; } until r == R - 1;
+}
+
+// Scales w1 and w2 by the same factor so that the bound of F, the product of their
+// spectral norms and `slope` (the slope of f, in Q12), is at most `cap` in Q12.
+pub irrev fn project_contraction<N, M>(
+    w1: &mut [[i64; N]; M],
+    w2: &mut [[i64; M]; N],
+    slope: &i64,
+    cap: &i64,
+) {
+    ancilla a: i64 = 0;
+    ancilla b: i64 = 0;
+    ancilla f: i64 = 0;
+    ancilla bound: i64 = 0;
+    call spectral_bound<N, M>(a, w1);
+    call spectral_bound<M, N>(b, w2);
+    bound = a * b / 4096 * slope / 4096;
+    if bound > cap {
+        call isqrt(f, cap * 16777216 / bound);
+        call shrink<N, M>(w1, f);
+        call shrink<M, N>(w2, f);
+    } else {} fi bound > cap;
+}
