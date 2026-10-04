@@ -152,3 +152,32 @@ fn back(y: &mut [[i64; 2]; 2], ay: &[[i64; 2]; 2], ax: &mut [[i64; 2]; 2],
         ],
     );
 }
+
+#[test]
+#[ignore = "minutes: run it with --ignored"]
+fn lean_proves_the_batched_layer_normalized_perceptron_and_its_backward_step() {
+    let src = "
+use weave::mlp_layer_batch;
+use weave::mlp_layer_back_batch;
+
+fn fwd(y: &mut [[i64; 2]; 2], w1: &[[i64; 2]; 2], b1: &[i64; 2], g: &[i64; 2], beta: &[i64; 2],
+       w2: &[[i64; 2]; 2], b2: &[i64; 2], x: &[[i64; 2]; 2], kind: &i64, eps: &i64) {
+    call mlp_layer_batch<2, 2, 2>(y, w1, b1, g, beta, w2, b2, x, kind, eps);
+}
+fn back(y: &mut [[i64; 2]; 2], ay: &[[i64; 2]; 2], ax: &mut [[i64; 2]; 2],
+        gw1: &mut [[i64; 2]; 2], gb1: &mut [i64; 2], gg: &mut [i64; 2], gbeta: &mut [i64; 2],
+        gw2: &mut [[i64; 2]; 2], gb2: &mut [i64; 2],
+        w1: &[[i64; 2]; 2], b1: &[i64; 2], g: &[i64; 2], beta: &[i64; 2], w2: &[[i64; 2]; 2],
+        b2: &[i64; 2], x: &[[i64; 2]; 2], kind: &i64, eps: &i64) {
+    call mlp_layer_back_batch<2, 2, 2>(y, ay, ax, gw1, gb1, gg, gbeta, gw2, gb2, w1, b1, g, beta, w2, b2, x, kind, eps);
+}
+";
+    lean_accepts(
+        "weave-lean-batch-mlp-layer",
+        src,
+        &[
+            "weave__mlp_layer_batch__mlp_layer_batch__2_2_2",
+            "weave__mlp_layer_batch__mlp_layer_back_batch__2_2_2",
+        ],
+    );
+}

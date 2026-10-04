@@ -580,7 +580,7 @@ call that returns two places (`layernorm_vjp` gives the adjoint of `z` and of th
 its result as a pair, so the checks that its undone ancillas are zero could not be turned
 into substitutions, the chain rewrite failed, and Lean fell back to unfolding every callee
 body. The chain proof now opens a pair result first, so each call keeps its own lemma. The
-batched forms (`mlp_layer_batch`) are not proved by Lean.
+batched forms (`mlp_layer_batch`) are proved too, by an ignored test, in about three minutes.
 
 **The residual block** is `y = x + F(x)` with `F(x) = W2 f(W1 x + b1) + b2`, the invertible
 residual connection of Behrmann et al. when `F` is a contraction, that is when its Lipschitz
