@@ -44,6 +44,7 @@ pub fn chain_roundtrip(
             "  obtain \u{27e8}z{k}, hx{k}, {HYP}\u{27e9} := Roop.bind_ok {HYP}\n"
         ));
     }
+    out.push_str("  repeat roop_result_pairs\n");
     out.push_str(&guards);
     out.push_str(&format!(
         "  have \u{ab}__e\u{bb} := Except.ok.inj {HYP}\n  subst \u{ab}__e\u{bb}\n  simp only [{}]\n  try simp (disch := simp [{}]) only [{LITERALS}]\n",

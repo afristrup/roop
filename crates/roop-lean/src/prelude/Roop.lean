@@ -838,6 +838,23 @@ elab "roop_pairs" : tactic => withMainContext do
   throwError "no pair to open"
 
 open Lean Elab Tactic Meta in
+/-- Opens the first call result `z1`, `z2`, ... that is a pair, so that the
+ancilla checks on its parts turn into substitutions. -/
+elab "roop_result_pairs" : tactic => withMainContext do
+  for decl in (← getLCtx) do
+    if decl.isImplementationDetail then continue
+    let name := decl.userName.toString
+    unless name.startsWith "z" && name.length > 1 && (name.drop 1).all Char.isDigit do continue
+    let ty ← whnfR (← instantiateMVars decl.type)
+    unless ty.isAppOfArity ``Prod 2 do continue
+    try
+      let goals ← (← getMainGoal).cases decl.fvarId
+      replaceMainGoal (goals.toList.map (·.mvarId))
+      return
+    catch _ => pure ()
+  throwError "no call result to open"
+
+open Lean Elab Tactic Meta in
 partial def vectorFacts (p : Expr) : TacticM (Array Expr) := do
   let ty ← whnfR (← instantiateMVars (← inferType p))
   if ty.isAppOfArity ``And 2 then
