@@ -561,8 +561,7 @@ starts from 1/4 and converges for `s` up to 48, and a larger one traps; `eps` ca
 1/4096. Lean proves the normalized block and its backward step (`mlp_norm`, `mlp_norm_vjp`,
 `mlp_norm_back` at width 2) exactly reversible in about two minutes; each step and each stage
 has its own call lemmas, so the proof of the chain is a few calls long instead of unfolding all
-20 steps; the batched version (`mlp_norm_batch`) is proved too, in about four minutes, by an
-ignored test. This is RMSNorm.
+20 steps; the batched version (`mlp_norm_batch`) is proved too, in about a minute. This is RMSNorm.
 
 **LayerNorm** is the same block with `"center": true` and a `"bias"` of one number per hidden
 unit: `gain * (z - mean(z)) / sqrt(var(z) + eps) + bias`. The mean is taken off into a centered
