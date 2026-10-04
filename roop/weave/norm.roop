@@ -1,9 +1,10 @@
 // RMS normalization of a hidden layer in Q12: n = g * z / sqrt(mean(z^2) + eps).
 //
 // There is no square root that adds into a zero place, so 1 / sqrt(s) is found by
-// Newton's method, y = y (3 - s y^2) / 2, as a chain of 21 cells where each cell
-// takes its value from the one before and nothing is overwritten. It starts from
-// 1/4 and converges for s up to 48; a larger s fails the exit assertion and traps.
+// Newton's method, y = y (3 - s y^2) / 2, as a chain of 21 values, 20 steps in
+// four stages of five, where each value is added from the one before and nothing is
+// overwritten. It starts from 1/4
+// and converges for s up to 48; a larger s fails the exit assertion and traps.
 
 // ss += the sum of z^2
 fn sum_squares<M>(ss: &mut i64, z: &[i64; M]) {
@@ -20,25 +21,49 @@ pub fn mean_square<M>(s: &mut i64, z: &[i64; M], eps: &i64) {
     uncall sum_squares<M>(ss, z);
 }
 
-// e[0] gets 1/4 and each next cell one Newton step from the one before
-fn newton<K>(e: &mut [i64; K], s: &i64) {
-    ancilla k: i64 = 0;
-    e[0] += 1024;
-    from k == 0 {
-        if k < K - 1 {
-            e[k + 1] += e[k] * (12288 - s * (e[k] * e[k] / 4096) / 4096) / 8192;
-        } fi k < K - 1;
-    } loop { k += 1; } until k == K - 1;
-    k -= K - 1;
+// e += one Newton step from d
+fn newton_step(e: &mut i64, d: &i64, s: &i64) {
+    e += d * (12288 - s * (d * d / 4096) / 4096) / 8192;
 }
 
-// r += 1 / sqrt(s)
+// out += five Newton steps from d, with the cells in between undone
+fn newton_stage(out: &mut i64, d: &i64, s: &i64) {
+    ancilla a: i64 = 0;
+    ancilla b: i64 = 0;
+    ancilla c: i64 = 0;
+    ancilla f: i64 = 0;
+    call newton_step(a, d, s);
+    call newton_step(b, a, s);
+    call newton_step(c, b, s);
+    call newton_step(f, c, s);
+    call newton_step(out, f, s);
+    uncall newton_step(f, c, s);
+    uncall newton_step(c, b, s);
+    uncall newton_step(b, a, s);
+    uncall newton_step(a, d, s);
+}
+
+// r += 1 / sqrt(s) from four stages of five steps, starting from 1/4
+fn newton(r: &mut i64, s: &i64) {
+    ancilla e0: i64 = 0;
+    ancilla e1: i64 = 0;
+    ancilla e2: i64 = 0;
+    ancilla e3: i64 = 0;
+    e0 += 1024;
+    call newton_stage(e1, e0, s);
+    call newton_stage(e2, e1, s);
+    call newton_stage(e3, e2, s);
+    call newton_stage(r, e3, s);
+    uncall newton_stage(e3, e2, s);
+    uncall newton_stage(e2, e1, s);
+    uncall newton_stage(e1, e0, s);
+    e0 -= 1024;
+}
+
+// r += 1 / sqrt(s), or nothing for an s the iteration does not converge for
 pub fn rsqrt(r: &mut i64, s: &i64) {
     if s <= 196608 {
-        ancilla e: [i64; 21] = 0;
-        call newton<21>(e, s);
-        r += e[20];
-        uncall newton<21>(e, s);
+        call newton(r, s);
     } fi s <= 196608;
 }
 

@@ -556,10 +556,13 @@ unfolded input, so it is a Q12 einsum like the rest (`weave::conv`, `conv_back`)
 **Normalization** is a part of the perceptron block: with `"norm": {"gain": [...], "eps": 0.01}`
 the hidden layer is `gain * z / sqrt(mean(z^2) + eps)` before the activation. weave has no
 square root that adds into a zero place, so `1 / sqrt(s)` is Newton's method run as a chain of
-21 cells, each from the one before. It starts from 1/4 and converges for `s` up to 48, and a
-larger one traps; `eps` cannot be below 1/4096. Lean did not accept this block within 30 minutes
-(its other tests and the finite-difference check against the reference do pass), so unlike the
-other blocks it is not proved reversible. This is RMSNorm. LayerNorm subtracts a mean
+21 values, 20 steps in four stages of five, each step a one-line function on scalar cells. It
+starts from 1/4 and converges for `s` up to 48, and a larger one traps; `eps` cannot be below
+1/4096. Lean proves the normalized block and its backward step (`mlp_norm`, `mlp_norm_vjp`,
+`mlp_norm_back` at width 2) exactly reversible in about two minutes; each step and each stage
+has its own call lemmas, so the proof of the chain is a few calls long instead of unfolding all
+20 steps; the batched version (`mlp_norm_batch`) is proved too, in about four minutes, by an
+ignored test. This is RMSNorm. LayerNorm subtracts a mean
 as well, which is left out.
 
 ```rust

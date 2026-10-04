@@ -437,6 +437,41 @@ fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
 }
 
 #[test]
+fn lean_proves_the_normalized_perceptron_and_its_backward_step() {
+    let src = "
+use weave::mlp_norm;
+use weave::mlp_norm_back;
+
+fn fwd(y: &mut [i64; 2], w1: &[[i64; 2]; 2], b1: &[i64; 2], g: &[i64; 2], w2: &[[i64; 2]; 2],
+       b2: &[i64; 2], x: &[i64; 2], kind: &i64, eps: &i64) {
+    call mlp_norm<2, 2>(y, w1, b1, g, w2, b2, x, kind, eps);
+}
+fn back(y: &mut [i64; 2], ay: &[i64; 2], ax: &mut [i64; 2],
+        gw1: &mut [[i64; 2]; 2], gb1: &mut [i64; 2], gg: &mut [i64; 2],
+        gw2: &mut [[i64; 2]; 2], gb2: &mut [i64; 2],
+        w1: &[[i64; 2]; 2], b1: &[i64; 2], g: &[i64; 2], w2: &[[i64; 2]; 2], b2: &[i64; 2],
+        x: &[i64; 2], kind: &i64, eps: &i64) {
+    call mlp_norm_back<2, 2>(y, ay, ax, gw1, gb1, gg, gw2, gb2, w1, b1, g, w2, b2, x, kind, eps);
+}
+";
+    let dir = project("weave-lean-mlp-norm", &config(), src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout).into_owned();
+    for name in [
+        "weave__norm__rsqrt",
+        "weave__norm__rmsnorm__2",
+        "weave__mlp_norm__mlp_norm__2_2",
+        "weave__mlp_norm__mlp_norm_back__2_2",
+        "fwd",
+        "back",
+    ] {
+        assert!(report.contains(name), "{name} missing: {report}");
+    }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}
+
+#[test]
 fn lean_proves_the_attention_block_and_its_backward_step() {
     let src = "
 use weave::attn;
