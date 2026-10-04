@@ -34,7 +34,12 @@ fn feed(layer: &Layer, x: &[f64]) -> Vec<f64> {
             norm,
         } => (act, w1, b1, w2, b2, norm.as_ref()),
         Layer::Residual {
-            act, w1, b1, w2, b2, ..
+            act,
+            w1,
+            b1,
+            w2,
+            b2,
+            ..
         } => (act, w1, b1, w2, b2, None),
         _ => unreachable!("a perceptron"),
     };
@@ -56,9 +61,7 @@ fn feed(layer: &Layer, x: &[f64]) -> Vec<f64> {
 }
 
 fn mlp(layer: &Layer, y: &mut [f64], x: &[f64]) {
-    y.iter_mut()
-        .zip(feed(layer, x))
-        .for_each(|(y, f)| *y += f);
+    y.iter_mut().zip(feed(layer, x)).for_each(|(y, f)| *y += f);
 }
 
 /// The residual block as the four lines of `roop/weave/residual.roop`, in doubles.

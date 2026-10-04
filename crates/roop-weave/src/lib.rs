@@ -3,9 +3,9 @@
 //! against a reference in doubles.
 
 mod activation;
-mod contraction_bound;
 mod batch_sample;
 mod batch_suffix;
+mod contraction_bound;
 mod decl;
 mod emit_backward;
 mod emit_batch_tests;
@@ -42,9 +42,9 @@ mod tensor;
 mod weave_error;
 
 pub use activation::*;
-pub use contraction_bound::*;
 pub use batch_sample::*;
 pub use batch_suffix::*;
+pub use contraction_bound::*;
 pub use decl::*;
 pub use emit_backward::*;
 pub use emit_batch_tests::*;
