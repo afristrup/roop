@@ -20,7 +20,7 @@ import env
 import models
 from mirror_net import MirrorNet
 from torch_to_weave import export
-from train_torch import fit
+from train_torch import fit, saved_bytes
 from weave_train import train
 
 
@@ -70,16 +70,19 @@ def main(argv=None):
         targets = F.one_hot(ys, classes).double()
         curve = train(net, xs, targets, args.epochs, args.rate, loss="softmax",
                       optimizer={"kind": args.optimizer}, batch=args.batch, roop=env.roop(),
-                      usage=usage)
+                      library=env.library(), usage=usage)
         out.update(usage)
         out["total_seconds"] = time.perf_counter() - start
         net = MirrorNet(export(net, classes, loss="softmax"))
     else:
         if args.method == "mirror":
             net = MirrorNet(export(net, classes, loss="softmax")).double()
+        before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        out["saved"] = saved_bytes(net, xs[: args.batch], ys[: args.batch])
         curve = fit(net, xs, ys, classes, args.epochs, args.rate, args.optimizer, args.batch)
         out["seconds"] = time.perf_counter() - start
         out["rss"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        out["rss_growth"] = out["rss"] - before
     out["curve"] = [round(c / len(ys), 5) for c in curve]
     out["train_metrics"] = metrics(scores(net, xs), ys)
     out["test_metrics"] = metrics(scores(net, xt), yt)

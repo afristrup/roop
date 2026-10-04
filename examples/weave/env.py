@@ -18,3 +18,8 @@ def roop():
             os.environ.setdefault("ROOP_RT_LIB", str(ROOT / "target" / profile / "libroop_rt.a"))
             return str(binary)
     raise SystemExit("build roop first: cargo build --release -p roop -p roop-rt")
+
+
+def library():
+    """The directory of the weave and einsum modules: WEAVE_LIBRARY, else this repository's roop."""
+    return os.environ.get("WEAVE_LIBRARY", str(ROOT / "roop"))

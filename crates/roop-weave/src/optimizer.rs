@@ -10,13 +10,21 @@ pub enum Optimizer {
 
 impl Optimizer {
     /// The state kept for each tensor: one tensor per name in the order of the
-    /// calls, each named `m<tensor>` or `v<tensor>`.
+    /// calls, each named `m`, `v` or `t` and then the parameter's name.
     pub fn state(&self, tensor: &Tensor) -> Vec<Tensor> {
         let named = |prefix: &str| tensor.zeros_like(format!("{prefix}{}", tensor.name));
         match self {
             Self::Sgd => vec![],
             Self::Momentum { .. } => vec![named("m")],
-            Self::Adam { .. } => vec![named("m"), named("v")],
+            Self::Adam { .. } => vec![
+                named("m"),
+                named("v"),
+                Tensor {
+                    name: format!("t{}", tensor.name),
+                    dims: vec![2],
+                    data: vec![0.0; 2],
+                },
+            ],
         }
     }
 
@@ -40,9 +48,10 @@ impl Optimizer {
                 quantize(*beta)
             ),
             Self::Adam { beta1, beta2 } => format!(
-                "    call adam_{shape}{generics}({w}, g{w}, {}, {}, lr, {}, {}{unit});\n",
+                "    call adam_{shape}{generics}({w}, g{w}, {}, {}, {}, lr, {}, {}{unit});\n",
                 names[0],
                 names[1],
+                names[2],
                 quantize(*beta1),
                 quantize(*beta2)
             ),

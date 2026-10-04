@@ -49,13 +49,21 @@ pub irrev fn momentum_mat<N, M>(
     j -= M - 1;
 }
 
-// Adam without the bias correction: m = b1 m + (1 - b1) g and v = b2 v + (1 - b2) g^2
-// (v in Q24), then w -= lr m / (sqrt(v) + eps).
-pub irrev fn adam_vec<M>(
+// t = [1 - b1^n, 1 - b2^n] in Q24 for the n-th step. It starts at zero, which is n = 0.
+pub irrev fn adam_advance(t: &mut [i64; 2], b1: &i64, b2: &i64) {
+    t[0] = 16777216 - b1 * (16777216 - t[0]) / 4096;
+    t[1] = 16777216 - b2 * (16777216 - t[1]) / 4096;
+}
+
+// Adam: m = b1 m + (1 - b1) g and v = b2 v + (1 - b2) g^2 (v in Q24), then
+// w -= lr m^ / (sqrt(v^) + eps), with m^ = m / t[0] and v^ = v / t[1] corrected for
+// starting at zero. The factors 2^36 / t are Q12, at most 1000 and 10.
+irrev fn adam_row<M>(
     w: &mut [i64; M],
     g: &[i64; M],
     m: &mut [i64; M],
     v: &mut [i64; M],
+    t: &[i64; 2],
     lr: &i64,
     b1: &i64,
     b2: &i64,
@@ -66,11 +74,26 @@ pub irrev fn adam_vec<M>(
         ancilla r: i64 = 0;
         m[i] = (b1 * m[i] + (4096 - b1) * (g[i] / unit)) / 4096;
         v[i] = (b2 * v[i] + (4096 - b2) * (g[i] / unit * (g[i] / unit))) / 4096;
-        call isqrt(r, v[i]);
-        w[i] -= lr * (m[i] * 4096 / (r + 4)) / 4096;
+        call isqrt(r, v[i] * (68719476736 / t[1]) / 4096);
+        w[i] -= lr * ((m[i] * (68719476736 / t[0]) / 4096) * 4096 / (r + 4)) / 4096;
         r = 0;
     } loop { i += 1; } until i == M - 1;
     i -= M - 1;
+}
+
+pub irrev fn adam_vec<M>(
+    w: &mut [i64; M],
+    g: &[i64; M],
+    m: &mut [i64; M],
+    v: &mut [i64; M],
+    t: &mut [i64; 2],
+    lr: &i64,
+    b1: &i64,
+    b2: &i64,
+    unit: &i64,
+) {
+    call adam_advance(t, b1, b2);
+    call adam_row<M>(w, g, m, v, t, lr, b1, b2, unit);
 }
 
 pub irrev fn adam_mat<N, M>(
@@ -78,13 +101,15 @@ pub irrev fn adam_mat<N, M>(
     g: &[[i64; N]; M],
     m: &mut [[i64; N]; M],
     v: &mut [[i64; N]; M],
+    t: &mut [i64; 2],
     lr: &i64,
     b1: &i64,
     b2: &i64,
 ) {
     ancilla j: i64 = 0;
+    call adam_advance(t, b1, b2);
     from j == 0 {
-        call adam_vec<N>(w[j], g[j], m[j], v[j], lr, b1, b2, 4096);
+        call adam_row<N>(w[j], g[j], m[j], v[j], t, lr, b1, b2, 4096);
     } loop { j += 1; } until j == M - 1;
     j -= M - 1;
 }

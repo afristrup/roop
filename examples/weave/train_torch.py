@@ -14,6 +14,22 @@ def optimizer_for(params, kind, rate):
     return torch.optim.Adam(params, lr=rate, eps=1e-3)
 
 
+def saved_bytes(net, x, y):
+    """The bytes autograd keeps for the backward pass of one batch, the activations,
+    not counting the weights themselves."""
+    seen = {}
+    weights = {p.data_ptr() for p in net.parameters()}
+
+    def keep(t):
+        if t.data_ptr() not in weights:
+            seen[t.data_ptr()] = t.untyped_storage().nbytes()
+        return t
+
+    with torch.autograd.graph.saved_tensors_hooks(keep, lambda t: t):
+        F.cross_entropy(net(x), y, reduction="sum")
+    return sum(seen.values())
+
+
 def fit(net, xs, ys, classes, epochs, rate, kind, batch):
     """Trains `net` on batches in the order given, no shuffling, as weave does.
     Returns, per epoch, the half squared error of the probabilities summed over

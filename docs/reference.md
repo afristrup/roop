@@ -628,7 +628,8 @@ The softmax targets must sum to 1.
 `"optimizer"` is `{"kind": "sgd"}`, `{"kind": "momentum", "beta": 0.9}` or
 `{"kind": "adam", "beta1": 0.9, "beta2": 0.999}`. The optimizers are `irrev`, since they
 overwrite their moving averages, and live in the training step; the gradient stays
-reversible. Adam has no bias correction, and keeps its second moment in Q24 so that small
+reversible. Adam corrects its moving averages for starting at zero, as torch does, with
+two numbers of state per tensor, and keeps its second moment in Q24 so that small
 squared gradients are not lost. A matrix's gradient is in Q24, so the matrix
 versions divide it by 4096 before the moving averages, and the vector ones take a unit of 1.
 
