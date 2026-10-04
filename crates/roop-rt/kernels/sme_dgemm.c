@@ -20,8 +20,8 @@
 #define VL 8
 
 #define CW (4 * VL)
-#define CHUNK 64
-#define THREADED_WORK (1 << 26)
+#define CHUNK 16
+#define THREADED_WORK (1 << 23)
 
 enum { SCALED, UNIT, NEGATED };
 

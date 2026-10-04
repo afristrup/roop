@@ -6,9 +6,7 @@
 void gemm(double *c, double *a, double *b, double *alpha);
 
 static double now(void) {
-    struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-    return t.tv_sec + t.tv_nsec * 1e-9;
+    return clock_gettime_nsec_np(CLOCK_UPTIME_RAW) * 1e-9;
 }
 
 static int cmp(const void *x, const void *y) {
