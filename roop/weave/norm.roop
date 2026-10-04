@@ -68,7 +68,8 @@ fn rsqrt_shrunk(r: &mut i64, s: &i64, shrink: &i64, root: &i64) {
     uncall newton(u, s / shrink);
 }
 
-// r += 1 / sqrt(s). Newton converges for s up to 48, so a larger s is shrunk by 64 or by
+// r += 1 / sqrt(s). Newton converges for s up to 48, so a larger s is shrunk by 64 or
+// by
 // 4096 first, which reaches 805306368. Beyond that r stays 0.
 pub fn rsqrt(r: &mut i64, s: &i64) {
     if s <= 196608 {

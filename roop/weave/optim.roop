@@ -42,7 +42,8 @@ irrev fn isqrt(r: &mut i64, n: &i64) {
     r = lo;
 }
 
-// w -= step / 4096 for a step in Q24, the part below a unit of w going into the carry c to
+// w -= step / 4096 for a step in Q24, the part below a unit of w going into the carry
+// c to
 // be added to the next step.
 irrev fn descend(w: &mut i64, c: &mut i64, step: &i64) {
     c = c + step;

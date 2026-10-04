@@ -9,8 +9,10 @@ use super::mlp::*;
 use super::residual::*;
 use super::rows::*;
 
-// d[0] -= aq, and for each step c[m] -= J^T d[m] and d[m + 1] += c[m], with the gradients
-// of the weights taken off with it, where J is that of F at the cell e[K - 2 - m] it was
+// d[0] -= aq, and for each step c[m] -= J^T d[m] and d[m + 1] += c[m], with the
+// gradients
+// of the weights taken off with it, where J is that of F at the cell e[K - 2 - m] it
+// was
 // applied to. Like the chain it undoes, no call reads the array it writes.
 fn chain_adjoint<N, M, K>(
     d: &mut [[i64; N]; K],

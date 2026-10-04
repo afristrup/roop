@@ -5,9 +5,12 @@
 
 use super::act::*;
 
-// r += exp(x) in Q24 for x <= 0 in Q12, as (1 + y + y^2 / 2 + y^3 / 6) ^ 64 for y = x / 64,
-// six squarings in Q24, and 0 below -16, where exp is about 2 units of Q24. It is within
-// 1 per cent down to -16. The first version, (1 + x / 64) ^ 64 in Q12, was 20 per cent off at -5.
+// r += exp(x) in Q24 for x <= 0 in Q12, as (1 + y + y^2 / 2 + y^3 / 6) ^ 64 for y = x
+// / 64,
+// six squarings in Q24, and 0 below -16, where exp is about 2 units of Q24. It is
+// within
+// 1 per cent down to -16. The first version, (1 + x / 64) ^ 64 in Q12, was 20 per cent
+// off at -5.
 pub fn exp_neg(r: &mut i64, x: &i64) {
     if x < -65536 {} else {
         ancilla y: i64 = 0;
@@ -67,7 +70,8 @@ fn total_of<K>(s: &mut i64, ex: &[i64; K]) {
     k -= K - 1;
 }
 
-// aq[k] += (p[k] - t[k]) * scale for p = ex / s, with p computed at the resolution of the
+// aq[k] += (p[k] - t[k]) * scale for p = ex / s, with p computed at the resolution of
+// the
 // scale, and total += (p - t)^2 / 2
 fn probabilities<N, K>(
     aq: &mut [i64; N],
@@ -85,8 +89,10 @@ fn probabilities<N, K>(
     k -= K - 1;
 }
 
-// The softmax cross entropy over the first K outputs, seeded as aq += (softmax(q) - t) * scale.
-// A scale above 1 lifts everything the backward pass computes, so that what is below a unit
+// The softmax cross entropy over the first K outputs, seeded as aq += (softmax(q) - t)
+// * scale.
+// A scale above 1 lifts everything the backward pass computes, so that what is below a
+// unit
 // of Q12 is not lost on the way; the optimizer divides it out.
 pub fn seed_softmax<N, K>(
     aq: &mut [i64; N],
@@ -114,7 +120,8 @@ fn sigmoids<N, K>(p: &mut [i64; K], q: &[i64; N]) {
     k -= K - 1;
 }
 
-// The sigmoid cross entropy over the first K outputs, seeded as aq += (sigmoid(q) - t) * scale.
+// The sigmoid cross entropy over the first K outputs, seeded as aq += (sigmoid(q) - t)
+// * scale.
 pub fn seed_sigmoid<N, K>(
     aq: &mut [i64; N],
     total: &mut i64,
@@ -133,7 +140,8 @@ pub fn seed_sigmoid<N, K>(
     uncall sigmoids<N, K>(p, q);
 }
 
-// The seed of each of B rows: aq[r] += (softmax(q[r]) - t[r]) * scale, and the squared errors
+// The seed of each of B rows: aq[r] += (softmax(q[r]) - t[r]) * scale, and the squared
+// errors
 // added to total.
 pub fn seed_softmax_batch<N, K, B>(
     aq: &mut [[i64; N]; B],

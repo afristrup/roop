@@ -64,7 +64,8 @@ fn clear_input<N, M, K>(
     uncall fixed_point<N, M, K>(e, a, p, w1, b1, w2, b2, kind);
 }
 
-// The block, with p zero on entry: q leaves as x + F(x) up to the remnant, p as minus it.
+// The block, with p zero on entry: q leaves as x + F(x) up to the remnant, p as minus
+// it.
 pub fn residual<N, M, K>(
     q: &mut [i64; N],
     p: &mut [i64; N],

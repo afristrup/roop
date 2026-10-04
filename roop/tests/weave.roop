@@ -430,7 +430,8 @@ test a_short_chain_leaves_a_remnant_and_the_block_still_reverses_exactly {
 }
 
 // A contraction with a bound near 0.84 (the weights are 245 / 4096 times integers of
-// spectral norm 15.3, tanh has slope 1): the chain of 50 cells leaves no remnant at all.
+// spectral norm 15.3, tanh has slope 1): the chain of 50 cells leaves no remnant at
+// all.
 test a_wide_contraction_leaves_no_remnant_and_the_block_reverses_exactly {
     q: [i64; 8],
         p: [i64; 8],
@@ -465,7 +466,8 @@ test a_wide_contraction_leaves_no_remnant_and_the_block_reverses_exactly {
     expect p[0] == 0 && p[7] == 0 && q[0] == 0 - 2048;
 }
 
-// exp(-1), exp(-2), exp(-5) and exp(-8) times 2^24 are 6171993, 2270549, 113044 and 5628.
+// exp(-1), exp(-2), exp(-5) and exp(-8) times 2^24 are 6171993, 2270549, 113044 and
+// 5628.
 test exp_neg_is_within_a_per_cent_in_q24 {
     r: [i64; 5], x: [i64; 4];
     x[0] += 0 - 4096;
@@ -495,7 +497,8 @@ test rsqrt_of_a_large_mean_square_is_not_zero {
 }
 
 // With a scale of 256 the seed of the uniform softmax is 256 times as large, and the
-// probability of the loser of a clear win keeps the units that Q12 drops: exp(-8.06) is 0.0003,
+// probability of the loser of a clear win keeps the units that Q12 drops: exp(-8.06)
+// is 0.0003,
 // about one unit of Q12 and 335 at the scale.
 test the_softmax_seed_is_scaled_and_finer {
     aq: [i64; 2],
