@@ -6,6 +6,7 @@ standard deviation over its seeds.
 
 import collections
 import json
+import math
 import statistics
 import sys
 
@@ -15,6 +16,10 @@ DEFAULTS = {"init_scale": 1.0, "out_scale": 1.0, "norm": False, "input_scale": 1
 
 
 def spread(values, digits=3):
+    if not all(math.isfinite(v) for v in values):
+        return "nan"
+    if max(abs(v) for v in values) > 1000:
+        return f"{statistics.mean(values):.1e}"
     if len(values) == 1:
         return f"{values[0]:.{digits}f}"
     return f"{statistics.mean(values):.{digits}f} +- {statistics.stdev(values):.{digits}f}"

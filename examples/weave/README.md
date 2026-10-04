@@ -37,8 +37,9 @@ uv run --project ../../crates/roop-weave/python --extra torch python run.py digi
 The first argument is the task, `digits` or `chars`. Options: `--depth` is the number of layers (a leapfrog layer
 and `depth - 1` blocks); `--kinds mlp,attention,conv` cycles the block kinds; `--hidden`,
 `--act`, `--norm` (RMSNorm in the perceptrons), `--init-scale`, `--out-scale`, `--input-scale`,
-`--batch`, `--cap` (fewer training samples), `--fixed-eval` (also test the compiled fixed point
-forward pass, which is slow).
+`--batch`, `--cap` (fewer training samples), `--loss-scale` (weave only: see `docs/reference.md`),
+`--dtype float32` (the plain MLP), `--fixed-eval` (also test the compiled fixed point forward pass,
+which is slow).
 
 A list of configurations, one per line of arguments, with each run in its own process so that
 peak memory is its own:
@@ -49,7 +50,10 @@ printf 'digits --method plain\ndigits --method weave\n' |
 python show.py results.jsonl method=weave
 ```
 
-`results/` holds the runs behind the document, one `.jsonl` file per table.
+`report.py` prints result files as a markdown table (mean and standard deviation over seeds),
+`gradient_error.py` measures weave's gradient against the float gradient during training, and
+`results/` holds the runs behind the document, one `.jsonl` file per table, such as
+`python report.py results/digits_depth8.jsonl`.
 
 ## Test
 
