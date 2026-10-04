@@ -139,6 +139,15 @@ class RealTorch(unittest.TestCase):
         again = evaluate(export(net.eval(), outputs=1), xs, ts)
         self.assertAlmostEqual(again, losses[-1], delta=0.02 + 0.1 * losses[-1])
 
+    def test_a_diverging_run_raises_instead_of_reporting_a_wrapped_loss(self):
+        torch.manual_seed(1)
+        net = nn.Sequential(nn.Linear(4, 6), nn.Tanh(), nn.Linear(6, 4))
+        xs = [[1, 1, 1, 0], [1, -1, 1, 0], [-1, 1, 1, 0], [-1, -1, 1, 0]]
+        ts = [[-0.5], [0.5], [0.5], [-0.5]]
+        roop = os.environ.get("WEAVE_ROOP", "roop")
+        with self.assertRaisesRegex(RuntimeError, "overflow"):
+            train(net, xs, ts, epochs=2, rate=1.0e9, roop=roop)
+
     def test_training_a_residual_net_and_a_layernorm_net_through_weave(self):
         xs = [[1, 1, 1, 0], [1, -1, 1, 0], [-1, 1, 1, 0], [-1, -1, 1, 0]]
         ts = [[-0.5], [0.5], [0.5], [-0.5]]
