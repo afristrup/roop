@@ -117,8 +117,8 @@ fn conv_one(y: &mut [i64; @N@], ay: &[i64; @N@], ax: &mut [i64; @N@],
 fn conv_all(y: &mut [[i64; @N@]; @B@], ay: &[[i64; @N@]; @B@], ax: &mut [[i64; @N@]; @B@],
             gw: &mut [[i64; @CK@]; @C@], gb: &mut [i64; @C@],
             w: &[[i64; @CK@]; @C@], b: &[i64; @C@], x: &[[i64; @N@]; @B@]) {
-    call conv_batch<@C@, @KS@, @T@, @N@, @CK@, @B@>(y, w, b, x);
-    call conv_back_batch<@C@, @KS@, @T@, @N@, @CK@, @B@>(y, ay, ax, gw, gb, w, b, x);
+    call conv_batch<@C@, @KS@, @T@, @N@, @CK@, @B@, @B@ * @T@>(y, w, b, x);
+    call conv_back_batch<@C@, @KS@, @T@, @N@, @CK@, @B@, @B@ * @T@>(y, ay, ax, gw, gb, w, b, x);
 }
 ";
 

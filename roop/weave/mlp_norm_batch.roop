@@ -105,6 +105,21 @@ pub fn mlp_norm_back_batch<N, M, B>(
     kind: &i64,
     eps: &i64,
 ) {
-    call mlp_norm_vjp_batch<N, M, B>(ax, gw1, gb1, gg, gw2, gb2, ay, w1, b1, g, w2, x, kind, eps);
+    call mlp_norm_vjp_batch<N, M, B>(
+        ax,
+        gw1,
+        gb1,
+        gg,
+        gw2,
+        gb2,
+        ay,
+        w1,
+        b1,
+        g,
+        w2,
+        x,
+        kind,
+        eps,
+    );
     uncall mlp_norm_batch<N, M, B>(y, w1, b1, g, w2, b2, x, kind, eps);
 }

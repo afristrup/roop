@@ -13,7 +13,9 @@ pub fn rmsnorm_rows<M, B>(
     eps: &i64,
 ) {
     ancilla r: i64 = 0;
-    from r == 0 { call rmsnorm<M>(n[r], z[r], g, eps); } loop { r += 1; } until r == B - 1;
+    from r == 0 {
+        call rmsnorm<M>(n[r], z[r], g, eps);
+    } loop { r += 1; } until r == B - 1;
     r -= B - 1;
 }
 

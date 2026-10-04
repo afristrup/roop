@@ -54,7 +54,7 @@ pub fn col2im<C, K, T, N, CK>(x: &mut [i64; N], col: &[[i64; T]; CK]) {
 }
 
 // y[c * T + t] += o[c][t] + b[c]
-pub fn unfold_bias<C, T, N>(y: &mut [i64; N], o: &[[i64; T]; C], b: &[i64; C]) {
+fn unfold_bias<C, T, N>(y: &mut [i64; N], o: &[[i64; T]; C], b: &[i64; C]) {
     call unfold<C, T, N>(y, o);
     ancilla c: i64 = 0;
     from c == 0 {

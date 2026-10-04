@@ -152,8 +152,8 @@ the program this way, starting from the file you give them.
 Array and stack lengths can be parameters. `fn f<N>(x: &mut [i64; N])` is
 written once, and `call f<8>(x);` instantiates it at 8. Every instance is an
 ordinary function, checked, compiled and proved on its own, so nothing generic
-survives to the later stages. Lengths in a call are numbers or the caller's own
-parameters, and `N - 1` and similar fold to a constant.
+survives to the later stages. Lengths in a call are numbers, the caller's own
+parameters or products of them (`B * 8`), and `N - 1` and similar fold to a constant.
 
 ```rust
 fn axpy<N>(y: &mut [i64; N], x: &[i64; N], k: &i64) {
@@ -683,12 +683,19 @@ changed.
 `layer_back_batch`, `backward_batch`, `grad_batch` and `step_batch` run `B`
 samples as matrix products, on a state of `B` rows (`[[i64; N]; B]`), and
 `mlp_batch`, `mlp_back_batch`, `attn_batch` and `attn_back_batch` do the same for
-the perceptron and attention blocks. They add into places they do not read and
+the perceptron and attention blocks. `mlp_norm_batch`, `mlp_layer_batch` and
+`conv_batch` (with their `_back_batch` forms) do the same for the normalized
+perceptrons, whose contractions are one matrix product over the rows and only the
+normalization, with statistics of its own for each row, goes row by row, and for the
+convolution, which stacks the unfolded signals of the rows side by side so that the
+filters meet them in one product (`conv_batch<C, K, T, N, CK, B, BT>` takes
+`BT = B * T`). They add into places they do not read and
 rebuild every intermediate by `uncall` like the single-sample functions, so a
 batch needs no more memory per layer than a sample does, and none that grows with
 the depth. The gradients they add are the sums of what `B` calls of the
 single-sample function add, to the bit (a test checks that for the leapfrog
-network, the perceptron and attention, for every activation).
+network, the perceptron, attention, the normalized perceptrons and the
+convolution, for every activation).
 `step_parallel<N, M, L, K, B, C>` splits a step into `C` chunks of `B` samples,
 each with its own buffers and its own gradients, runs them with `#[parallel(cpu)]`,
 adds the gradients up and takes the step, which gives the weights of one batch of

@@ -201,20 +201,6 @@ pub einsum fn qattend: q12 = "bqk,bkd->bqd";
 // The transpose of each matrix of a batch times another.
 pub einsum fn qattend_t: q12 = "bji,bjk->bik";
 
-// A shared matrix times each matrix of a batch: the filters of a convolution
-// over the unfolded signals of a batch.
-pub einsum fn qshared_left: q12 = "ij,bjk->bik";
-
-// The transpose of a shared matrix times each matrix of a batch.
-pub einsum fn qshared_left_t: q12 = "ij,bik->bjk";
-
-// The sum of each row over a batch of matrices, with no scaling.
-pub einsum fn qbatch_row_sums: q12 = "bij->i";
-
-// The sum, over a batch of matrices, of the first times the transpose of the
-// second, without the division by 4096: the gradient of a shared filter, in Q24.
-pub einsum fn ishared_grad: i64 = "bij,bkj->ik";
-
 // The wide fixed-point contractions of weave: the numbers are Q12, as above, but
 // the products of a sum are added exactly, in 64 bits, and the sum is divided by
 // 4096 once. That is more exact than `q12`, and each is one matrix product on
