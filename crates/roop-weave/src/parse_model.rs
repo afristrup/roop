@@ -16,6 +16,8 @@ fn field<'a>(
     })
 }
 
+const MAX_LOSS_SCALE: i64 = 4096;
+
 fn count(parent: &Value, key: &str) -> Result<usize, WeaveError> {
     match field(parent, "", key, "a positive whole number")?.as_u64() {
         Some(n) if n > 0 => Ok(n as usize),
@@ -330,6 +332,19 @@ fn rate(optimizer: &Value, key: &str, default: f64) -> Result<f64, WeaveError> {
     }
 }
 
+fn parse_loss_scale(root: &Value) -> Result<i64, WeaveError> {
+    let Some(value) = root.get("loss_scale") else {
+        return Ok(1);
+    };
+    match value.as_i64() {
+        Some(n) if (1..=MAX_LOSS_SCALE).contains(&n) => Ok(n),
+        _ => Err(WeaveError::Field {
+            path: "loss_scale".into(),
+            expected: "a whole number from 1 to 4096",
+        }),
+    }
+}
+
 fn parse_optimizer(root: &Value) -> Result<Optimizer, WeaveError> {
     let Some(value) = root.get("optimizer") else {
         return Ok(Optimizer::Sgd);
@@ -392,5 +407,6 @@ pub fn parse_model(text: &str) -> Result<Model, WeaveError> {
         layers,
         loss: parse_loss(&root)?,
         optimizer: parse_optimizer(&root)?,
+        loss_scale: parse_loss_scale(&root)?,
     })
 }

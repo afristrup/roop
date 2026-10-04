@@ -21,12 +21,17 @@ pub fn emit_grad(model: &Model, batched: bool) -> String {
     let weights = names(&model.tensors()).join(", ");
     let gradients = names(&grads).join(", ");
     let extra = if batched { ", B" } else { "" };
+    let scale = model.loss_scale;
     let seed = match model.loss {
         LossKind::Mse => format!(
-            "call loss{s}<{n}, {k}{extra}>(total, q, t);\n    call seed{s}<{n}, {k}{extra}>(aq, q, t);"
+            "call loss{s}<{n}, {k}{extra}>(total, q, t);\n    call seed_scaled{s}<{n}, {k}{extra}>(aq, q, t, {scale});"
         ),
-        LossKind::Sigmoid => format!("call seed_sigmoid{s}<{n}, {k}{extra}>(aq, total, q, t);"),
-        LossKind::Softmax => format!("call seed_softmax{s}<{n}, {k}{extra}>(aq, total, q, t);"),
+        LossKind::Sigmoid => {
+            format!("call seed_sigmoid{s}<{n}, {k}{extra}>(aq, total, q, t, {scale});")
+        }
+        LossKind::Softmax => {
+            format!("call seed_softmax{s}<{n}, {k}{extra}>(aq, total, q, t, {scale});")
+        }
     };
     format!(
         "pub fn {name}_grad{s}{generics}(\n{}) {{

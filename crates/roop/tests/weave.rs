@@ -590,7 +590,10 @@ fn centered(zc: &mut [i64; 3], z: &[i64; 3], m: &i64) {
     let out = roop(&dir, &["lean", "prog.roop", "--check"]);
     assert!(out.status.success(), "{}", stderr(&out));
     let report = String::from_utf8_lossy(&out.stdout).into_owned();
-    for name in ["weave__layer_norm__mean_of__3", "weave__layer_norm__center__3"] {
+    for name in [
+        "weave__layer_norm__mean_of__3",
+        "weave__layer_norm__center__3",
+    ] {
         assert!(report.contains(name), "{name} missing: {report}");
     }
     assert!(report.contains("Lean accepted the file"), "{report}");

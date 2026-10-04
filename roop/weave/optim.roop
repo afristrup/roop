@@ -2,13 +2,38 @@
 // and so does the step that clears the gradients after them, so they belong to the
 // training step and not to the reversible gradient. Numbers are Q12 except the
 // second moment of Adam, which is Q24 so that a small squared gradient is not lost.
+//
+// The gradients arrive multiplied by the loss scale (see `seed_softmax`) and each step
+// divides it out.
+//
+// A step is computed in Q24 and applied through `descend`, which keeps what is below a
+// unit of the Q12 weight in a carry and adds it to the next step. Without it a step
+// below a unit is dropped, and at a small learning rate most of them are.
 
-// r gets the largest number whose square is at most n, for n that is not negative.
+// r gets the largest number whose square is at most n, for n that is not negative. The
+// search starts from a bound on the root that n allows, so a small n takes few steps.
 irrev fn isqrt(r: &mut i64, n: &i64) {
     ancilla lo: i64 = 0;
     ancilla hi: i64 = 3037000499;
     ancilla mid: i64 = 0 {
         ancilla first: i64 = 1;
+        if n < 4096 {
+            hi = 64;
+        } else {
+            if n < 1048576 {
+                hi = 1024;
+            } else {
+                if n < 268435456 {
+                    hi = 16384;
+                } else {
+                    if n < 68719476736 {
+                        hi = 262144;
+                    } else {
+                        hi = 3037000499;
+                    } fi n < 68719476736;
+                } fi n < 268435456;
+            } fi n < 1048576;
+        } fi n < 4096;
         from first == 1 {
             mid = (lo + hi + 1) / 2;
             if mid * mid <= n { lo = mid; } else { hi = mid - 1; } fi mid * mid <= n;
@@ -17,20 +42,64 @@ irrev fn isqrt(r: &mut i64, n: &i64) {
     r = lo;
 }
 
+// w -= step / 4096 for a step in Q24, the part below a unit of w going into the carry c to
+// be added to the next step.
+irrev fn descend(w: &mut i64, c: &mut i64, step: &i64) {
+    c = c + step;
+    w -= c / 4096;
+    c = c - c / 4096 * 4096;
+}
+
+// w -= lr * g / scale with g in Q12, the vector of a bias.
+pub irrev fn sgd_carry_vec<M>(
+    w: &mut [i64; M],
+    g: &[i64; M],
+    c: &mut [i64; M],
+    lr: &i64,
+    scale: &i64,
+) {
+    ancilla i: i64 = 0;
+    from i == 0 {
+        call descend(w[i], c[i], lr * g[i] / scale);
+    } loop { i += 1; } until i == M - 1;
+    i -= M - 1;
+}
+
+// w -= lr * g / scale with g in Q24, the gradient of a matrix.
+pub irrev fn sgd_carry_mat<N, M>(
+    w: &mut [[i64; N]; M],
+    g: &[[i64; N]; M],
+    c: &mut [[i64; N]; M],
+    lr: &i64,
+    scale: &i64,
+) {
+    ancilla j: i64 = 0;
+    from j == 0 {
+        ancilla i: i64 = 0;
+        from i == 0 {
+            call descend(w[j][i], c[j][i], lr * g[j][i] / (4096 * scale));
+        } loop { i += 1; } until i == N - 1;
+        i -= N - 1;
+    } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
+}
+
 // m = beta * m + g / unit, then w -= lr * m. The unit of a gradient is 1 for a vector
 // and 4096 for a matrix, whose gradient is in Q24.
 pub irrev fn momentum_vec<M>(
     w: &mut [i64; M],
     g: &[i64; M],
     m: &mut [i64; M],
+    c: &mut [i64; M],
     lr: &i64,
     beta: &i64,
     unit: &i64,
+    scale: &i64,
 ) {
     ancilla i: i64 = 0;
     from i == 0 {
         m[i] = beta * m[i] / 4096 + g[i] / unit;
-        w[i] -= lr * m[i] / 4096;
+        call descend(w[i], c[i], lr * m[i] / scale);
     } loop { i += 1; } until i == M - 1;
     i -= M - 1;
 }
@@ -39,38 +108,71 @@ pub irrev fn momentum_mat<N, M>(
     w: &mut [[i64; N]; M],
     g: &[[i64; N]; M],
     m: &mut [[i64; N]; M],
+    c: &mut [[i64; N]; M],
     lr: &i64,
     beta: &i64,
+    scale: &i64,
 ) {
     ancilla j: i64 = 0;
     from j == 0 {
-        call momentum_vec<N>(w[j], g[j], m[j], lr, beta, 4096);
+        call momentum_vec<N>(w[j], g[j], m[j], c[j], lr, beta, 4096, scale);
     } loop { j += 1; } until j == M - 1;
     j -= M - 1;
 }
 
-// Adam without the bias correction: m = b1 m + (1 - b1) g and v = b2 v + (1 - b2) g^2
-// (v in Q24), then w -= lr m / (sqrt(v) + eps).
-pub irrev fn adam_vec<M>(
+// t = [1 - b1^n, 1 - b2^n] in Q24 for the n-th step. It starts at zero, which is n = 0.
+pub irrev fn adam_advance(t: &mut [i64; 2], b1: &i64, b2: &i64) {
+    t[0] = 16777216 - b1 * (16777216 - t[0]) / 4096;
+    t[1] = 16777216 - b2 * (16777216 - t[1]) / 4096;
+}
+
+// Adam: m = b1 m + (1 - b1) g and v = b2 v + (1 - b2) g^2 (v in Q24), then
+// w -= lr m^ / (sqrt(v^) + eps), with m^ = m / t[0] and v^ = v / t[1] corrected for
+// starting at zero. The factors 2^36 / t are Q12, at most 1000 and 10.
+irrev fn adam_row<M>(
     w: &mut [i64; M],
     g: &[i64; M],
     m: &mut [i64; M],
     v: &mut [i64; M],
+    t: &[i64; 2],
+    c: &mut [i64; M],
     lr: &i64,
     b1: &i64,
     b2: &i64,
     unit: &i64,
+    scale: &i64,
 ) {
     ancilla i: i64 = 0;
     from i == 0 {
         ancilla r: i64 = 0;
         m[i] = (b1 * m[i] + (4096 - b1) * (g[i] / unit)) / 4096;
         v[i] = (b2 * v[i] + (4096 - b2) * (g[i] / unit * (g[i] / unit))) / 4096;
-        call isqrt(r, v[i]);
-        w[i] -= lr * (m[i] * 4096 / (r + 4)) / 4096;
+        call isqrt(r, v[i] * (68719476736 / t[1]) / 4096);
+        call descend(
+            w[i],
+            c[i],
+            lr * (m[i] * (68719476736 / t[0]) / 4096 * 4096 / (r + 4 * scale)),
+        );
         r = 0;
     } loop { i += 1; } until i == M - 1;
     i -= M - 1;
+}
+
+pub irrev fn adam_vec<M>(
+    w: &mut [i64; M],
+    g: &[i64; M],
+    m: &mut [i64; M],
+    v: &mut [i64; M],
+    t: &mut [i64; 2],
+    c: &mut [i64; M],
+    lr: &i64,
+    b1: &i64,
+    b2: &i64,
+    unit: &i64,
+    scale: &i64,
+) {
+    call adam_advance(t, b1, b2);
+    call adam_row<M>(w, g, m, v, t, c, lr, b1, b2, unit, scale);
 }
 
 pub irrev fn adam_mat<N, M>(
@@ -78,13 +180,17 @@ pub irrev fn adam_mat<N, M>(
     g: &[[i64; N]; M],
     m: &mut [[i64; N]; M],
     v: &mut [[i64; N]; M],
+    t: &mut [i64; 2],
+    c: &mut [[i64; N]; M],
     lr: &i64,
     b1: &i64,
     b2: &i64,
+    scale: &i64,
 ) {
     ancilla j: i64 = 0;
+    call adam_advance(t, b1, b2);
     from j == 0 {
-        call adam_vec<N>(w[j], g[j], m[j], v[j], lr, b1, b2, 4096);
+        call adam_row<N>(w[j], g[j], m[j], v[j], t, c[j], lr, b1, b2, 4096, scale);
     } loop { j += 1; } until j == M - 1;
     j -= M - 1;
 }

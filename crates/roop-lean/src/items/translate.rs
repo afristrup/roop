@@ -1,7 +1,7 @@
 use crate::{
     Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, SESSION_PRELUDE, Translation, call_lemmas,
-    updates_only, esc_fn, lean_commute, lean_enum, lean_fn, lean_loop_lemmas, lean_session,
-    lean_struct, lean_theorems, lean_try_lemmas,
+    esc_fn, lean_commute, lean_enum, lean_fn, lean_loop_lemmas, lean_session, lean_struct,
+    lean_theorems, lean_try_lemmas, updates_only,
 };
 use roop_check::{calls_in, is_irreversible_fn};
 use roop_syntax::{FnDef, Item, Program};

@@ -195,7 +195,7 @@ test fold_and_unfold_are_the_same_numbers_in_two_shapes {
 test softmax_of_equal_scores_is_uniform {
     aq: [i64; 2], total: i64, q: [i64; 2], t: [i64; 2];
     t[0] += 4096;
-    call seed_softmax<2, 2>(aq, total, q, t);
+    call seed_softmax<2, 2>(aq, total, q, t, 1);
     expect aq[0] == 0 - 2048 && aq[1] == 2048;
 }
 
@@ -203,7 +203,7 @@ test softmax_of_a_clear_winner_is_close_to_one {
     aq: [i64; 3], total: i64, q: [i64; 3], t: [i64; 3];
     q[1] += 20480;
     t[1] += 4096;
-    call seed_softmax<3, 3>(aq, total, q, t);
+    call seed_softmax<3, 3>(aq, total, q, t, 1);
     expect aq[1] > 0 - 60
         && aq[1] <= 0
         && aq[0] >= 0
@@ -214,14 +214,14 @@ test softmax_of_a_clear_winner_is_close_to_one {
 
 test softmax_of_one_third_is_exact_enough {
     aq: [i64; 3], total: i64, q: [i64; 3], t: [i64; 3];
-    call seed_softmax<3, 3>(aq, total, q, t);
+    call seed_softmax<3, 3>(aq, total, q, t, 1);
     expect aq[0] > 1360 && aq[0] < 1370 && aq[1] == aq[0] && aq[2] == aq[0];
 }
 
 test sigmoid_loss_seeds_the_prediction_minus_the_target {
     aq: [i64; 2], total: i64, q: [i64; 2], t: [i64; 2];
     t[0] += 4096;
-    call seed_sigmoid<2, 2>(aq, total, q, t);
+    call seed_sigmoid<2, 2>(aq, total, q, t, 1);
     expect aq[0] == 0 - 2048 && aq[1] == 2048;
 }
 
@@ -463,4 +463,53 @@ test a_wide_contraction_leaves_no_remnant_and_the_block_reverses_exactly {
     expect s == 0;
     uncall residual<8, 8, 50>(q, p, w1, b1, w2, b2, kind);
     expect p[0] == 0 && p[7] == 0 && q[0] == 0 - 2048;
+}
+
+// exp(-1), exp(-2), exp(-5) and exp(-8) times 2^24 are 6171993, 2270549, 113044 and 5628.
+test exp_neg_is_within_a_per_cent_in_q24 {
+    r: [i64; 5], x: [i64; 4];
+    x[0] += 0 - 4096;
+    x[1] += 0 - 8192;
+    x[2] += 0 - 20480;
+    x[3] += 0 - 32768;
+    call exp_neg(r[0], 0 + 0);
+    call exp_neg(r[1], x[0]);
+    call exp_neg(r[2], x[1]);
+    call exp_neg(r[3], x[2]);
+    call exp_neg(r[4], x[3]);
+    expect r[0] == 16777216;
+    expect r[1] > 6171993 * 99 / 100 && r[1] < 6171993 * 101 / 100;
+    expect r[2] > 2270549 * 99 / 100 && r[2] < 2270549 * 101 / 100;
+    expect r[3] > 113044 * 99 / 100 && r[3] < 113044 * 101 / 100;
+    expect r[4] > 5628 * 99 / 100 && r[4] < 5628 * 101 / 100;
+}
+
+// 1 / sqrt(100) = 0.1 and 1 / sqrt(10000) = 0.01, which are 409.6 and 41.0 in Q12.
+test rsqrt_of_a_large_mean_square_is_not_zero {
+    r: i64, t: i64, big: i64, huge: i64;
+    big += 409600;
+    huge += 40960000;
+    call rsqrt(r, big);
+    call rsqrt(t, huge);
+    expect r > 405 && r < 414 && t >= 40 && t <= 41;
+}
+
+// With a scale of 256 the seed of the uniform softmax is 256 times as large, and the
+// probability of the loser of a clear win keeps the units that Q12 drops: exp(-8.06) is 0.0003,
+// about one unit of Q12 and 335 at the scale.
+test the_softmax_seed_is_scaled_and_finer {
+    aq: [i64; 2],
+        total: i64,
+        q: [i64; 2],
+        t: [i64; 2],
+        bq: [i64; 2],
+        bt: [i64; 2],
+        baq: [i64; 2];
+    t[0] += 4096;
+    call seed_softmax<2, 2>(aq, total, q, t, 256);
+    expect aq[0] == 0 - 2048 * 256 && aq[1] == 2048 * 256;
+    bq[0] += 33000;
+    bt[0] += 4096;
+    call seed_softmax<2, 2>(baq, total, bq, bt, 256);
+    expect baq[1] > 320 && baq[1] < 350 && baq[0] > 0 - 350 && baq[0] < 0 - 320;
 }

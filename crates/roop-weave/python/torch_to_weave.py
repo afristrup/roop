@@ -345,7 +345,7 @@ def parameters(block, leaves, i):
 
 
 def export_bound(model, outputs=None, step=0.25, name="model", loss="mse", optimizer=None,
-                 width=None):
+                 width=None, loss_scale=1):
     """The roop-weave model for a torch module as a dict, and the torch tensors
     that hold each of its weights, in the order roop-weave keeps them."""
     plain = kind(model) == "Sequential" and is_plain(model)
@@ -376,12 +376,17 @@ def export_bound(model, outputs=None, step=0.25, name="model", loss="mse", optim
         spec["loss"] = loss
     if optimizer is not None:
         spec["optimizer"] = optimizer
+    if loss_scale != 1:
+        spec["loss_scale"] = loss_scale
     return spec, bound
 
 
-def export(model, outputs=None, step=0.25, name="model", loss="mse", optimizer=None, width=None):
-    """The roop-weave model for a torch module, as a dict."""
-    return export_bound(model, outputs, step, name, loss, optimizer, width)[0]
+def export(model, outputs=None, step=0.25, name="model", loss="mse", optimizer=None, width=None,
+           loss_scale=1):
+    """The roop-weave model for a torch module, as a dict. A `loss_scale` multiplies what the
+    backward pass computes, and the optimizer divides it out, so that gradients below a
+    unit of Q12 are not lost."""
+    return export_bound(model, outputs, step, name, loss, optimizer, width, loss_scale)[0]
 
 
 def load(spec):

@@ -688,15 +688,26 @@ arguments to build a graph from. A test measures throughput: `cargo test -p roop
 The loss is chosen in the model: `"loss": "mse"` (half the squared error, the default),
 `"sigmoid"` or `"softmax"`. For the two cross entropies the seed of the backward pass is
 the usual `p - t`, with the sigmoid from the tanh above and an exponential computed as
-`(1 + x / 64) ^ 64` (within 1% down to -2, about 7% off at -5); the cross entropy needs a
+`(1 + y + y^2 / 2 + y^3 / 6) ^ 64` for `y = x / 64` in Q24 (in Q24, within 1% down to -16, and 0
+below -16); the cross entropy needs a
 logarithm, which weave lacks, so `total` is the squared error of the probabilities there.
 The softmax targets must sum to 1.
+
+`"loss_scale": S` (a whole number from 1 to 4096, default 1) multiplies the seed of the backward
+pass, so every adjoint and gradient is `S` times as large, and each optimizer divides it out in
+its step (Adam's epsilon is scaled with it). Q12 adjoints lose what is below 1/4096 at every
+layer on the way back, and the scale keeps it: with weights near 0.01 the gradients of a deep
+network are zero without it. The softmax and sigmoid seeds are computed at the resolution of the
+scale, and `total` is not scaled. In Python, `train(..., loss_scale=256)`.
 
 `"optimizer"` is `{"kind": "sgd"}`, `{"kind": "momentum", "beta": 0.9}` or
 `{"kind": "adam", "beta1": 0.9, "beta2": 0.999}`. The optimizers are `irrev`, since they
 overwrite their moving averages, and live in the training step; the gradient stays
-reversible. Adam has no bias correction, and keeps its second moment in Q24 so that small
-squared gradients are not lost. A matrix's gradient is in Q24, so the matrix
+reversible. Adam corrects its moving averages for starting at zero, as torch does, with
+two numbers of state per tensor, and keeps its second moment in Q24 so that small
+squared gradients are not lost. Each optimizer computes its step in Q24 and keeps what is below
+a unit of the Q12 weight in a carry (a tensor of state, `c`), added to the next step; without it
+a step below a unit is dropped, and at a small learning rate most are. A matrix's gradient is in Q24, so the matrix
 versions divide it by 4096 before the moving averages, and the vector ones take a unit of 1.
 
 `crates/roop-weave/python/weave_train.py` closes the loop with torch:
