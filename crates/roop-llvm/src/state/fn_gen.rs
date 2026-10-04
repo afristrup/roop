@@ -65,8 +65,13 @@ impl<'a> FnGen<'a> {
 
     pub fn alloca(&mut self, llvm_ty: &str) -> String {
         let addr = format!("%{}", self.fresh("a"));
+        let align = if llvm_ty.starts_with('[') {
+            ", align 64"
+        } else {
+            ""
+        };
         self.allocas
-            .push_str(&format!("  {addr} = alloca {llvm_ty}\n"));
+            .push_str(&format!("  {addr} = alloca {llvm_ty}{align}\n"));
         addr
     }
 }

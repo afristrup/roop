@@ -32,10 +32,20 @@ too. Neither can use the GPU here, since Metal has no double precision.
 
 | N | roop (auto) | roop (CPU threads) | Rust, 1 thread | Rust, all threads | Accelerate |
 |---:|---:|---:|---:|---:|---:|
-| 128 | 349.5 | 349.5 | 4.8 | 16.1 | 435.8 |
-| 256 | 404.3 | 404.3 | 3.4 | 16.6 | 460.2 |
-| 512 | 500.8 | 469.3 | 2.6 | 11.7 | 320.1 |
-| 1024 | 443.6 | 418.8 | 2.4 | 6.1 | 273.1 |
+| 128 | 387.2 | 388.7 | 4.8 | 16.2 | 435.8 |
+| 256 | 468.7 | 484.5 | 3.4 | 16.7 | 459.9 |
+| 512 | 544.6 | 547.8 | 2.7 | 12.3 | 439.0 |
+| 1024 | 528.0 | 525.1 | 2.5 | 8.2 | 442.9 |
+
+The second pass over the kernel (packing, tile exchange, threading, below) took
+roop from 349.5, 404.3, 488.1 and 476.2 GFLOP/s (auto, the same machine and
+script, rerun before the change) to the figures above. The matrices of
+`bench/roop/gemm_main.c` are now aligned to 128 bytes: they were not, and a
+matrix that is not 64-byte aligned costs the kernel 17 per cent (321.6 against
+387.2 at 128) and Accelerate 23 per cent in a C harness, while the Rust and
+Accelerate columns were measured on page-aligned `Vec`s. The timer is now
+`clock_gettime_nsec_np`; `CLOCK_MONOTONIC` has a resolution of one microsecond
+on macOS, which put every 128 figure on a step of about 40 GFLOP/s.
 
 Where roop stood before the work of this section, on the same machine
 (GFLOP/s, auto): 15.7, 14.5, 9.7 and 4.7 at the four sizes. Reordering the
@@ -56,16 +66,30 @@ Before: 147.5, 149.8, 113.7 and 101.6 (auto), measured with a shorter warm-up.
 
 ## What to read from them
 
-- **dgemm: roop matches or beats Accelerate from 512 up, and is 10 to 20 per
-  cent behind at 128 and 256.** The compiled loops alone reach 60 GFLOP/s, an
-  eighth of the kernel. At 512 the kernel is close to what the matrix unit can
-  do (about 560 GFLOP/s if it issues one 8 by 8 `fmopa` a cycle at 4.4 GHz,
-  which is an estimate and not a measurement). The small sizes lose to
-  Accelerate because a call has a fixed cost (entering streaming mode, and
-  transposing each block of `A` through the ZA tiles before its first use) that
-  is a larger share of a small product. Removing the pack's branches and
-  double buffering it, tried in a C harness, did not show a gain over the
-  noise.
+- **dgemm: roop is ahead of Accelerate from 256 up (about 1.02 to 1.05 at 256,
+  1.2 at 512 and 1024) and still about 11 per cent behind at 128. Parity at 128
+  was not reached.** The compiled loops alone reach 60 GFLOP/s, an eighth of the
+  kernel. At 512 the kernel is close to what the matrix unit can do (about 560
+  GFLOP/s if it issues one 8 by 8 `fmopa` a cycle at 4.4 GHz, which is an
+  estimate and not a measurement). Measured by removing parts of the kernel in a
+  C harness at 128 (one thread, 11.2 microseconds a call before this work, 9.6
+  for Accelerate): the transposing pack of `A` was about 20 per cent of the time
+  and loading and storing the C tiles through ZA about 10; a call's own cost
+  (entering streaming mode) is 0.13 microsecond. What helped: no multiply when
+  alpha is 1 (and `fmops` when it is -1), which the loops and the reversed call
+  use; reading the transposed columns out of ZA four at a time and storing them
+  four at a time; packing the next block between two tiles of the current one;
+  storing C tiles four ahead of reloading them; and splitting calls above 8
+  million multiply-adds into 16-row chunks on the thread pool in place of
+  64-row chunks above 64 million, which lets a 256 product use more than one
+  core's matrix unit (the gain is measured, the reason is a guess). What did not
+  help: pipelining the pack's loads two half-blocks ahead (slower), threading 128 (a pool wake costs more
+  than it saves, 262 to 276 GFLOP/s), larger chunks (worse at 512), and the
+  multi-vector ZA group moves, which address four rows of one tile stride 2
+  apart and not the four tiles of a row, so they cannot load a row of C. Single
+  threaded the kernel runs 389, 444, 453 and 413 at the four sizes in the C
+  harness, so at 128 the gap to Accelerate is in the pack and the C round trip
+  that a 128-deep product cannot amortise.
 - **daxpy: ahead of Accelerate from 1M elements up, about 25 per cent behind at
   64K.** At 4M and 16M everything is limited by memory at around 100 GB/s and
   roop is level with Accelerate. In cache the kernel moves 256 bytes a load
@@ -103,11 +127,15 @@ the proofs of `std::blas` are unchanged; the results differ from the loops in
 the last bits because the kernel fuses the multiply and the add, and a
 reversed `dgemm` restores its input to within rounding, as it did before.
 
-`dgemm` transposes a 16-row block of `A`, scaled by alpha, through the ZA tiles
-into a packed panel and sweeps it against 32 columns of `B` with eight `fmopa`
-tiles, 256 deep at a time. Calls above about 64 million multiply-adds split into
-64-row chunks on the thread pool, which adds 10 to 25 per cent. `daxpy` of 512K elements or more is chunked
-over the pool the same way.
+`dgemm` transposes a 16-row block of `A` through the ZA tiles into a packed panel
+(scaled by alpha unless alpha is 1 or -1, where `fmopa` or `fmops` does the sign)
+and sweeps it against 32 columns of `B` with eight `fmopa` tiles, 256 deep at a
+time. Calls above about 8 million multiply-adds split into 16-row chunks on the
+thread pool, which is most of the gain at 256 and 512. `daxpy` of 512K
+elements or more is chunked over the pool the same way. The kernel assumes
+nothing about alignment but is a fifth slower on matrices that are not 64-byte
+aligned, so the compiler aligns array locals to 64 bytes; arrays that come from
+a caller keep the caller's alignment.
 
 Without SME (an M1 to M3, or `sme = false` under `[parallel]` in `Roop.toml`)
 the loops are compiled as before. A host whose `clang` cannot build the kernels
@@ -382,10 +410,11 @@ noise, so none is in the code.
 
 What was not done:
 
-- The f64 `dgemm` of PR 13 still trails Accelerate at 128 and 256 (about 0.8 to
-  0.85 of its speed in the harness above, as before). Its tile loop issues about
-  1.9 FMOPA a nanosecond and Accelerate's about 2.9, and the load variants tried
-  did not move it.
+- The f64 `dgemm` trails Accelerate at 128 (0.89 of its speed after the second
+  pass, from 0.8) and is ahead from 256. The gap at 128 is the pack and the C
+  tile round trip, which a product 128 deep does not amortise; a 16 by 24 tile
+  that leaves two ZA tiles free to pack the next block while this one multiplies
+  was not tried, and 128 is not a multiple of 24.
 - Batched attention, convolution and the norm MLP are still loops over rows with
   no matrix kernel. The convolution and the attention products are `q12` einsums
   per sample, so they run on the NEON kernel; one product over all rows would be a
