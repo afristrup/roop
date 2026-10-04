@@ -631,7 +631,9 @@ The softmax targets must sum to 1.
 overwrite their moving averages, and live in the training step; the gradient stays
 reversible. Adam corrects its moving averages for starting at zero, as torch does, with
 two numbers of state per tensor, and keeps its second moment in Q24 so that small
-squared gradients are not lost. A matrix's gradient is in Q24, so the matrix
+squared gradients are not lost. Each optimizer computes its step in Q24 and keeps what is below
+a unit of the Q12 weight in a carry (a tensor of state, `c`), added to the next step; without it
+a step below a unit is dropped, and at a small learning rate most are. A matrix's gradient is in Q24, so the matrix
 versions divide it by 4096 before the moving averages, and the vector ones take a unit of 1.
 
 `crates/roop-weave/python/weave_train.py` closes the loop with torch:

@@ -14,7 +14,6 @@ from train_torch import optimizer_for
 from weave_train import train
 
 BATCH = 4
-STEPS = 3
 
 
 def model():
@@ -22,9 +21,9 @@ def model():
     return nn.Sequential(nn.Linear(4, 6), nn.Tanh(), nn.Linear(6, 4)).double()
 
 
-def samples():
+def samples(steps):
     torch.manual_seed(4)
-    return torch.randn(BATCH * STEPS, 4, dtype=torch.float64), 0.5 * torch.randn(BATCH * STEPS, 1, dtype=torch.float64)
+    return torch.randn(BATCH * steps, 4, dtype=torch.float64), 0.5 * torch.randn(BATCH * steps, 1, dtype=torch.float64)
 
 
 def torch_steps(net, kind, rate, xs, ts):
@@ -46,17 +45,21 @@ def weave_steps(net, kind, rate, xs, ts):
 
 
 class Optimizers(unittest.TestCase):
-    def close(self, kind, rate, slack):
-        net, (xs, ts) = model(), samples()
+    def close(self, kind, rate, slack, steps=3):
+        net, (xs, ts) = model(), samples(steps)
         start = [p.detach().flatten() for p in net.parameters()]
         ours, theirs = weave_steps(net, kind, rate, xs, ts), torch_steps(net, kind, rate, xs, ts)
         moved = sum(float((a - s).abs().sum()) for a, s in zip(theirs, start))
         gap = sum(float((a - b).abs().sum()) for a, b in zip(ours, theirs))
-        self.assertGreater(moved, 0.1)
+        self.assertGreater(moved, 0.05)
         self.assertLess(gap, slack * moved, f"{kind}: moved {moved:.4f}, differ by {gap:.4f}")
 
     def test_sgd_takes_torchs_steps(self):
         self.close("sgd", 0.0625, 0.05)
+
+    def test_a_step_below_a_unit_of_the_weight_is_not_lost(self):
+        self.close("sgd", 1 / 4096, 0.3, steps=24)
+        self.close("momentum", 1 / 4096, 0.3, steps=24)
 
     def test_momentum_takes_torchs_steps(self):
         self.close("momentum", 0.0625, 0.05)

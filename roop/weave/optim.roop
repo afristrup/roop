@@ -2,6 +2,10 @@
 // and so does the step that clears the gradients after them, so they belong to the
 // training step and not to the reversible gradient. Numbers are Q12 except the
 // second moment of Adam, which is Q24 so that a small squared gradient is not lost.
+//
+// A step is computed in Q24 and applied through `descend`, which keeps what is below a
+// unit of the Q12 weight in a carry and adds it to the next step. Without it a step
+// below a unit is dropped, and at a small learning rate most of them are.
 
 // r gets the largest number whose square is at most n, for n that is not negative.
 irrev fn isqrt(r: &mut i64, n: &i64) {
@@ -17,12 +21,48 @@ irrev fn isqrt(r: &mut i64, n: &i64) {
     r = lo;
 }
 
+// w -= step / 4096 for a step in Q24, the part below a unit of w going into the carry c to
+// be added to the next step.
+irrev fn descend(w: &mut i64, c: &mut i64, step: &i64) {
+    c = c + step;
+    w -= c / 4096;
+    c = c - c / 4096 * 4096;
+}
+
+// w -= lr * g with g in Q12, the vector of a bias.
+pub irrev fn sgd_carry_vec<M>(w: &mut [i64; M], g: &[i64; M], c: &mut [i64; M], lr: &i64) {
+    ancilla i: i64 = 0;
+    from i == 0 {
+        call descend(w[i], c[i], lr * g[i]);
+    } loop { i += 1; } until i == M - 1;
+    i -= M - 1;
+}
+
+// w -= lr * g with g in Q24, the gradient of a matrix.
+pub irrev fn sgd_carry_mat<N, M>(
+    w: &mut [[i64; N]; M],
+    g: &[[i64; N]; M],
+    c: &mut [[i64; N]; M],
+    lr: &i64,
+) {
+    ancilla j: i64 = 0;
+    from j == 0 {
+        ancilla i: i64 = 0;
+        from i == 0 {
+            call descend(w[j][i], c[j][i], lr * g[j][i] / 4096);
+        } loop { i += 1; } until i == N - 1;
+        i -= N - 1;
+    } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
+}
+
 // m = beta * m + g / unit, then w -= lr * m. The unit of a gradient is 1 for a vector
 // and 4096 for a matrix, whose gradient is in Q24.
 pub irrev fn momentum_vec<M>(
     w: &mut [i64; M],
     g: &[i64; M],
     m: &mut [i64; M],
+    c: &mut [i64; M],
     lr: &i64,
     beta: &i64,
     unit: &i64,
@@ -30,7 +70,7 @@ pub irrev fn momentum_vec<M>(
     ancilla i: i64 = 0;
     from i == 0 {
         m[i] = beta * m[i] / 4096 + g[i] / unit;
-        w[i] -= lr * m[i] / 4096;
+        call descend(w[i], c[i], lr * m[i]);
     } loop { i += 1; } until i == M - 1;
     i -= M - 1;
 }
@@ -39,12 +79,13 @@ pub irrev fn momentum_mat<N, M>(
     w: &mut [[i64; N]; M],
     g: &[[i64; N]; M],
     m: &mut [[i64; N]; M],
+    c: &mut [[i64; N]; M],
     lr: &i64,
     beta: &i64,
 ) {
     ancilla j: i64 = 0;
     from j == 0 {
-        call momentum_vec<N>(w[j], g[j], m[j], lr, beta, 4096);
+        call momentum_vec<N>(w[j], g[j], m[j], c[j], lr, beta, 4096);
     } loop { j += 1; } until j == M - 1;
     j -= M - 1;
 }
@@ -64,6 +105,7 @@ irrev fn adam_row<M>(
     m: &mut [i64; M],
     v: &mut [i64; M],
     t: &[i64; 2],
+    c: &mut [i64; M],
     lr: &i64,
     b1: &i64,
     b2: &i64,
@@ -75,7 +117,7 @@ irrev fn adam_row<M>(
         m[i] = (b1 * m[i] + (4096 - b1) * (g[i] / unit)) / 4096;
         v[i] = (b2 * v[i] + (4096 - b2) * (g[i] / unit * (g[i] / unit))) / 4096;
         call isqrt(r, v[i] * (68719476736 / t[1]) / 4096);
-        w[i] -= lr * ((m[i] * (68719476736 / t[0]) / 4096) * 4096 / (r + 4)) / 4096;
+        call descend(w[i], c[i], lr * ((m[i] * (68719476736 / t[0]) / 4096) * 4096 / (r + 4)));
         r = 0;
     } loop { i += 1; } until i == M - 1;
     i -= M - 1;
@@ -87,13 +129,14 @@ pub irrev fn adam_vec<M>(
     m: &mut [i64; M],
     v: &mut [i64; M],
     t: &mut [i64; 2],
+    c: &mut [i64; M],
     lr: &i64,
     b1: &i64,
     b2: &i64,
     unit: &i64,
 ) {
     call adam_advance(t, b1, b2);
-    call adam_row<M>(w, g, m, v, t, lr, b1, b2, unit);
+    call adam_row<M>(w, g, m, v, t, c, lr, b1, b2, unit);
 }
 
 pub irrev fn adam_mat<N, M>(
@@ -102,6 +145,7 @@ pub irrev fn adam_mat<N, M>(
     m: &mut [[i64; N]; M],
     v: &mut [[i64; N]; M],
     t: &mut [i64; 2],
+    c: &mut [[i64; N]; M],
     lr: &i64,
     b1: &i64,
     b2: &i64,
@@ -109,7 +153,7 @@ pub irrev fn adam_mat<N, M>(
     ancilla j: i64 = 0;
     call adam_advance(t, b1, b2);
     from j == 0 {
-        call adam_row<N>(w[j], g[j], m[j], v[j], t, lr, b1, b2, 4096);
+        call adam_row<N>(w[j], g[j], m[j], v[j], t, c[j], lr, b1, b2, 4096);
     } loop { j += 1; } until j == M - 1;
     j -= M - 1;
 }
