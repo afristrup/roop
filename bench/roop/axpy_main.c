@@ -7,9 +7,7 @@
 void axpy(double *y, double *x, double *alpha);
 
 static double now(void) {
-    struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-    return t.tv_sec + t.tv_nsec * 1e-9;
+    return clock_gettime_nsec_np(CLOCK_UPTIME_RAW) * 1e-9;
 }
 
 static int cmp(const void *x, const void *y) {
@@ -20,7 +18,7 @@ static int cmp(const void *x, const void *y) {
 int main(void) {
     /* y sits 64 bytes past a whole number of pages from x: with the two a multiple of
        4096 bytes apart, loads of x and stores to y alias in the L1 and slow the loop */
-    static double buf[2 * N + 8];
+    static double buf[2 * N + 8] __attribute__((aligned(128)));
     double *x = buf, *y = buf + N + 8;
     double alpha = 1.0;
     for (long i = 0; i < (long)N; i++) {
