@@ -9,7 +9,9 @@ use crate::Model;
 /// The files are little-endian 64-bit integers on the 1/4096 grid. The weights are
 /// every tensor in the order of `Model::tensors`; the data is the inputs of all
 /// the samples and then their targets. It prints the loss of each epoch, and
-/// writes the trained weights.
+/// writes the trained weights. The arithmetic wraps, so a run that diverges would
+/// report garbage; the program stops with status 3 when the loss or a weight
+/// leaves `LIMIT` (2^31, a product of two such numbers still fits in 64 bits).
 pub fn emit_driver(model: &Model, batch: usize) -> String {
     let (n, k, name) = (model.width, model.outputs, &model.name);
     let tensors = model.tensors();
@@ -37,6 +39,16 @@ pub fn emit_driver(model: &Model, batch: usize) -> String {
         .iter()
         .map(|t| format!("    load({0}, {1}, weights);\n", t.name, t.data.len()))
         .collect();
+    let guard: String = tensors
+        .iter()
+        .map(|t| {
+            format!(
+                "            check(\"{0}\", {0}, {1});\n",
+                t.name,
+                t.data.len()
+            )
+        })
+        .collect();
     let write: String = tensors
         .iter()
         .map(|t| format!("    fwrite({0}, 8, {1}, out);\n", t.name, t.data.len()))
@@ -51,6 +63,17 @@ pub fn emit_driver(model: &Model, batch: usize) -> String {
 static int64_t xs[{batch}][{n}], ts[{batch}][{k}];
 
 void {name}_train({types});
+
+#define LIMIT ((int64_t)1 << 31)
+
+static void check(const char *what, const int64_t *v, size_t count) {{
+    for (size_t i = 0; i < count; i++) {{
+        if (v[i] >= LIMIT || v[i] <= -LIMIT) {{
+            fprintf(stderr, "overflow: %s[%zu] is %lld, past +-%lld; training diverged\n", what, i, (long long)v[i], (long long)LIMIT);
+            exit(3);
+        }}
+    }}
+}}
 
 static void load(int64_t *to, size_t count, FILE *from) {{
     if (fread(to, 8, count, from) != count) {{
@@ -86,7 +109,8 @@ int main(int argc, char **argv) {{
                 for (int j = 0; j < {k}; j++) ts[i][j] = targets[(b + i) * {k} + j];
             }}
             {name}_train({args});
-        }}
+            check("loss", &total, 1);
+{guard}        }}
         printf("%lld\n", (long long)total);
     }}
 {write}    fclose(out);
