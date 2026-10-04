@@ -579,7 +579,8 @@ call that returns two places (`layernorm_vjp` gives the adjoint of `z` and of th
 its result as a pair, so the checks that its undone ancillas are zero could not be turned
 into substitutions, the chain rewrite failed, and Lean fell back to unfolding every callee
 body. The chain proof now opens a pair result first, so each call keeps its own lemma. The
-batched forms (`mlp_layer_batch`) are proved too, by an ignored test, in about three minutes.
+batched forms (`mlp_layer_batch`, `mlp_layer_back_batch`) are proved too, in about a minute, at
+width 2 with two rows.
 
 **The residual block** is `y = x + F(x)` with `F(x) = W2 f(W1 x + b1) + b2`, the invertible
 residual connection of Behrmann et al. when `F` is a contraction, that is when its Lipschitz
@@ -704,6 +705,14 @@ the depth. The gradients they add are the sums of what `B` calls of the
 single-sample function add, to the bit (a test checks that for the leapfrog
 network, the perceptron, attention, the normalized perceptrons and the
 convolution, for every activation).
+
+Lean proves the batched forms exactly reversible at small sizes (two rows, width 2, three chain
+cells, a 2 channel convolution of width 3 on 2 steps): `layer_batch`, `forward_batch`,
+`backward_batch`, `mlp_batch`, `attn_batch`, `mlp_norm_batch`, `mlp_layer_batch`,
+`residual_batch`, `residual_back_batch`, `conv_batch` and `conv_back_batch`, each with its
+backward step. The residual forms take about 10 and 25 seconds, the convolution 25 and the
+normalized perceptrons about 50. Like the single-sample forms, the proofs cover the sizes tested
+and not every size.
 `step_parallel<N, M, L, K, B, C>` splits a step into `C` chunks of `B` samples,
 each with its own buffers and its own gradients, runs them with `#[parallel(cpu)]`,
 adds the gradients up and takes the step, which gives the weights of one batch of
