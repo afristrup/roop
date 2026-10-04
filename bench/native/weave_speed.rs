@@ -303,9 +303,13 @@ fn data<T: Num>(shape: &Shape, samples: usize, make: impl Fn(i64) -> T) -> (Para
     (net, xs, ts)
 }
 
+fn env_or(name: &str, default: usize) -> usize {
+    std::env::var(name).map_or(default, |v| v.parse().unwrap())
+}
+
 fn run<T: Num, G: Gemm<T>>(label: &str, make: impl Fn(i64) -> T + Copy, per_sample: bool, chunks: usize, steps: usize) {
-    let shape = Shape { n: 64, layers: 8, outputs: 4 };
-    let samples = 32;
+    let shape = Shape { n: env_or("WEAVE_WIDTH", 64), layers: 8, outputs: 4 };
+    let samples = env_or("WEAVE_SAMPLES", 32);
     let (h, lr) = (make(1024), make(64));
     let mut checksum = 0;
     let secs = best_of(7, || {

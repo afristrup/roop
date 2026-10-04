@@ -15,14 +15,18 @@ struct Library {
 const LIBRARIES: [Library; 2] = [
     Library {
         name: "roop_sme",
-        sources: &["kernels/sme_dgemm.c", "kernels/sme_daxpy.c"],
+        sources: &[
+            "kernels/sme_dgemm.c",
+            "kernels/sme_daxpy.c",
+            "kernels/sme_i64_matmul.c",
+        ],
         march: "armv8.7-a+sme-f64f64+sme2",
         missing: "no_sme_kernel",
         reason: "no clang with SME support, so the matrix kernels use plain loops",
     },
     Library {
         name: "roop_q12",
-        sources: &["kernels/q12_matmul.c", "kernels/i64_matmul.c"],
+        sources: &["kernels/q12_matmul.c"],
         march: "armv8.7-a",
         missing: "no_q12_kernel",
         reason: "no clang for aarch64, so the integer matrix kernels use plain loops",
