@@ -652,6 +652,23 @@ optimizer are not touched. `weave_train.train(..., keep_contraction=0.8)` sets t
 chain length; a rate of 0.05 on the xor residual net of the tests diverges without it and
 converges with it.
 
+The projection runs after the optimizer in both `step` and `step_batch` (the same code emits it),
+so it works with SGD, momentum and Adam, and tests train the xor residual net and the torch
+round trip with each, ending at or under the bound. Its limits with the stateful optimizers:
+the moments (`m`, `v`) and the carry are not rescaled with the weights, and nothing needs it
+for correctness (the carry holds less than one unit of a weight, and the moments are
+gradient statistics, which a rescale of a percent or so changes little). What does show is that
+a projection that fires every step fights an optimizer that keeps pushing outward. Momentum and
+SGD settle (the xor net stays near a loss of 0.05, higher than the net reaches unconstrained,
+since the uniform scaling of `W1` and `W2` is not a Euclidean projection). Adam does not: its
+step is about the rate for every weight however small the gradient, and at the bound the
+gradient does not vanish, so its loss falls to a few hundredths and then wanders between 0.01
+and 0.2 for as long as it runs, at 0.01 and still at 0.001. Without the key the same Adam run
+reaches zero exactly. Use a small rate and, if the constraint is active, stop at the best loss
+rather than the last, or use SGD or momentum. A rate that is too high still diverges
+(0.3 for SGD and for momentum with beta 0.9 on this net); the projection bounds the weights of
+the blocks, not their biases.
+
 ```rust
 use weave::step;
 

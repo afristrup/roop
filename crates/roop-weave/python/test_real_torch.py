@@ -174,6 +174,21 @@ class RealTorch(unittest.TestCase):
                 weights = [block.f[0].weight.tolist(), block.f[2].weight.tolist()]
                 self.assertLess(contraction.bound("tanh", *weights), kept + 0.01)
 
+    def test_a_kept_contraction_holds_with_momentum_and_adam(self):
+        xs = [[1, 1, 1, 0], [1, -1, 1, 0], [-1, 1, 1, 0], [-1, -1, 1, 0]]
+        ts = [[-0.5], [0.5], [0.5], [-0.5]]
+        roop = os.environ.get("WEAVE_ROOP", "roop")
+        optimizers = [({"kind": "momentum", "beta": 0.9}, 0.01), ({"kind": "adam"}, 0.003)]
+        for optimizer, rate in optimizers:
+            torch.manual_seed(2)
+            net = nn.Sequential(*[ResidualBlock(4, 6) for _ in range(3)])
+            losses = train(net, xs, ts, epochs=1500, rate=rate, roop=roop, optimizer=optimizer,
+                           keep_contraction=0.8)
+            self.assertLess(losses[-1], losses[0] / 5, optimizer)
+            for block in net:
+                weights = [block.f[0].weight.tolist(), block.f[2].weight.tolist()]
+                self.assertLess(contraction.bound("tanh", *weights), 0.81, optimizer)
+
     def test_conv1d_is_a_block_when_it_keeps_the_length_and_the_channels(self):
         spec = export(nn.Sequential(nn.Linear(6, 4), nn.ReLU(), nn.Linear(4, 6), nn.Conv1d(2, 2, 3, padding=1)))
         conv = spec["layers"][-1]
