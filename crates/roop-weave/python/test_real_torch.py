@@ -152,18 +152,18 @@ class RealTorch(unittest.TestCase):
         for net in nets:
             before = [p.detach().clone() for p in net.parameters()]
             kept = 0.8 if isinstance(net[0], ResidualBlock) else None
-            # 0.05 diverges for the residual net since weave's steps below a unit are carried
-            # and not dropped, though the float mirror is stable there; 0.02 converges.
-            losses = train(net, xs, ts, epochs=1500, rate=0.02, roop=roop, keep_contraction=kept)
+            # Without the contraction kept at each step the residual net diverges at 0.05, in
+            # the float mirror with the same chain too: its weights pass the bound within 10
+            # epochs and the chain of 39 cells then multiplies instead of shrinks.
+            losses = train(net, xs, ts, epochs=1500, rate=0.05, roop=roop, keep_contraction=kept)
             self.assertLess(losses[-1], losses[0] / 5)
             self.assertEqual(len(losses), 1500)
             self.assertTrue(all(not torch.equal(a, b) for a, b in zip(before, net.parameters())))
             again = evaluate(export(net.eval(), outputs=1), xs, ts)
-            if kept is None:
-                self.assertAlmostEqual(again, losses[-1], delta=0.02 + 0.1 * losses[-1])
-            else:
-                # The last stretch's weights were scaled back to the bound after it.
-                self.assertLess(again, losses[0] / 2)
+            self.assertAlmostEqual(again, losses[-1], delta=0.02 + 0.1 * losses[-1])
+            for block in net if kept else []:
+                weights = [block.f[0].weight.tolist(), block.f[2].weight.tolist()]
+                self.assertLess(contraction.bound("tanh", *weights), kept + 0.01)
 
     def test_conv1d_is_a_block_when_it_keeps_the_length_and_the_channels(self):
         spec = export(nn.Sequential(nn.Linear(6, 4), nn.ReLU(), nn.Linear(4, 6), nn.Conv1d(2, 2, 3, padding=1)))

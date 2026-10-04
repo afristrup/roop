@@ -198,3 +198,23 @@ fn a_residual_block_has_no_norm_and_a_chain_of_at_least_two_cells() {
     let error = error_of(model("net", 4, 1, vec![short]));
     assert!(error.to_string().contains("at least 2"), "{error}");
 }
+
+#[test]
+fn a_kept_contraction_sets_the_chain_and_must_be_met_by_the_weights() {
+    let mut layer = residual("tanh", 4, 4, 2, 0.3);
+    layer["keep_contraction"] = json!(0.8);
+    let parsed = parse_model(&model("net", 4, 1, vec![layer.clone()]).to_string()).unwrap();
+    let roop_weave::Layer::Residual { iters, keep, .. } = &parsed.layers[0] else {
+        panic!("a residual layer");
+    };
+    assert_eq!((*iters, *keep), (39, Some(0.8)));
+    layer["keep_contraction"] = json!(0.01);
+    let error = error_of(model("net", 4, 1, vec![layer.clone()]));
+    assert!(
+        matches!(error, WeaveError::Kept { index: 0, .. }),
+        "{error}"
+    );
+    layer["keep_contraction"] = json!(0.95);
+    let error = error_of(model("net", 4, 1, vec![layer]));
+    assert!(error.to_string().contains("keep_contraction"), "{error}");
+}

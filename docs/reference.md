@@ -626,11 +626,21 @@ the 1/4096 grid: the spectral norms of `W1` and `W2` (power iteration, taken 1 p
 times the slope of the activation (1 for the identity, cauchy, softsign, ReLU and tanh, 0.2501
 for sigmoid, 1.1205 for SiLU and GELU). A model above it is refused, with the bound, and its
 chain is `"iters"` cells, which defaults to the length above for the bound. The bound is not
-kept by weave's own training step: the update can take the weights past it, which leaves the
-block exactly reversible but makes `r` large. `weave_train.train(..., keep_contraction=0.8)`
-trains a few epochs at a time and scales the residual weights back to that bound after each
-stretch (with the state of momentum and Adam started again at each); the iteration count is
-then fixed from that bound for the whole run.
+kept by weave's training step unless the layer says `"keep_contraction": 0.8` (a bound below
+0.9 that the weights already meet; the chain then defaults to the length that bound needs).
+Without it the update can take the weights past the bound, which leaves the block exactly
+reversible but makes `r` large, and once `L` is above 1 the `K` cells of the chain multiply
+what they hold by `L` each, so that a long chain (39 cells for 0.8) blows up the loss and, in
+Q12, overflows a 64-bit number and wraps; the float network with the same chain diverges the
+same way, so this is a property of the block and not of fixed point. With the key, every
+`step` ends in `project_contraction` (an `irrev` function in `contract.roop`), which scales
+`W1` and `W2` by the same factor whenever the bound of `F` is above it. The bound there is not
+the power iteration but a stateless one from above: the spectral norm of each weight from
+the squares of the trace-normalized Gram matrix `W^T W` (six squarings, whose trace is at
+least the square of the largest eigenvalue), a percent high. The biases and the carry of the
+optimizer are not touched. `weave_train.train(..., keep_contraction=0.8)` sets the key and the
+chain length; a rate of 0.05 on the xor residual net of the tests diverges without it and
+converges with it.
 
 ```rust
 use weave::step;

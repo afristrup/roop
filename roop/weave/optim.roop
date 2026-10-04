@@ -12,7 +12,7 @@
 
 // r gets the largest number whose square is at most n, for n that is not negative. The
 // search starts from a bound on the root that n allows, so a small n takes few steps.
-irrev fn isqrt(r: &mut i64, n: &i64) {
+pub irrev fn isqrt(r: &mut i64, n: &i64) {
     ancilla lo: i64 = 0;
     ancilla hi: i64 = 3037000499;
     ancilla mid: i64 = 0 {

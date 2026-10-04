@@ -19,7 +19,8 @@ pub enum Layer {
         norm: Option<Norm>,
     },
     /// An invertible residual block `x + F(x)` on q, with `F` a perceptron that is a
-    /// contraction and `iters` cells in the chain that inverts it.
+    /// contraction and `iters` cells in the chain that inverts it. With `keep` set, each
+    /// training step scales the weights back whenever the bound of `F` is above it.
     Residual {
         act: Activation,
         w1: Tensor,
@@ -27,6 +28,7 @@ pub enum Layer {
         w2: Tensor,
         b2: Tensor,
         iters: usize,
+        keep: Option<f64>,
     },
     /// Half of a coupling: one half of the state takes in linear attention over
     /// the other, read as `seq` rows.

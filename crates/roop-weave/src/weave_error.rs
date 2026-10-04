@@ -33,6 +33,11 @@ pub enum WeaveError {
         index: usize,
         bound: f64,
     },
+    Kept {
+        index: usize,
+        bound: f64,
+        keep: f64,
+    },
 }
 
 impl fmt::Display for WeaveError {
@@ -66,6 +71,10 @@ impl fmt::Display for WeaveError {
             Self::Contraction { index, bound } => write!(
                 f,
                 "layer {index}: the residual function is not a contraction: its Lipschitz bound is {bound:.3}, and it must be below {CONTRACTION_LIMIT}, so that the inverse can be found by iteration; shrink the weights"
+            ),
+            Self::Kept { index, bound, keep } => write!(
+                f,
+                "layer {index}: the weights of the residual function have a Lipschitz bound of {bound:.3}, which is not below keep_contraction {keep}; shrink them first"
             ),
             Self::Name(name) => write!(f, "`{name}` is not a name for roop functions"),
         }
