@@ -1,0 +1,116 @@
+// The backward step of the residual block on B samples: `residual_back` with
+// every cell of its chains holding B rows, so each step is one batched
+// perceptron adjoint. The gradients added are the sums over the rows.
+
+use super::kernels::*;
+use super::mlp_batch::*;
+use super::residual_batch::*;
+use super::rows::*;
+
+// d[0] -= aq, and for each step c[m] -= J^T d[m] and d[m + 1] += c[m], with the
+// gradients of the weights taken off with it, on every row.
+fn chain_adjoint_batch<N, M, K, B>(
+    d: &mut [[[i64; N]; B]; K],
+    c: &mut [[[i64; N]; B]; K],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    aq: &[[i64; N]; B],
+    e: &[[[i64; N]; B]; K],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    kind: &i64,
+) {
+    ancilla m: i64 = 0;
+    uncall add_rows<N, B>(d[0], aq);
+    from m == 0 {
+        uncall mlp_vjp_batch<N, M, B>(
+            c[m],
+            gw1,
+            gb1,
+            gw2,
+            gb2,
+            d[m],
+            w1,
+            b1,
+            w2,
+            e[K - 2 - m],
+            kind,
+        );
+        call add_rows<N, B>(d[m + 1], c[m]);
+    } loop { m += 1; } until m == K - 2;
+    m -= K - 2;
+}
+
+// ap += the sum of the cells of d
+fn sum_cells_batch<N, K, B>(ap: &mut [[i64; N]; B], d: &[[[i64; N]; B]; K]) {
+    ancilla m: i64 = 0;
+    from m == 0 { call add_rows<N, B>(ap, d[m]); } loop { m += 1; } until m == K - 1;
+    m -= K - 1;
+}
+
+// Undoes `q -= x_K(p)` on every row.
+fn clear_back_batch<N, M, K, B>(
+    q: &mut [[i64; N]; B],
+    ap: &mut [[i64; N]; B],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    aq: &[[i64; N]; B],
+    p: &[[i64; N]; B],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+) {
+    ancilla e: [[[i64; N]; B]; K] = 0;
+    ancilla a: [[[i64; N]; B]; K] = 0;
+    ancilla d: [[[i64; N]; B]; K] = 0;
+    ancilla c: [[[i64; N]; B]; K] = 0;
+    ancilla hw1: [[i64; N]; M] = 0;
+    ancilla hb1: [i64; M] = 0;
+    ancilla hw2: [[i64; M]; N] = 0;
+    ancilla hb2: [i64; N] = 0;
+    call fixed_point_batch<N, M, K, B>(e, a, p, w1, b1, w2, b2, kind);
+    call add_rows<N, B>(q, e[K - 1]);
+    call chain_adjoint_batch<N, M, K, B>(d, c, hw1, hb1, hw2, hb2, aq, e, w1, b1, w2, kind);
+    call sum_cells_batch<N, K, B>(ap, d);
+    call add_rows<N, M>(gw1, hw1);
+    call add_vec<M>(gb1, hb1);
+    call add_rows<M, N>(gw2, hw2);
+    call add_vec<N>(gb2, hb2);
+    uncall chain_adjoint_batch<N, M, K, B>(d, c, hw1, hb1, hw2, hb2, aq, e, w1, b1, w2, kind);
+    uncall fixed_point_batch<N, M, K, B>(e, a, p, w1, b1, w2, b2, kind);
+}
+
+// On entry (q, p) is the output and (aq, ap) its adjoint, on every row; on exit
+// they are the input and its adjoint, and the gradients have been added to.
+pub fn residual_back_batch<N, M, K, B>(
+    q: &mut [[i64; N]; B],
+    p: &mut [[i64; N]; B],
+    aq: &mut [[i64; N]; B],
+    ap: &mut [[i64; N]; B],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+) {
+    uncall add_rows<N, B>(aq, ap);
+    call add_rows<N, B>(p, q);
+    call add_rows<N, B>(ap, aq);
+    uncall add_rows<N, B>(q, p);
+    call clear_back_batch<N, M, K, B>(q, ap, gw1, gb1, gw2, gb2, aq, p, w1, b1, w2, b2, kind);
+    call add_rows<N, B>(aq, ap);
+    call mlp_vjp_batch<N, M, B>(aq, gw1, gb1, gw2, gb2, ap, w1, b1, w2, q, kind);
+    uncall mlp_batch<N, M, B>(p, w1, b1, w2, b2, q, kind);
+    uncall add_rows<N, B>(p, q);
+}

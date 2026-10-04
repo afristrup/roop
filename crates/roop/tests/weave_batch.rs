@@ -27,6 +27,10 @@ use weave::mlp_norm;
 use weave::mlp_norm_back;
 use weave::mlp_norm_back_batch;
 use weave::mlp_norm_batch;
+use weave::residual;
+use weave::residual_back;
+use weave::residual_back_batch;
+use weave::residual_batch;
 
 fn one(total: &mut i64, q: &mut [i64; @N@], p: &mut [i64; @N@], aq: &mut [i64; @N@], ap: &mut [i64; @N@],
        gw: &mut [[[i64; @N@]; @M@]; @L@], gb: &mut [[i64; @M@]; @L@],
@@ -120,6 +124,30 @@ fn conv_all(y: &mut [[i64; @N@]; @B@], ay: &[[i64; @N@]; @B@], ax: &mut [[i64; @
     call conv_batch<@C@, @KS@, @T@, @N@, @CK@, @B@, @B@ * @T@>(y, w, b, x);
     call conv_back_batch<@C@, @KS@, @T@, @N@, @CK@, @B@, @B@ * @T@>(y, ay, ax, gw, gb, w, b, x);
 }
+
+fn res_one(q: &mut [i64; @N@], p: &mut [i64; @N@], aq: &mut [i64; @N@], ap: &mut [i64; @N@],
+           gw1: &mut [[i64; @N@]; @M@], gb1: &mut [i64; @M@], gw2: &mut [[i64; @M@]; @N@], gb2: &mut [i64; @N@],
+           w1: &[[i64; @N@]; @M@], b1: &[i64; @M@], w2: &[[i64; @M@]; @N@], b2: &[i64; @N@], kind: &i64) {
+    call residual<@N@, @M@, @R@>(q, p, w1, b1, w2, b2, kind);
+    call residual_back<@N@, @M@, @R@>(q, p, aq, ap, gw1, gb1, gw2, gb2, w1, b1, w2, b2, kind);
+}
+
+fn res_all(q: &mut [[i64; @N@]; @B@], p: &mut [[i64; @N@]; @B@], aq: &mut [[i64; @N@]; @B@], ap: &mut [[i64; @N@]; @B@],
+           gw1: &mut [[i64; @N@]; @M@], gb1: &mut [i64; @M@], gw2: &mut [[i64; @M@]; @N@], gb2: &mut [i64; @N@],
+           w1: &[[i64; @N@]; @M@], b1: &[i64; @M@], w2: &[[i64; @M@]; @N@], b2: &[i64; @N@], kind: &i64) {
+    call residual_batch<@N@, @M@, @R@, @B@>(q, p, w1, b1, w2, b2, kind);
+    call residual_back_batch<@N@, @M@, @R@, @B@>(q, p, aq, ap, gw1, gb1, gw2, gb2, w1, b1, w2, b2, kind);
+}
+
+fn res_fwd_one(q: &mut [i64; @N@], p: &mut [i64; @N@],
+               w1: &[[i64; @N@]; @M@], b1: &[i64; @M@], w2: &[[i64; @M@]; @N@], b2: &[i64; @N@], kind: &i64) {
+    call residual<@N@, @M@, @R@>(q, p, w1, b1, w2, b2, kind);
+}
+
+fn res_fwd_all(q: &mut [[i64; @N@]; @B@], p: &mut [[i64; @N@]; @B@],
+               w1: &[[i64; @N@]; @M@], b1: &[i64; @M@], w2: &[[i64; @M@]; @N@], b2: &[i64; @N@], kind: &i64) {
+    call residual_batch<@N@, @M@, @R@, @B@>(q, p, w1, b1, w2, b2, kind);
+}
 ";
 
 const DRIVER: &str = r#"
@@ -138,6 +166,7 @@ const DRIVER: &str = r#"
 #define KS @KS@
 #define T @T@
 #define CK @CK@
+#define R @R@
 
 void one(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
          int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
@@ -162,6 +191,12 @@ void layer_all(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64
                int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
 void conv_one(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
 void conv_all(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void res_one(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
+             int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void res_all(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
+             int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void res_fwd_one(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void res_fwd_all(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
 
 static uint64_t state = 12345;
 static int64_t rnd(int64_t range) {
@@ -172,6 +207,7 @@ static void fill(int64_t *v, int n, int64_t range) { for (int i = 0; i < n; i++)
 
 static int64_t ws[L][M][N], bs[L][M], x[B][N], t[B][K];
 static int64_t gain[M], beta[M], filters[C][CK], bias[C];
+static int64_t rw1[M][N], rb1[M], rw2[N][M], rb2[N];
 static int64_t w1[M][N], b1[M], w2[N][M], b2[N], ay[B][N], wq[D][D], wk[D][D], wv[D][D];
 
 static int check_grad(int64_t kind) {
@@ -295,11 +331,46 @@ static int check_conv(void) {
     return 0;
 }
 
+static int check_residual(int64_t kind) {
+    static int64_t gw1a[M][N], gb1a[M], gw2a[N][M], gb2a[N], gw1b[M][N], gb1b[M], gw2b[N][M], gb2b[N];
+    static int64_t qa[B][N], pa[B][N], aqa[B][N], apa[B][N], qb[B][N], pb[B][N], aqb[B][N], apb[B][N];
+    static int64_t fa[B][N], fb[B][N], fpa[B][N], fpb[B][N];
+    memset(gw1a, 0, sizeof gw1a); memset(gb1a, 0, sizeof gb1a); memset(gw2a, 0, sizeof gw2a); memset(gb2a, 0, sizeof gb2a);
+    memset(gw1b, 0, sizeof gw1b); memset(gb1b, 0, sizeof gb1b); memset(gw2b, 0, sizeof gw2b); memset(gb2b, 0, sizeof gb2b);
+    memset(pa, 0, sizeof pa); memset(pb, 0, sizeof pb); memset(fpa, 0, sizeof fpa); memset(fpb, 0, sizeof fpb);
+    memcpy(qa, x, sizeof qa); memcpy(qb, x, sizeof qb); memcpy(fa, x, sizeof fa); memcpy(fb, x, sizeof fb);
+    memcpy(aqa, ay, sizeof aqa); memcpy(aqb, ay, sizeof aqb);
+    memset(apa, 0, sizeof apa); memset(apb, 0, sizeof apb);
+    for (int s = 0; s < B; s++)
+        res_fwd_one(fa[s], fpa[s], (int64_t*)rw1, rb1, (int64_t*)rw2, rb2, &kind);
+    res_fwd_all((int64_t*)fb, (int64_t*)fpb, (int64_t*)rw1, rb1, (int64_t*)rw2, rb2, &kind);
+    if (memcmp(fa, fb, sizeof fa) != 0) return 51;
+    if (memcmp(fpa, fpb, sizeof fpa) != 0) return 52;
+    for (int s = 0; s < B; s++)
+        res_one(qa[s], pa[s], aqa[s], apa[s], (int64_t*)gw1a, gb1a, (int64_t*)gw2a, gb2a,
+                (int64_t*)rw1, rb1, (int64_t*)rw2, rb2, &kind);
+    res_all((int64_t*)qb, (int64_t*)pb, (int64_t*)aqb, (int64_t*)apb, (int64_t*)gw1b, gb1b, (int64_t*)gw2b, gb2b,
+            (int64_t*)rw1, rb1, (int64_t*)rw2, rb2, &kind);
+    if (memcmp(qa, qb, sizeof qa) != 0) return 53;
+    if (memcmp(qb, x, sizeof qb) != 0) return 54;
+    if (memcmp(pa, pb, sizeof pa) != 0) return 55;
+    if (memcmp(aqa, aqb, sizeof aqa) != 0) return 56;
+    if (memcmp(apa, apb, sizeof apa) != 0) return 57;
+    if (memcmp(gw1a, gw1b, sizeof gw1a) != 0) return 58;
+    if (memcmp(gb1a, gb1b, sizeof gb1a) != 0) return 59;
+    if (memcmp(gw2a, gw2b, sizeof gw2a) != 0) return 60;
+    if (memcmp(gb2a, gb2b, sizeof gb2a) != 0) return 61;
+    static int64_t none[M][N];
+    if (memcmp(gw1b, none, sizeof gw1b) == 0) return 62;
+    return 0;
+}
+
 int main(void) {
     fill((int64_t*)ws, L * M * N, 2000); fill((int64_t*)bs, L * M, 1000);
     fill((int64_t*)x, B * N, 6000); fill((int64_t*)t, B * K, 3000);
     fill((int64_t*)w1, M * N, 2000); fill(b1, M, 1000); fill((int64_t*)w2, N * M, 2000); fill(b2, N, 1000);
     fill((int64_t*)ay, B * N, 3000);
+    fill((int64_t*)rw1, M * N, 1200); fill(rb1, M, 300); fill((int64_t*)rw2, N * M, 1200); fill(rb2, N, 300);
     fill(gain, M, 4096); fill(beta, M, 2000);
     fill((int64_t*)filters, C * CK, 3000); fill(bias, C, 1000);
     fill((int64_t*)wq, D * D, 3000); fill((int64_t*)wk, D * D, 3000); fill((int64_t*)wv, D * D, 3000);
@@ -312,6 +383,8 @@ int main(void) {
         if (r) { fprintf(stderr, "mlp_norm kind %lld failed with %d\n", (long long)kind, r); return r; }
         r = check_norm(kind, 1);
         if (r) { fprintf(stderr, "mlp_layer kind %lld failed with %d\n", (long long)kind, r); return r; }
+        r = check_residual(kind);
+        if (r) { fprintf(stderr, "residual kind %lld failed with %d\n", (long long)kind, r); return r; }
     }
     int r = check_attn();
     if (r) { fprintf(stderr, "attention failed with %d\n", r); return r; }
@@ -375,6 +448,7 @@ fn compare(name: &str, sizes: Sizes) {
             ("@KS@", sizes.ks),
             ("@T@", sizes.n / sizes.c),
             ("@CK@", sizes.c * sizes.ks),
+            ("@R@", 6),
         ]
         .iter()
         .fold(text.to_string(), |text, (at, n)| {
