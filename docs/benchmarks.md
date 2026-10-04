@@ -57,12 +57,25 @@ table above.
 
 | N | roop (auto) | roop (CPU threads) | Rust, 1 thread | Rust, all threads | Accelerate |
 |---:|---:|---:|---:|---:|---:|
-| 65536 | 496.6 | 496.6 | 149.1 | 31.8 | 648.9 |
-| 1048576 | 340.1 | 331.1 | 146.9 | 259.4 | 193.5 |
-| 4194304 | 102.7 | 104.4 | 111.6 | 106.6 | 96.8 |
-| 16777216 | 103.2 | 100.2 | 93.3 | 104.7 | 95.9 |
+| 65536 | 579.3 | 618.8 | 128.0 | 23.2 | 469.9 |
+| 1048576 | 233.6 | 345.9 | 94.7 | 168.0 | 166.8 |
+| 4194304 | 101.8 | 100.0 | 86.7 | 90.9 | 85.9 |
+| 16777216 | 103.2 | 102.8 | 72.1 | 102.6 | 84.4 |
 
-Before: 147.5, 149.8, 113.7 and 101.6 (auto), measured with a shorter warm-up.
+These are one run. The machine was noisy: two further runs of the script gave
+490 to 602 (roop, auto) and 431 to 500 (Accelerate) at 64K, and 308 to 387 and
+97 to 198 at 1M. Compare columns within a run, not across runs.
+
+`bench/roop/axpy_main.c` and `dispatch_main.c` now align their buffers to 128
+bytes and time with `clock_gettime_nsec_np`, as the dgemm harness does. Before
+that change (same machine, one run): 496.6, 370.1, 105.0 and 93.7 (auto), against
+Accelerate 648.9, 218.0, 85.8 and 92.3. At 64K a call takes about 3
+microseconds and the harness times a batch of six, so a one microsecond clock
+quantises the time to a sixth of a microsecond (5 per cent); 496.6 is exactly
+19 sixths. Alignment and the clock together moved roop at 64K by 10 to 25
+per cent, but the runs overlap, so no more precise figure is claimed.
+
+Before the kernel: 147.5, 149.8, 113.7 and 101.6 (auto), measured with a shorter warm-up.
 
 ## What to read from them
 
@@ -90,13 +103,16 @@ Before: 147.5, 149.8, 113.7 and 101.6 (auto), measured with a shorter warm-up.
   threaded the kernel runs 389, 444, 453 and 413 at the four sizes in the C
   harness, so at 128 the gap to Accelerate is in the pack and the C round trip
   that a 128-deep product cannot amortise.
-- **daxpy: ahead of Accelerate from 1M elements up, about 25 per cent behind at
-  64K.** At 4M and 16M everything is limited by memory at around 100 GB/s and
-  roop is level with Accelerate. In cache the kernel moves 256 bytes a load
-  and keeps `y` in the ZA array while it adds; in a C harness that ran at 500
-  to 650 GB/s at 64K to 256K elements, level with Accelerate, but the same
-  kernel reached through roop's benchmark gives 500 at 64K and the gap to
-  649 is not explained.
+- **daxpy: ahead of Accelerate from 1M elements up and level at 64K.** At 4M
+  and 16M everything is limited by memory at around 100 GB/s and roop is level
+  with Accelerate. In cache the kernel moves 256 bytes a load and keeps `y` in
+  the ZA array while it adds. An earlier version of this page reported roop 25
+  per cent behind at 64K (497 against 649) and could not explain it. With
+  aligned buffers and the nanosecond clock in the harness, roop measures 490 to
+  619 and Accelerate 430 to 500 at 64K, so the gap does not reproduce. What is
+  not settled: the single 649 for Accelerate was never seen again, and the
+  run-to-run spread on this machine is larger than any difference between the
+  two at that size.
 - **Rust, with every thread, does not catch the matrix unit.** The kernel is 30
   to 70 times faster on `dgemm` than ten Rust threads, and a single Rust thread
   is 200 times behind.
@@ -168,21 +184,28 @@ instead of 29 microseconds at 64K elements). Tests in
 
 A bare `#[parallel]` loop is placed by `CostModel`
 (`crates/roop-llvm/src/module/cost_model.rs`). `bench/calibrate_dispatch.py`
-times the same `daxpy` loop serially and with `#[parallel(cpu)]`:
+times the same `daxpy` loop serially and with `#[parallel(cpu)]`, with `sme = false`
+in `Roop.toml` (with SME on, a `#[parallel(cpu)]` loop of 2048 elements or more is
+the matrix kernel and not threads, and the script was measuring that; it now
+turns SME off). Buffers are aligned and the clock is the nanosecond one. The
+figures below are one run; a rerun
+agrees to within noise except at 131072 and 262144, where serial and threads swap
+places between runs (131072: 21 to 33 serial, 33 threads; 262144: 81 to 192
+serial, 57 to 80 threads):
 
 | N | serial (us) | threads (us) | faster |
 |---:|---:|---:|:---|
-| 256 | 0.02 | 12.18 | serial |
-| 1024 | 0.10 | 17.10 | serial |
-| 4096 | 0.38 | 15.99 | serial |
-| 16384 | 2.62 | 15.79 | serial |
-| 32768 | 5.25 | 19.50 | serial |
-| 65536 | 10.50 | 23.83 | serial |
-| 131072 | 29.00 | 40.00 | serial |
-| 262144 | 60.00 | 54.00 | threads |
-| 1048576 | 173.00 | 151.00 | threads |
+| 256 | 0.02 | 12.45 | serial |
+| 1024 | 0.10 | 12.79 | serial |
+| 4096 | 0.38 | 16.83 | serial |
+| 16384 | 2.66 | 16.16 | serial |
+| 32768 | 5.30 | 17.51 | serial |
+| 65536 | 10.90 | 35.37 | serial |
+| 131072 | 21.46 | 32.62 | serial |
+| 262144 | 191.92 | 57.33 | threads |
+| 1048576 | 171.88 | 157.79 | threads |
 
-Starting threads costs 12 to 17 microseconds, one thread streams about 150 bytes
+Starting threads costs 12 to 20 microseconds, one thread streams about 150 bytes
 a nanosecond out of cache, and threads win from about 256K elements. The model
 follows these figures, so a streaming loop of 32K elements runs serially and one
 of 512K on threads (a test in `crates/roop-llvm/tests/parallel_auto.rs` holds that).
