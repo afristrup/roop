@@ -516,3 +516,108 @@ test the_softmax_seed_is_scaled_and_finer {
     call seed_softmax<2, 2>(baq, total, bq, bt, 256);
     expect baq[1] > 320 && baq[1] < 350 && baq[0] > 0 - 350 && baq[0] < 0 - 320;
 }
+
+// Two signals of two channels of 2 numbers through one pair of filters, one at a time
+// and together: the outputs, the adjoints of the inputs and the gradients are equal.
+test conv_batch_equals_conv_row_by_row {
+    x: [[i64; 4]; 2], ay: [[i64; 4]; 2],
+        ya: [[i64; 4]; 2], yb: [[i64; 4]; 2],
+        axa: [[i64; 4]; 2], axb: [[i64; 4]; 2],
+        w: [[i64; 6]; 2], b: [i64; 2],
+        gwa: [[i64; 6]; 2], gwb: [[i64; 6]; 2], gba: [i64; 2], gbb: [i64; 2];
+    w[0][0] += 3000; w[0][1] -= 1200; w[0][2] += 800; w[0][3] += 4096; w[0][4] -= 2500; w[0][5] += 700;
+    w[1][0] -= 900; w[1][1] += 5000; w[1][2] += 100; w[1][3] -= 3300; w[1][4] += 2200; w[1][5] += 6100;
+    b[0] += 500;
+    b[1] -= 1500;
+    x[0][0] += 4096; x[0][1] -= 2048; x[0][2] += 1000; x[0][3] += 7000;
+    x[1][0] -= 3000; x[1][1] += 6000; x[1][2] += 250; x[1][3] -= 4100;
+    ay[0][0] += 1000; ay[0][1] -= 2000; ay[0][2] += 3000; ay[0][3] += 4000;
+    ay[1][0] -= 500; ay[1][1] += 1500; ay[1][2] -= 2500; ay[1][3] += 3500;
+    call conv<2, 3, 2, 4, 6>(ya[0], w, b, x[0]);
+    call conv<2, 3, 2, 4, 6>(ya[1], w, b, x[1]);
+    call conv_batch<2, 3, 2, 4, 6, 2>(yb, w, b, x);
+    expect ya[0][0] == yb[0][0] && ya[0][1] == yb[0][1] && ya[0][2] == yb[0][2] && ya[0][3] == yb[0][3];
+    expect ya[1][0] == yb[1][0] && ya[1][1] == yb[1][1] && ya[1][2] == yb[1][2] && ya[1][3] == yb[1][3];
+    expect yb[0][0] != 0 && yb[1][3] != 0;
+    call conv_back<2, 3, 2, 4, 6>(ya[0], ay[0], axa[0], gwa, gba, w, b, x[0]);
+    call conv_back<2, 3, 2, 4, 6>(ya[1], ay[1], axa[1], gwa, gba, w, b, x[1]);
+    call conv_back_batch<2, 3, 2, 4, 6, 2>(yb, ay, axb, gwb, gbb, w, b, x);
+    expect yb[0][0] == 0 && yb[1][3] == 0;
+    expect axa[0][0] == axb[0][0] && axa[0][3] == axb[0][3] && axa[1][1] == axb[1][1] && axa[1][2] == axb[1][2];
+    expect gwa[0][0] == gwb[0][0] && gwa[0][5] == gwb[0][5] && gwa[1][2] == gwb[1][2] && gwa[1][4] == gwb[1][4];
+    expect gba[0] == gbb[0] && gba[1] == gbb[1];
+    expect gwb[0][0] != 0 && gbb[1] != 0 && axb[0][0] != 0;
+}
+
+// The same for the perceptron with an RMS normalization of its hidden layer.
+test mlp_norm_batch_equals_mlp_norm_row_by_row {
+    x: [[i64; 2]; 2], ay: [[i64; 2]; 2],
+        ya: [[i64; 2]; 2], yb: [[i64; 2]; 2],
+        axa: [[i64; 2]; 2], axb: [[i64; 2]; 2],
+        w1: [[i64; 2]; 3], b1: [i64; 3], g: [i64; 3], w2: [[i64; 3]; 2], b2: [i64; 2],
+        gw1a: [[i64; 2]; 3], gb1a: [i64; 3], gga: [i64; 3], gw2a: [[i64; 3]; 2], gb2a: [i64; 2],
+        gw1b: [[i64; 2]; 3], gb1b: [i64; 3], ggb: [i64; 3], gw2b: [[i64; 3]; 2], gb2b: [i64; 2],
+        kind: i64, eps: i64;
+    eps += 41;
+    kind += 1;
+    w1[0][0] += 3000; w1[0][1] -= 1200; w1[1][0] += 800; w1[1][1] += 4096; w1[2][0] -= 2500; w1[2][1] += 700;
+    w2[0][0] -= 900; w2[0][1] += 5000; w2[0][2] += 100; w2[1][0] -= 3300; w2[1][1] += 2200; w2[1][2] += 6100;
+    b1[0] += 500; b1[1] -= 1500; b1[2] += 250;
+    g[0] += 4096; g[1] += 3000; g[2] += 5000;
+    b2[0] += 100; b2[1] -= 100;
+    x[0][0] += 4096; x[0][1] -= 2048;
+    x[1][0] -= 3000; x[1][1] += 6000;
+    ay[0][0] += 1000; ay[0][1] -= 2000;
+    ay[1][0] -= 500; ay[1][1] += 1500;
+    call mlp_norm<2, 3>(ya[0], w1, b1, g, w2, b2, x[0], kind, eps);
+    call mlp_norm<2, 3>(ya[1], w1, b1, g, w2, b2, x[1], kind, eps);
+    call mlp_norm_batch<2, 3, 2>(yb, w1, b1, g, w2, b2, x, kind, eps);
+    expect ya[0][0] == yb[0][0] && ya[0][1] == yb[0][1] && ya[1][0] == yb[1][0] && ya[1][1] == yb[1][1];
+    expect yb[0][0] != 0 && yb[1][1] != 0;
+    call mlp_norm_back<2, 3>(ya[0], ay[0], axa[0], gw1a, gb1a, gga, gw2a, gb2a, w1, b1, g, w2, b2, x[0], kind, eps);
+    call mlp_norm_back<2, 3>(ya[1], ay[1], axa[1], gw1a, gb1a, gga, gw2a, gb2a, w1, b1, g, w2, b2, x[1], kind, eps);
+    call mlp_norm_back_batch<2, 3, 2>(yb, ay, axb, gw1b, gb1b, ggb, gw2b, gb2b, w1, b1, g, w2, b2, x, kind, eps);
+    expect yb[0][0] == 0 && yb[1][1] == 0;
+    expect axa[0][0] == axb[0][0] && axa[0][1] == axb[0][1] && axa[1][0] == axb[1][0] && axa[1][1] == axb[1][1];
+    expect gw1a[0][0] == gw1b[0][0] && gw1a[2][1] == gw1b[2][1] && gb1a[1] == gb1b[1];
+    expect gga[0] == ggb[0] && gga[1] == ggb[1] && gga[2] == ggb[2];
+    expect gw2a[0][2] == gw2b[0][2] && gw2a[1][0] == gw2b[1][0] && gb2a[0] == gb2b[0];
+    expect ggb[0] != 0 && gw1b[0][0] != 0 && axb[0][0] != 0;
+}
+
+// The same for the perceptron with a layer normalization, which has a shift as well.
+test mlp_layer_batch_equals_mlp_layer_row_by_row {
+    x: [[i64; 2]; 2], ay: [[i64; 2]; 2],
+        ya: [[i64; 2]; 2], yb: [[i64; 2]; 2],
+        axa: [[i64; 2]; 2], axb: [[i64; 2]; 2],
+        w1: [[i64; 2]; 3], b1: [i64; 3], g: [i64; 3], beta: [i64; 3], w2: [[i64; 3]; 2], b2: [i64; 2],
+        gw1a: [[i64; 2]; 3], gb1a: [i64; 3], gga: [i64; 3], gba: [i64; 3], gw2a: [[i64; 3]; 2], gb2a: [i64; 2],
+        gw1b: [[i64; 2]; 3], gb1b: [i64; 3], ggb: [i64; 3], gbb: [i64; 3], gw2b: [[i64; 3]; 2], gb2b: [i64; 2],
+        kind: i64, eps: i64;
+    eps += 41;
+    kind += 1;
+    w1[0][0] += 3000; w1[0][1] -= 1200; w1[1][0] += 800; w1[1][1] += 4096; w1[2][0] -= 2500; w1[2][1] += 700;
+    w2[0][0] -= 900; w2[0][1] += 5000; w2[0][2] += 100; w2[1][0] -= 3300; w2[1][1] += 2200; w2[1][2] += 6100;
+    b1[0] += 500; b1[1] -= 1500; b1[2] += 250;
+    g[0] += 4096; g[1] += 3000; g[2] += 5000;
+    beta[0] += 300; beta[1] -= 200; beta[2] += 100;
+    b2[0] += 100; b2[1] -= 100;
+    x[0][0] += 4096; x[0][1] -= 2048;
+    x[1][0] -= 3000; x[1][1] += 6000;
+    ay[0][0] += 1000; ay[0][1] -= 2000;
+    ay[1][0] -= 500; ay[1][1] += 1500;
+    call mlp_layer<2, 3>(ya[0], w1, b1, g, beta, w2, b2, x[0], kind, eps);
+    call mlp_layer<2, 3>(ya[1], w1, b1, g, beta, w2, b2, x[1], kind, eps);
+    call mlp_layer_batch<2, 3, 2>(yb, w1, b1, g, beta, w2, b2, x, kind, eps);
+    expect ya[0][0] == yb[0][0] && ya[0][1] == yb[0][1] && ya[1][0] == yb[1][0] && ya[1][1] == yb[1][1];
+    expect yb[0][0] != 0 && yb[1][1] != 0;
+    call mlp_layer_back<2, 3>(ya[0], ay[0], axa[0], gw1a, gb1a, gga, gba, gw2a, gb2a, w1, b1, g, beta, w2, b2, x[0], kind, eps);
+    call mlp_layer_back<2, 3>(ya[1], ay[1], axa[1], gw1a, gb1a, gga, gba, gw2a, gb2a, w1, b1, g, beta, w2, b2, x[1], kind, eps);
+    call mlp_layer_back_batch<2, 3, 2>(yb, ay, axb, gw1b, gb1b, ggb, gbb, gw2b, gb2b, w1, b1, g, beta, w2, b2, x, kind, eps);
+    expect yb[0][0] == 0 && yb[1][1] == 0;
+    expect axa[0][0] == axb[0][0] && axa[0][1] == axb[0][1] && axa[1][0] == axb[1][0] && axa[1][1] == axb[1][1];
+    expect gw1a[0][0] == gw1b[0][0] && gw1a[2][1] == gw1b[2][1] && gb1a[1] == gb1b[1];
+    expect gga[0] == ggb[0] && gga[1] == ggb[1] && gba[2] == gbb[2] && gba[0] == gbb[0];
+    expect gw2a[0][2] == gw2b[0][2] && gw2a[1][0] == gw2b[1][0] && gb2a[0] == gb2b[0];
+    expect ggb[0] != 0 && gw1b[0][0] != 0 && axb[0][0] != 0;
+}
