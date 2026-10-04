@@ -7,7 +7,8 @@ Times the same f64 `y += a x` loop with and without `#[parallel(cpu)]` over a
 range of sizes. The compiler decides between serial code and threads for a bare
 `#[parallel]` loop from `CostModel` (crates/roop-llvm/src/module/cost_model.rs);
 the crossover here is what its `serial_cutoff_ns` and `cpu_launch_ns` should
-agree with.
+agree with. SME is off in Roop.toml: with it on, a `#[parallel(cpu)]` loop of
+2048 or more elements is the matrix kernel, not threads.
 """
 import os, pathlib, subprocess, tempfile
 
@@ -25,7 +26,7 @@ def best(n, attribute, work):
 }}
 """
     reps = 401 if n <= 65536 else 101
-    (work / "Roop.toml").write_text(f'[modules]\nstd = "{STD}"\n')
+    (work / "Roop.toml").write_text(f'[modules]\nstd = "{STD}"\n\n[parallel]\nsme = false\n')
     (work / "prog.roop").write_text(program)
     (work / "main.c").write_text((HERE / "roop" / "dispatch_main.c").read_text().replace("@N@", str(n)).replace("@REPS@", str(reps)))
     subprocess.run([str(ROOP), "build", "prog.roop", "--link", "main.c", "-o", "prog"], cwd=work, check=True,
