@@ -1,23 +1,56 @@
-// `conv` on B samples, one row of the state each, taken in turn: the contributions to
-// the
-// shared weight and bias add up, the same as the sum over samples.
+// `conv` on a batch of samples: the state is B rows of N = C * T numbers, each the
+// unfolded signal of C channels. The unfolded signals of the rows sit side by side,
+// so the filters meet all of them in one matrix product, and the gradients of the
+// filters are the sums over the rows of what each row adds.
 
-use super::conv::*;
+use einsum::imatmul_nt;
+use einsum::qmatmul;
+use einsum::qmatmul_tn;
+use einsum::qrow_sums;
+use super::conv_stack::*;
 
-pub fn conv_batch<C, K, T, N, CK, B>(
+// y += conv(x) for each row, with the intermediates computed and undone.
+pub fn conv_batch<C, K, T, N, CK, B, BT>(
     y: &mut [[i64; N]; B],
     w: &[[i64; CK]; C],
     b: &[i64; C],
     x: &[[i64; N]; B],
 ) {
-    ancilla r: i64 = 0;
-    from r == 0 {
-        call conv<C, K, T, N, CK>(y[r], w, b, x[r]);
-    } loop { r += 1; } until r == B - 1;
-    r -= B - 1;
+    ancilla col: [[i64; BT]; CK] = 0;
+    ancilla o: [[i64; BT]; C] = 0;
+    call im2col_stack<C, K, T, N, CK, B, BT>(col, x);
+    call qmatmul(o, w, col);
+    call unfold_bias_stack<C, T, N, BT, B>(y, o, b);
+    uncall qmatmul(o, w, col);
+    uncall im2col_stack<C, K, T, N, CK, B, BT>(col, x);
 }
 
-pub fn conv_back_batch<C, K, T, N, CK, B>(
+// With u the adjoint of what `conv_batch` added to, adds the adjoint of x to ax and
+// the gradients of the filters and the bias, summed over the rows.
+pub fn conv_vjp_batch<C, K, T, N, CK, B, BT>(
+    ax: &mut [[i64; N]; B],
+    gw: &mut [[i64; CK]; C],
+    gb: &mut [i64; C],
+    u: &[[i64; N]; B],
+    w: &[[i64; CK]; C],
+    x: &[[i64; N]; B],
+) {
+    ancilla col: [[i64; BT]; CK] = 0;
+    ancilla um: [[i64; BT]; C] = 0;
+    ancilla dcol: [[i64; BT]; CK] = 0;
+    call im2col_stack<C, K, T, N, CK, B, BT>(col, x);
+    call fold_stack<C, T, N, BT, B>(um, u);
+    call imatmul_nt(gw, um, col);
+    call qrow_sums(gb, um);
+    call qmatmul_tn(dcol, w, um);
+    call col2im_stack<C, K, T, N, CK, B, BT>(ax, dcol);
+    uncall qmatmul_tn(dcol, w, um);
+    uncall fold_stack<C, T, N, BT, B>(um, u);
+    uncall im2col_stack<C, K, T, N, CK, B, BT>(col, x);
+}
+
+// The backward step of `conv_batch`.
+pub fn conv_back_batch<C, K, T, N, CK, B, BT>(
     y: &mut [[i64; N]; B],
     ay: &[[i64; N]; B],
     ax: &mut [[i64; N]; B],
@@ -27,9 +60,6 @@ pub fn conv_back_batch<C, K, T, N, CK, B>(
     b: &[i64; C],
     x: &[[i64; N]; B],
 ) {
-    ancilla r: i64 = 0;
-    from r == 0 {
-        call conv_back<C, K, T, N, CK>(y[r], ay[r], ax[r], gw, gb, w, b, x[r]);
-    } loop { r += 1; } until r == B - 1;
-    r -= B - 1;
+    call conv_vjp_batch<C, K, T, N, CK, B, BT>(ax, gw, gb, ay, w, x);
+    uncall conv_batch<C, K, T, N, CK, B, BT>(y, w, b, x);
 }

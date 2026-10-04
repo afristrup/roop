@@ -1,9 +1,19 @@
-// `mlp_norm` on B samples, one row of the state each, taken in turn: the contributions
-// to the
-// shared weights add up, the same as the sum over samples.
+// `mlp_norm` on a batch of samples: the state is B rows of N numbers and the
+// contractions are matrix products over the rows, in the same Q12 terms as the
+// per-sample block. Only the normalization, which has statistics of its own for
+// each row, goes row by row. The gradients added are the sums of what each row adds.
 
-use super::mlp_norm::*;
+use einsum::icol_sums;
+use einsum::imatmul_tn;
+use einsum::qhadamard2;
+use einsum::qmatmul;
+use einsum::qmatmul_nt;
+use super::act::*;
+use super::kernels_batch::*;
+use super::norm_rows::*;
+use super::rows::*;
 
+// y += W2 f(rmsnorm(W1 x + b1)) + b2 for each row, with the intermediates undone.
 pub fn mlp_norm_batch<N, M, B>(
     y: &mut [[i64; N]; B],
     w1: &[[i64; N]; M],
@@ -15,13 +25,68 @@ pub fn mlp_norm_batch<N, M, B>(
     kind: &i64,
     eps: &i64,
 ) {
-    ancilla r: i64 = 0;
-    from r == 0 {
-        call mlp_norm<N, M>(y[r], w1, b1, g, w2, b2, x[r], kind, eps);
-    } loop { r += 1; } until r == B - 1;
-    r -= B - 1;
+    ancilla z: [[i64; M]; B] = 0;
+    ancilla n: [[i64; M]; B] = 0;
+    ancilla a: [[i64; M]; B] = 0;
+    call affine_batch<N, M, B>(z, w1, x, b1);
+    call rmsnorm_rows<M, B>(n, z, g, eps);
+    call act_rows<M, B>(a, n, kind);
+    call bias_rows<N, B>(y, b2);
+    call qmatmul_nt(y, a, w2);
+    uncall act_rows<M, B>(a, n, kind);
+    uncall rmsnorm_rows<M, B>(n, z, g, eps);
+    uncall affine_batch<N, M, B>(z, w1, x, b1);
 }
 
+// The adjoints of `mlp_norm_batch`, for u the adjoint of what it added to,
+// summed over the rows.
+pub fn mlp_norm_vjp_batch<N, M, B>(
+    ax: &mut [[i64; N]; B],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gg: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    u: &[[i64; N]; B],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    g: &[i64; M],
+    w2: &[[i64; M]; N],
+    x: &[[i64; N]; B],
+    kind: &i64,
+    eps: &i64,
+) {
+    ancilla z: [[i64; M]; B] = 0;
+    ancilla n: [[i64; M]; B] = 0;
+    ancilla a: [[i64; M]; B] = 0;
+    ancilla d: [[i64; M]; B] = 0;
+    ancilla ta: [[i64; M]; B] = 0;
+    ancilla tn: [[i64; M]; B] = 0;
+    ancilla tz: [[i64; M]; B] = 0;
+    ancilla tg: [[i64; M]; B] = 0;
+    call affine_batch<N, M, B>(z, w1, x, b1);
+    call rmsnorm_rows<M, B>(n, z, g, eps);
+    call act_rows<M, B>(a, n, kind);
+    call dact_rows<M, B>(d, n, kind);
+    call qmatmul(ta, u, w2);
+    call qhadamard2(tn, d, ta);
+    call rmsnorm_vjp_rows<M, B>(tz, tg, tn, z, g, eps);
+    call icol_sums(gg, tg);
+    call icol_sums(gb2, u);
+    call imatmul_tn(gw2, u, a);
+    call icol_sums(gb1, tz);
+    call imatmul_tn(gw1, tz, x);
+    call qmatmul(ax, tz, w1);
+    uncall rmsnorm_vjp_rows<M, B>(tz, tg, tn, z, g, eps);
+    uncall qhadamard2(tn, d, ta);
+    uncall qmatmul(ta, u, w2);
+    uncall dact_rows<M, B>(d, n, kind);
+    uncall act_rows<M, B>(a, n, kind);
+    uncall rmsnorm_rows<M, B>(n, z, g, eps);
+    uncall affine_batch<N, M, B>(z, w1, x, b1);
+}
+
+// The backward step of `mlp_norm_batch`.
 pub fn mlp_norm_back_batch<N, M, B>(
     y: &mut [[i64; N]; B],
     ay: &[[i64; N]; B],
@@ -40,26 +105,21 @@ pub fn mlp_norm_back_batch<N, M, B>(
     kind: &i64,
     eps: &i64,
 ) {
-    ancilla r: i64 = 0;
-    from r == 0 {
-        call mlp_norm_back<N, M>(
-            y[r],
-            ay[r],
-            ax[r],
-            gw1,
-            gb1,
-            gg,
-            gw2,
-            gb2,
-            w1,
-            b1,
-            g,
-            w2,
-            b2,
-            x[r],
-            kind,
-            eps,
-        );
-    } loop { r += 1; } until r == B - 1;
-    r -= B - 1;
+    call mlp_norm_vjp_batch<N, M, B>(
+        ax,
+        gw1,
+        gb1,
+        gg,
+        gw2,
+        gb2,
+        ay,
+        w1,
+        b1,
+        g,
+        w2,
+        x,
+        kind,
+        eps,
+    );
+    uncall mlp_norm_batch<N, M, B>(y, w1, b1, g, w2, b2, x, kind, eps);
 }

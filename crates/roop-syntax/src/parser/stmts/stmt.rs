@@ -1,4 +1,4 @@
-use crate::{Block, Expr, Place, Stmt, StmtKind, Token, UpdateOp, comma_list};
+use crate::{BinOp, Block, Expr, Place, Stmt, StmtKind, Token, UpdateOp, comma_list};
 use crate::{
     Err, TokenInput, attr, block, borrow_stmt, chan_stmt, expr, ident, irrev_stmt, keep_stmt,
     logged_stmt, match_stmt, overwrite_stmt, place, pop_stmt, push_stmt, recv_stmt, send_stmt,
@@ -93,13 +93,17 @@ pub fn stmt<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Stmt, Err<'a>> + Clon
             .allow_trailing()
             .collect()
             .delimited_by(just(Token::LParen), just(Token::RParen));
-        let length = select! { Token::Int(s) => s }
+        let term = select! { Token::Int(s) => s }
             .try_map(|s, span| {
                 s.parse::<i64>()
                     .map(Expr::Int)
                     .map_err(|e| Rich::custom(span, e.to_string()))
             })
             .or(ident().map(|name| Expr::Place(Place::Var(name))));
+        let length = term.clone().foldl(
+            just(Token::Star).ignore_then(term).repeated(),
+            |left, right| Expr::Binary(Box::new(left), BinOp::Mul, Box::new(right)),
+        );
         let generic_args = comma_list(length)
             .delimited_by(just(Token::Lt), just(Token::Gt))
             .or_not()

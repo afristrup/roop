@@ -71,7 +71,8 @@ irrev fn square<D>(h: &mut [[i64; D]; D], tau: &mut i64) {
     } loop { i += 1; } until i == D - 1;
 }
 
-// r gets a bound on the spectral norm of w in Q12, a percent above what the squares allow.
+// r gets a bound on the spectral norm of w in Q12, a percent above what the squares
+// allow.
 irrev fn spectral_bound<D, R>(r: &mut i64, w: &[[i64; D]; R]) {
     ancilla g: [[i64; D]; D] = 0;
     ancilla h: [[i64; D]; D] = 0;

@@ -193,6 +193,11 @@ pub fn layer_call(
         ) => {
             let length = width / channels;
             let ck = channels * kernel;
+            let stacked = if batched {
+                format!(", B * {length}")
+            } else {
+                String::new()
+            };
             let generics = format!("{channels}, {kernel}, {length}, {width}, {ck}");
             let (y, ay, ax, x) = if into_q {
                 ("q", "aq", "ap", "p")
@@ -201,11 +206,11 @@ pub fn layer_call(
             };
             match back {
                 false => format!(
-                    "call conv{s}<{generics}{b}>({y}, {}, {}, {x});",
+                    "call conv{s}<{generics}{b}{stacked}>({y}, {}, {}, {x});",
                     w.name, bias.name
                 ),
                 true => format!(
-                    "call conv_back{s}<{generics}{b}>({y}, {ay}, {ax}, g{0}, g{1}, {0}, {1}, {x});",
+                    "call conv_back{s}<{generics}{b}{stacked}>({y}, {ay}, {ax}, g{0}, g{1}, {0}, {1}, {x});",
                     w.name, bias.name
                 ),
             }

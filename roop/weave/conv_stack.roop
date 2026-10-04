@@ -1,0 +1,95 @@
+// The unfolded signals of a batch of convolutions side by side: the columns of
+// row r are the numbers r * T to r * T + T - 1 of the matrices below, so that the
+// filters meet the signals of every row in one matrix product.
+
+// col[c * K + k][r * T + t] += x[r][c * T + t + k - K / 2], where that is inside the
+// channel
+pub fn im2col_stack<C, K, T, N, CK, B, BT>(
+    col: &mut [[i64; BT]; CK],
+    x: &[[i64; N]; B],
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla c: i64 = 0;
+        from c == 0 {
+            ancilla k: i64 = 0;
+            from k == 0 {
+                ancilla t: i64 = 0;
+                from t == 0 {
+                    if t + k >= K / 2 && t + k - K / 2 < T {
+                        col[c * K + k][r * T + t] += x[r][c * T + t + k - K / 2];
+                    } fi t + k >= K / 2 && t + k - K / 2 < T;
+                } loop { t += 1; } until t == T - 1;
+                t -= T - 1;
+            } loop { k += 1; } until k == K - 1;
+            k -= K - 1;
+        } loop { c += 1; } until c == C - 1;
+        c -= C - 1;
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// x[r][c * T + t + k - K / 2] += col[c * K + k][r * T + t], where that is inside the
+// channel
+pub fn col2im_stack<C, K, T, N, CK, B, BT>(
+    x: &mut [[i64; N]; B],
+    col: &[[i64; BT]; CK],
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla c: i64 = 0;
+        from c == 0 {
+            ancilla k: i64 = 0;
+            from k == 0 {
+                ancilla t: i64 = 0;
+                from t == 0 {
+                    if t + k >= K / 2 && t + k - K / 2 < T {
+                        x[r][c * T + t + k - K / 2] += col[c * K + k][r * T + t];
+                    } fi t + k >= K / 2 && t + k - K / 2 < T;
+                } loop { t += 1; } until t == T - 1;
+                t -= T - 1;
+            } loop { k += 1; } until k == K - 1;
+            k -= K - 1;
+        } loop { c += 1; } until c == C - 1;
+        c -= C - 1;
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// m[c][r * T + t] += x[r][c * T + t]
+pub fn fold_stack<C, T, N, BT, B>(m: &mut [[i64; BT]; C], x: &[[i64; N]; B]) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla c: i64 = 0;
+        from c == 0 {
+            ancilla t: i64 = 0;
+            from t == 0 {
+                m[c][r * T + t] += x[r][c * T + t];
+            } loop { t += 1; } until t == T - 1;
+            t -= T - 1;
+        } loop { c += 1; } until c == C - 1;
+        c -= C - 1;
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}
+
+// y[r][c * T + t] += o[c][r * T + t] + b[c]
+pub fn unfold_bias_stack<C, T, N, BT, B>(
+    y: &mut [[i64; N]; B],
+    o: &[[i64; BT]; C],
+    b: &[i64; C],
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla c: i64 = 0;
+        from c == 0 {
+            ancilla t: i64 = 0;
+            from t == 0 {
+                y[r][c * T + t] += o[c][r * T + t] + b[c];
+            } loop { t += 1; } until t == T - 1;
+            t -= T - 1;
+        } loop { c += 1; } until c == C - 1;
+        c -= C - 1;
+    } loop { r += 1; } until r == B - 1;
+    r -= B - 1;
+}

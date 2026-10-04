@@ -9,12 +9,24 @@ use weave::attn;
 use weave::attn_back;
 use weave::attn_back_batch;
 use weave::attn_batch;
+use weave::conv;
+use weave::conv_back;
+use weave::conv_back_batch;
+use weave::conv_batch;
 use weave::grad;
 use weave::grad_batch;
 use weave::mlp;
 use weave::mlp_back;
 use weave::mlp_back_batch;
 use weave::mlp_batch;
+use weave::mlp_layer;
+use weave::mlp_layer_back;
+use weave::mlp_layer_back_batch;
+use weave::mlp_layer_batch;
+use weave::mlp_norm;
+use weave::mlp_norm_back;
+use weave::mlp_norm_back_batch;
+use weave::mlp_norm_batch;
 
 fn one(total: &mut i64, q: &mut [i64; @N@], p: &mut [i64; @N@], aq: &mut [i64; @N@], ap: &mut [i64; @N@],
        gw: &mut [[[i64; @N@]; @M@]; @L@], gb: &mut [[i64; @M@]; @L@],
@@ -58,6 +70,56 @@ fn attn_all(y: &mut [[i64; @N@]; @B@], ay: &[[i64; @N@]; @B@], ax: &mut [[i64; @
     call attn_batch<@S@, @D@, @N@, @B@>(y, wq, wk, wv, x);
     call attn_back_batch<@S@, @D@, @N@, @B@>(y, ay, ax, gwq, gwk, gwv, wq, wk, wv, x);
 }
+
+fn norm_one(y: &mut [i64; @N@], ay: &[i64; @N@], ax: &mut [i64; @N@],
+            gw1: &mut [[i64; @N@]; @M@], gb1: &mut [i64; @M@], gg: &mut [i64; @M@],
+            gw2: &mut [[i64; @M@]; @N@], gb2: &mut [i64; @N@],
+            w1: &[[i64; @N@]; @M@], b1: &[i64; @M@], g: &[i64; @M@], w2: &[[i64; @M@]; @N@], b2: &[i64; @N@],
+            x: &[i64; @N@], kind: &i64, eps: &i64) {
+    call mlp_norm<@N@, @M@>(y, w1, b1, g, w2, b2, x, kind, eps);
+    call mlp_norm_back<@N@, @M@>(y, ay, ax, gw1, gb1, gg, gw2, gb2, w1, b1, g, w2, b2, x, kind, eps);
+}
+
+fn norm_all(y: &mut [[i64; @N@]; @B@], ay: &[[i64; @N@]; @B@], ax: &mut [[i64; @N@]; @B@],
+            gw1: &mut [[i64; @N@]; @M@], gb1: &mut [i64; @M@], gg: &mut [i64; @M@],
+            gw2: &mut [[i64; @M@]; @N@], gb2: &mut [i64; @N@],
+            w1: &[[i64; @N@]; @M@], b1: &[i64; @M@], g: &[i64; @M@], w2: &[[i64; @M@]; @N@], b2: &[i64; @N@],
+            x: &[[i64; @N@]; @B@], kind: &i64, eps: &i64) {
+    call mlp_norm_batch<@N@, @M@, @B@>(y, w1, b1, g, w2, b2, x, kind, eps);
+    call mlp_norm_back_batch<@N@, @M@, @B@>(y, ay, ax, gw1, gb1, gg, gw2, gb2, w1, b1, g, w2, b2, x, kind, eps);
+}
+
+fn layer_one(y: &mut [i64; @N@], ay: &[i64; @N@], ax: &mut [i64; @N@],
+             gw1: &mut [[i64; @N@]; @M@], gb1: &mut [i64; @M@], gg: &mut [i64; @M@], gbeta: &mut [i64; @M@],
+             gw2: &mut [[i64; @M@]; @N@], gb2: &mut [i64; @N@],
+             w1: &[[i64; @N@]; @M@], b1: &[i64; @M@], g: &[i64; @M@], beta: &[i64; @M@],
+             w2: &[[i64; @M@]; @N@], b2: &[i64; @N@], x: &[i64; @N@], kind: &i64, eps: &i64) {
+    call mlp_layer<@N@, @M@>(y, w1, b1, g, beta, w2, b2, x, kind, eps);
+    call mlp_layer_back<@N@, @M@>(y, ay, ax, gw1, gb1, gg, gbeta, gw2, gb2, w1, b1, g, beta, w2, b2, x, kind, eps);
+}
+
+fn layer_all(y: &mut [[i64; @N@]; @B@], ay: &[[i64; @N@]; @B@], ax: &mut [[i64; @N@]; @B@],
+             gw1: &mut [[i64; @N@]; @M@], gb1: &mut [i64; @M@], gg: &mut [i64; @M@], gbeta: &mut [i64; @M@],
+             gw2: &mut [[i64; @M@]; @N@], gb2: &mut [i64; @N@],
+             w1: &[[i64; @N@]; @M@], b1: &[i64; @M@], g: &[i64; @M@], beta: &[i64; @M@],
+             w2: &[[i64; @M@]; @N@], b2: &[i64; @N@], x: &[[i64; @N@]; @B@], kind: &i64, eps: &i64) {
+    call mlp_layer_batch<@N@, @M@, @B@>(y, w1, b1, g, beta, w2, b2, x, kind, eps);
+    call mlp_layer_back_batch<@N@, @M@, @B@>(y, ay, ax, gw1, gb1, gg, gbeta, gw2, gb2, w1, b1, g, beta, w2, b2, x, kind, eps);
+}
+
+fn conv_one(y: &mut [i64; @N@], ay: &[i64; @N@], ax: &mut [i64; @N@],
+            gw: &mut [[i64; @CK@]; @C@], gb: &mut [i64; @C@],
+            w: &[[i64; @CK@]; @C@], b: &[i64; @C@], x: &[i64; @N@]) {
+    call conv<@C@, @KS@, @T@, @N@, @CK@>(y, w, b, x);
+    call conv_back<@C@, @KS@, @T@, @N@, @CK@>(y, ay, ax, gw, gb, w, b, x);
+}
+
+fn conv_all(y: &mut [[i64; @N@]; @B@], ay: &[[i64; @N@]; @B@], ax: &mut [[i64; @N@]; @B@],
+            gw: &mut [[i64; @CK@]; @C@], gb: &mut [i64; @C@],
+            w: &[[i64; @CK@]; @C@], b: &[i64; @C@], x: &[[i64; @N@]; @B@]) {
+    call conv_batch<@C@, @KS@, @T@, @N@, @CK@, @B@, @B@ * @T@>(y, w, b, x);
+    call conv_back_batch<@C@, @KS@, @T@, @N@, @CK@, @B@, @B@ * @T@>(y, ay, ax, gw, gb, w, b, x);
+}
 ";
 
 const DRIVER: &str = r#"
@@ -72,6 +134,10 @@ const DRIVER: &str = r#"
 #define B @B@
 #define S @S@
 #define D @D@
+#define C @C@
+#define KS @KS@
+#define T @T@
+#define CK @CK@
 
 void one(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
          int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
@@ -86,6 +152,17 @@ void attn_one(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
 void attn_all(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
               int64_t*, int64_t*, int64_t*, int64_t*);
 
+void norm_one(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
+              int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void norm_all(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
+              int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void layer_one(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
+               int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void layer_all(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*,
+               int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void conv_one(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+void conv_all(int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*, int64_t*);
+
 static uint64_t state = 12345;
 static int64_t rnd(int64_t range) {
     state = state * 6364136223846793005ULL + 1442695040888963407ULL;
@@ -94,6 +171,7 @@ static int64_t rnd(int64_t range) {
 static void fill(int64_t *v, int n, int64_t range) { for (int i = 0; i < n; i++) v[i] = rnd(range); }
 
 static int64_t ws[L][M][N], bs[L][M], x[B][N], t[B][K];
+static int64_t gain[M], beta[M], filters[C][CK], bias[C];
 static int64_t w1[M][N], b1[M], w2[N][M], b2[N], ay[B][N], wq[D][D], wk[D][D], wv[D][D];
 
 static int check_grad(int64_t kind) {
@@ -164,20 +242,81 @@ static int check_attn(void) {
     return 0;
 }
 
+static int check_norm(int64_t kind, int layered) {
+    int64_t eps = 41;
+    static int64_t gw1a[M][N], gb1a[M], gga[M], gba[M], gw2a[N][M], gb2a[N];
+    static int64_t gw1b[M][N], gb1b[M], ggb[M], gbb[M], gw2b[N][M], gb2b[N];
+    static int64_t axa[B][N], axb[B][N], ya[B][N], yb[B][N];
+    memset(gw1a, 0, sizeof gw1a); memset(gb1a, 0, sizeof gb1a); memset(gga, 0, sizeof gga);
+    memset(gba, 0, sizeof gba); memset(gw2a, 0, sizeof gw2a); memset(gb2a, 0, sizeof gb2a);
+    memset(gw1b, 0, sizeof gw1b); memset(gb1b, 0, sizeof gb1b); memset(ggb, 0, sizeof ggb);
+    memset(gbb, 0, sizeof gbb); memset(gw2b, 0, sizeof gw2b); memset(gb2b, 0, sizeof gb2b);
+    memset(axa, 0, sizeof axa); memset(axb, 0, sizeof axb); memset(ya, 0, sizeof ya); memset(yb, 0, sizeof yb);
+    for (int s = 0; s < B; s++) {
+        if (layered)
+            layer_one(ya[s], ay[s], axa[s], (int64_t*)gw1a, gb1a, gga, gba, (int64_t*)gw2a, gb2a,
+                      (int64_t*)w1, b1, gain, beta, (int64_t*)w2, b2, x[s], &kind, &eps);
+        else
+            norm_one(ya[s], ay[s], axa[s], (int64_t*)gw1a, gb1a, gga, (int64_t*)gw2a, gb2a,
+                     (int64_t*)w1, b1, gain, (int64_t*)w2, b2, x[s], &kind, &eps);
+    }
+    if (layered)
+        layer_all((int64_t*)yb, (int64_t*)ay, (int64_t*)axb, (int64_t*)gw1b, gb1b, ggb, gbb, (int64_t*)gw2b, gb2b,
+                  (int64_t*)w1, b1, gain, beta, (int64_t*)w2, b2, (int64_t*)x, &kind, &eps);
+    else
+        norm_all((int64_t*)yb, (int64_t*)ay, (int64_t*)axb, (int64_t*)gw1b, gb1b, ggb, (int64_t*)gw2b, gb2b,
+                 (int64_t*)w1, b1, gain, (int64_t*)w2, b2, (int64_t*)x, &kind, &eps);
+    if (memcmp(axa, axb, sizeof axa) != 0) return 31;
+    if (memcmp(gw1a, gw1b, sizeof gw1a) != 0) return 32;
+    if (memcmp(gb1a, gb1b, sizeof gb1a) != 0) return 33;
+    if (memcmp(gga, ggb, sizeof gga) != 0) return 34;
+    if (memcmp(gba, gbb, sizeof gba) != 0) return 35;
+    if (memcmp(gw2a, gw2b, sizeof gw2a) != 0) return 36;
+    if (memcmp(gb2a, gb2b, sizeof gb2a) != 0) return 37;
+    static int64_t zero[B][N], none[M][N];
+    if (memcmp(yb, zero, sizeof yb) != 0) return 38;
+    if (memcmp(gw1b, none, sizeof gw1b) == 0) return 39;
+    return 0;
+}
+
+static int check_conv(void) {
+    static int64_t ga[C][CK], gb[C], gc[C][CK], gd[C], axa[B][N], axb[B][N], ya[B][N], yb[B][N];
+    memset(ga, 0, sizeof ga); memset(gb, 0, sizeof gb); memset(gc, 0, sizeof gc); memset(gd, 0, sizeof gd);
+    memset(axa, 0, sizeof axa); memset(axb, 0, sizeof axb); memset(ya, 0, sizeof ya); memset(yb, 0, sizeof yb);
+    for (int s = 0; s < B; s++)
+        conv_one(ya[s], ay[s], axa[s], (int64_t*)ga, gb, (int64_t*)filters, bias, x[s]);
+    conv_all((int64_t*)yb, (int64_t*)ay, (int64_t*)axb, (int64_t*)gc, gd, (int64_t*)filters, bias, (int64_t*)x);
+    if (memcmp(axa, axb, sizeof axa) != 0) return 41;
+    if (memcmp(ga, gc, sizeof ga) != 0) return 42;
+    if (memcmp(gb, gd, sizeof gb) != 0) return 43;
+    static int64_t zero[B][N], none[C][CK];
+    if (memcmp(yb, zero, sizeof yb) != 0) return 44;
+    if (memcmp(gc, none, sizeof gc) == 0) return 45;
+    return 0;
+}
+
 int main(void) {
     fill((int64_t*)ws, L * M * N, 2000); fill((int64_t*)bs, L * M, 1000);
     fill((int64_t*)x, B * N, 6000); fill((int64_t*)t, B * K, 3000);
     fill((int64_t*)w1, M * N, 2000); fill(b1, M, 1000); fill((int64_t*)w2, N * M, 2000); fill(b2, N, 1000);
     fill((int64_t*)ay, B * N, 3000);
+    fill(gain, M, 4096); fill(beta, M, 2000);
+    fill((int64_t*)filters, C * CK, 3000); fill(bias, C, 1000);
     fill((int64_t*)wq, D * D, 3000); fill((int64_t*)wk, D * D, 3000); fill((int64_t*)wv, D * D, 3000);
     for (int64_t kind = 0; kind < 8; kind++) {
         int r = check_grad(kind);
         if (r) { fprintf(stderr, "grad kind %lld failed with %d\n", (long long)kind, r); return r; }
         r = check_mlp(kind);
         if (r) { fprintf(stderr, "mlp kind %lld failed with %d\n", (long long)kind, r); return r; }
+        r = check_norm(kind, 0);
+        if (r) { fprintf(stderr, "mlp_norm kind %lld failed with %d\n", (long long)kind, r); return r; }
+        r = check_norm(kind, 1);
+        if (r) { fprintf(stderr, "mlp_layer kind %lld failed with %d\n", (long long)kind, r); return r; }
     }
     int r = check_attn();
     if (r) { fprintf(stderr, "attention failed with %d\n", r); return r; }
+    r = check_conv();
+    if (r) { fprintf(stderr, "conv failed with %d\n", r); return r; }
     return 0;
 }
 "#;
@@ -197,6 +336,8 @@ struct Sizes {
     b: usize,
     s: usize,
     d: usize,
+    c: usize,
+    ks: usize,
 }
 
 const SMALL: Sizes = Sizes {
@@ -205,6 +346,8 @@ const SMALL: Sizes = Sizes {
     b: 5,
     s: 4,
     d: 2,
+    c: 2,
+    ks: 3,
 };
 
 /// Large enough that the matrix products run on the runtime's kernel.
@@ -214,6 +357,8 @@ const LARGE: Sizes = Sizes {
     b: 9,
     s: 6,
     d: 4,
+    c: 4,
+    ks: 3,
 };
 
 fn compare(name: &str, sizes: Sizes) {
@@ -226,6 +371,10 @@ fn compare(name: &str, sizes: Sizes) {
             ("@B@", sizes.b),
             ("@S@", sizes.s),
             ("@D@", sizes.d),
+            ("@C@", sizes.c),
+            ("@KS@", sizes.ks),
+            ("@T@", sizes.n / sizes.c),
+            ("@CK@", sizes.c * sizes.ks),
         ]
         .iter()
         .fold(text.to_string(), |text, (at, n)| {

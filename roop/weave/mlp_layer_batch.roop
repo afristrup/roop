@@ -1,8 +1,20 @@
-// `mlp_layer` on B samples, one row of the state each, taken in turn: the
-// contributions to the shared weights add up, the same as the sum over samples.
+// `mlp_layer` on a batch of samples: the state is B rows of N numbers and the
+// contractions are matrix products over the rows, in the same Q12 terms as the
+// per-sample block. Only the layer normalization, which has statistics of its own
+// for each row, goes row by row. The gradients added are the sums of what each row
+// adds.
 
-use super::mlp_layer::*;
+use einsum::icol_sums;
+use einsum::imatmul_tn;
+use einsum::qhadamard2;
+use einsum::qmatmul;
+use einsum::qmatmul_nt;
+use super::act::*;
+use super::kernels_batch::*;
+use super::norm_rows::*;
+use super::rows::*;
 
+// y += W2 f(layernorm(W1 x + b1)) + b2 for each row, with the intermediates undone.
 pub fn mlp_layer_batch<N, M, B>(
     y: &mut [[i64; N]; B],
     w1: &[[i64; N]; M],
@@ -15,13 +27,71 @@ pub fn mlp_layer_batch<N, M, B>(
     kind: &i64,
     eps: &i64,
 ) {
-    ancilla r: i64 = 0;
-    from r == 0 {
-        call mlp_layer<N, M>(y[r], w1, b1, g, beta, w2, b2, x[r], kind, eps);
-    } loop { r += 1; } until r == B - 1;
-    r -= B - 1;
+    ancilla z: [[i64; M]; B] = 0;
+    ancilla n: [[i64; M]; B] = 0;
+    ancilla a: [[i64; M]; B] = 0;
+    call affine_batch<N, M, B>(z, w1, x, b1);
+    call layernorm_rows<M, B>(n, z, g, beta, eps);
+    call act_rows<M, B>(a, n, kind);
+    call bias_rows<N, B>(y, b2);
+    call qmatmul_nt(y, a, w2);
+    uncall act_rows<M, B>(a, n, kind);
+    uncall layernorm_rows<M, B>(n, z, g, beta, eps);
+    uncall affine_batch<N, M, B>(z, w1, x, b1);
 }
 
+// The adjoints of `mlp_layer_batch`, for u the adjoint of what it added to,
+// summed over the rows.
+pub fn mlp_layer_vjp_batch<N, M, B>(
+    ax: &mut [[i64; N]; B],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gg: &mut [i64; M],
+    gbeta: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    u: &[[i64; N]; B],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    g: &[i64; M],
+    beta: &[i64; M],
+    w2: &[[i64; M]; N],
+    x: &[[i64; N]; B],
+    kind: &i64,
+    eps: &i64,
+) {
+    ancilla z: [[i64; M]; B] = 0;
+    ancilla n: [[i64; M]; B] = 0;
+    ancilla a: [[i64; M]; B] = 0;
+    ancilla d: [[i64; M]; B] = 0;
+    ancilla ta: [[i64; M]; B] = 0;
+    ancilla tn: [[i64; M]; B] = 0;
+    ancilla tz: [[i64; M]; B] = 0;
+    ancilla tg: [[i64; M]; B] = 0;
+    call affine_batch<N, M, B>(z, w1, x, b1);
+    call layernorm_rows<M, B>(n, z, g, beta, eps);
+    call act_rows<M, B>(a, n, kind);
+    call dact_rows<M, B>(d, n, kind);
+    call qmatmul(ta, u, w2);
+    call qhadamard2(tn, d, ta);
+    call layernorm_vjp_rows<M, B>(tz, tg, tn, z, g, eps);
+    call icol_sums(gg, tg);
+    call icol_sums(gbeta, tn);
+    call icol_sums(gb2, u);
+    call imatmul_tn(gw2, u, a);
+    call icol_sums(gb1, tz);
+    call imatmul_tn(gw1, tz, x);
+    call qmatmul(ax, tz, w1);
+    uncall layernorm_vjp_rows<M, B>(tz, tg, tn, z, g, eps);
+    uncall qhadamard2(tn, d, ta);
+    uncall qmatmul(ta, u, w2);
+    uncall dact_rows<M, B>(d, n, kind);
+    uncall act_rows<M, B>(a, n, kind);
+    uncall layernorm_rows<M, B>(n, z, g, beta, eps);
+    uncall affine_batch<N, M, B>(z, w1, x, b1);
+}
+
+// The backward step of `mlp_layer_batch`.
 pub fn mlp_layer_back_batch<N, M, B>(
     y: &mut [[i64; N]; B],
     ay: &[[i64; N]; B],
@@ -42,28 +112,23 @@ pub fn mlp_layer_back_batch<N, M, B>(
     kind: &i64,
     eps: &i64,
 ) {
-    ancilla r: i64 = 0;
-    from r == 0 {
-        call mlp_layer_back<N, M>(
-            y[r],
-            ay[r],
-            ax[r],
-            gw1,
-            gb1,
-            gg,
-            gbeta,
-            gw2,
-            gb2,
-            w1,
-            b1,
-            g,
-            beta,
-            w2,
-            b2,
-            x[r],
-            kind,
-            eps,
-        );
-    } loop { r += 1; } until r == B - 1;
-    r -= B - 1;
+    call mlp_layer_vjp_batch<N, M, B>(
+        ax,
+        gw1,
+        gb1,
+        gg,
+        gbeta,
+        gw2,
+        gb2,
+        ay,
+        w1,
+        b1,
+        g,
+        beta,
+        w2,
+        x,
+        kind,
+        eps,
+    );
+    uncall mlp_layer_batch<N, M, B>(y, w1, b1, g, beta, w2, b2, x, kind, eps);
 }
