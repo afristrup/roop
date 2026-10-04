@@ -69,12 +69,47 @@ static inline __attribute__((always_inline)) void store_c(double *c, int64_t ldc
   }
 }
 
+// Stores tile t of the old block and loads it from the next, before the next
+// tile is touched, so the first products of the next block can start while the
+// last tiles are still being exchanged.
+#define ST(t, row, col)                                    \
+  do {                                                     \
+    for (uint32_t r = 0; r < VL; r++)                      \
+      svst1_hor_za64(t, r, all, old + (row + r) * ldc + col); \
+  } while (0)
+
+#define LD(t, row, col)                                    \
+  do {                                                     \
+    for (uint32_t r = 0; r < VL; r++)                      \
+      svld1_hor_za64(t, r, all, next + (row + r) * ldc + col); \
+  } while (0)
+
+static inline __attribute__((always_inline)) void swap_c(double *old, double *next, int64_t ldc)
+    __arm_streaming __arm_inout("za") {
+  svbool_t all = svptrue_b64();
+  ST(0, 0, 0);
+  ST(1, 0, VL);
+  ST(2, 0, 2 * VL);
+  ST(3, 0, 3 * VL);
+  LD(0, 0, 0);
+  ST(4, VL, 0);
+  LD(1, 0, VL);
+  ST(5, VL, VL);
+  LD(2, 0, 2 * VL);
+  ST(6, VL, 2 * VL);
+  LD(3, 0, 3 * VL);
+  ST(7, VL, 3 * VL);
+  LD(4, VL, 0);
+  LD(5, VL, VL);
+  LD(6, VL, 2 * VL);
+  LD(7, VL, 3 * VL);
+}
+
 static inline __attribute__((always_inline)) void tile(
-    int mode, double *c, int64_t ldc, const double *b, int64_t ldb, int64_t kc,
+    int mode, int64_t kc, const double *b, int64_t ldb,
     const Panel *p, svbool_t q0, svbool_t q1, svbool_t q2, svbool_t q3)
     __arm_streaming __arm_inout("za") {
   svbool_t all = svptrue_b64();
-  load_c(c, ldc);
   for (int64_t l = 0; l < kc; l++) {
     svfloat64_t a0 = svld1(all, p->lo + l * VL);
     svfloat64_t a1 = svld1(all, p->hi + l * VL);
@@ -91,7 +126,6 @@ static inline __attribute__((always_inline)) void tile(
     MOPA(mode, 6, a1, b2);
     MOPA(mode, 7, a1, b3);
   }
-  store_c(c, ldc);
 }
 
 static inline __attribute__((always_inline)) svfloat64x4_t scaled(svfloat64x4_t v, double alpha)
@@ -175,22 +209,34 @@ static inline __attribute__((always_inline)) void block(
     const Panel *p, const double *b, const Pending *nx, int64_t lda, double alpha)
     __arm_streaming __arm_inout("za") {
   double edge[2 * VL * CW];
+  int loaded = 0;
   for (int64_t j = 0; j < n; j += CW) {
     svbool_t q0 = svwhilelt_b64(j, n);
     svbool_t q1 = svwhilelt_b64(j + VL, n);
     svbool_t q2 = svwhilelt_b64(j + 2 * VL, n);
     svbool_t q3 = svwhilelt_b64(j + 3 * VL, n);
     int64_t w = n - j < CW ? n - j : CW;
-    if (m == 2 * VL && w == CW) {
-      tile(mode, c + j, ldc, b + j, ldb, kc, p, q0, q1, q2, q3);
-    } else {
+    int full = m == 2 * VL && w == CW;
+    if (!full)
       for (int64_t r = 0; r < 2 * VL; r++)
         for (int64_t x = 0; x < CW; x++)
           edge[r * CW + x] = r < m && x < w ? c[r * ldc + j + x] : 0.0;
-      tile(mode, edge, CW, b + j, ldb, kc, p, q0, q1, q2, q3);
+    if (!loaded) {
+      if (full) load_c(c + j, ldc);
+      else load_c(edge, CW);
+    }
+    tile(mode, kc, b + j, ldb, p, q0, q1, q2, q3);
+    int chain = j > 0 && full && m == 2 * VL && n - j - CW >= CW;
+    if (chain) {
+      swap_c(c + j, c + j + CW, ldc);
+    } else if (full) {
+      store_c(c + j, ldc);
+    } else {
+      store_c(edge, CW);
       for (int64_t r = 0; r < m; r++)
         for (int64_t x = 0; x < w; x++) c[r * ldc + j + x] = edge[r * CW + x];
     }
+    loaded = chain;
     if (j == 0 && nx->panel) pack(mode, nx, lda, alpha);
   }
 }
