@@ -2,7 +2,7 @@ mod support;
 
 use roop_weave::{WeaveError, parse_model};
 use serde_json::json;
-use support::{attention, conv, leapfrog, mlp, mlp_norm, model};
+use support::{attention, conv, leapfrog, mlp, mlp_layer, mlp_norm, model, residual};
 
 fn error_of(value: serde_json::Value) -> WeaveError {
     parse_model(&value.to_string()).unwrap_err()
@@ -138,4 +138,63 @@ fn a_norm_needs_an_epsilon_weave_can_hold_and_a_gain_for_each_hidden_unit() {
     let parsed =
         parse_model(&model("net", 4, 1, vec![mlp_norm("relu", 3, 4, 1)]).to_string()).unwrap();
     assert_eq!(parsed.tensors().len(), 5);
+}
+
+#[test]
+fn a_layer_norm_has_a_bias_for_each_hidden_unit_after_its_gain() {
+    let parsed =
+        parse_model(&model("net", 4, 1, vec![mlp_layer("relu", 3, 4, 1)]).to_string()).unwrap();
+    let names: Vec<&str> = parsed.tensors().iter().map(|t| t.name.as_str()).collect();
+    assert_eq!(names, ["w1_0", "b1_0", "w2_0", "b2_0", "gain_0", "beta_0"]);
+    let mut missing = mlp_layer("relu", 3, 4, 1);
+    missing["norm"].as_object_mut().unwrap().remove("bias");
+    let error = error_of(model("net", 4, 1, vec![missing]));
+    assert!(error.to_string().contains("norm.bias"), "{error}");
+    let mut short = mlp_layer("relu", 3, 4, 1);
+    short["norm"]["bias"] = json!([0.0]);
+    let error = error_of(model("net", 4, 1, vec![short]));
+    assert!(
+        matches!(&error, WeaveError::Shape { name, .. } if name == "beta_0"),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_residual_block_takes_its_chain_length_from_its_contraction_bound() {
+    let layer = residual("tanh", 4, 4, 2, 0.3);
+    let parsed = parse_model(&model("net", 4, 1, vec![layer]).to_string()).unwrap();
+    let roop_weave::Layer::Residual { iters, .. } = &parsed.layers[0] else {
+        panic!("a residual layer");
+    };
+    assert!((5..60).contains(iters), "{iters}");
+    assert!(!parsed.layers[0].is_half_step());
+    let mut fixed = residual("tanh", 4, 4, 2, 0.3);
+    fixed["iters"] = json!(7);
+    let parsed = parse_model(&model("net", 4, 1, vec![fixed]).to_string()).unwrap();
+    assert!(matches!(
+        parsed.layers[0],
+        roop_weave::Layer::Residual { iters: 7, .. }
+    ));
+}
+
+#[test]
+fn a_residual_function_that_is_not_a_contraction_is_refused() {
+    let error = error_of(model("net", 4, 1, vec![residual("tanh", 4, 4, 2, 3.0)]));
+    assert!(
+        matches!(error, WeaveError::Contraction { index: 0, bound } if bound >= 0.9),
+        "{error}"
+    );
+    assert!(error.to_string().contains("not a contraction"), "{error}");
+}
+
+#[test]
+fn a_residual_block_has_no_norm_and_a_chain_of_at_least_two_cells() {
+    let mut normed = residual("tanh", 4, 4, 2, 0.3);
+    normed["norm"] = json!({ "eps": 0.01, "gain": [1.0, 1.0, 1.0, 1.0] });
+    let error = error_of(model("net", 4, 1, vec![normed]));
+    assert!(error.to_string().contains("no norm"), "{error}");
+    let mut short = residual("tanh", 4, 4, 2, 0.3);
+    short["iters"] = json!(1);
+    let error = error_of(model("net", 4, 1, vec![short]));
+    assert!(error.to_string().contains("at least 2"), "{error}");
 }

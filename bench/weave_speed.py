@@ -20,36 +20,37 @@ import argparse, os, pathlib, subprocess, sys, tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
+WIDTH, BATCH = 64, 32
 
 PER_SAMPLE = """use weave::step;
 
-irrev fn train(total: &mut i64, ws: &mut [[[i64; 64]; 64]; 8], bs: &mut [[i64; 64]; 8],
-               gw: &mut [[[i64; 64]; 64]; 8], gb: &mut [[i64; 64]; 8],
-               q: &mut [i64; 64], p: &mut [i64; 64], aq: &mut [i64; 64], ap: &mut [i64; 64],
-               xs: &[[i64; 64]; 32], ts: &[[i64; 4]; 32], h: &i64, lr: &i64, kind: &i64) {
-    call step<64, 64, 8, 4, 32>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr, kind);
+irrev fn train(total: &mut i64, ws: &mut [[[i64; @N@]; @N@]; 8], bs: &mut [[i64; @N@]; 8],
+               gw: &mut [[[i64; @N@]; @N@]; 8], gb: &mut [[i64; @N@]; 8],
+               q: &mut [i64; @N@], p: &mut [i64; @N@], aq: &mut [i64; @N@], ap: &mut [i64; @N@],
+               xs: &[[i64; @N@]; @S@], ts: &[[i64; 4]; @S@], h: &i64, lr: &i64, kind: &i64) {
+    call step<@N@, @N@, 8, 4, @S@>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr, kind);
 }
 """
 
 BATCHED = """use weave::step_batch;
 
-irrev fn train(total: &mut i64, ws: &mut [[[i64; 64]; 64]; 8], bs: &mut [[i64; 64]; 8],
-               gw: &mut [[[i64; 64]; 64]; 8], gb: &mut [[i64; 64]; 8],
-               q: &mut [[i64; 64]; 32], p: &mut [[i64; 64]; 32], aq: &mut [[i64; 64]; 32], ap: &mut [[i64; 64]; 32],
-               xs: &[[i64; 64]; 32], ts: &[[i64; 4]; 32], h: &i64, lr: &i64, kind: &i64) {
-    call step_batch<64, 64, 8, 4, 32>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr, kind);
+irrev fn train(total: &mut i64, ws: &mut [[[i64; @N@]; @N@]; 8], bs: &mut [[i64; @N@]; 8],
+               gw: &mut [[[i64; @N@]; @N@]; 8], gb: &mut [[i64; @N@]; 8],
+               q: &mut [[i64; @N@]; @S@], p: &mut [[i64; @N@]; @S@], aq: &mut [[i64; @N@]; @S@], ap: &mut [[i64; @N@]; @S@],
+               xs: &[[i64; @N@]; @S@], ts: &[[i64; 4]; @S@], h: &i64, lr: &i64, kind: &i64) {
+    call step_batch<@N@, @N@, 8, 4, @S@>(total, ws, bs, gw, gb, q, p, aq, ap, xs, ts, h, lr, kind);
 }
 """
 
 CHUNKS = """use weave::step_parallel;
 
-irrev fn train(total: &mut [i64; @C@], ws: &mut [[[i64; 64]; 64]; 8], bs: &mut [[i64; 64]; 8],
-               gw: &mut [[[[i64; 64]; 64]; 8]; @C@], gb: &mut [[[i64; 64]; 8]; @C@],
-               tw: &mut [[[i64; 64]; 64]; 8], tb: &mut [[i64; 64]; 8],
-               q: &mut [[[i64; 64]; @B@]; @C@], p: &mut [[[i64; 64]; @B@]; @C@],
-               aq: &mut [[[i64; 64]; @B@]; @C@], ap: &mut [[[i64; 64]; @B@]; @C@],
-               xs: &[[[i64; 64]; @B@]; @C@], ts: &[[[i64; 4]; @B@]; @C@], h: &i64, lr: &i64, kind: &i64) {
-    call step_parallel<64, 64, 8, 4, @B@, @C@>(total, ws, bs, gw, gb, tw, tb, q, p, aq, ap, xs, ts, h, lr, kind);
+irrev fn train(total: &mut [i64; @C@], ws: &mut [[[i64; @N@]; @N@]; 8], bs: &mut [[i64; @N@]; 8],
+               gw: &mut [[[[i64; @N@]; @N@]; 8]; @C@], gb: &mut [[[i64; @N@]; 8]; @C@],
+               tw: &mut [[[i64; @N@]; @N@]; 8], tb: &mut [[i64; @N@]; 8],
+               q: &mut [[[i64; @N@]; @B@]; @C@], p: &mut [[[i64; @N@]; @B@]; @C@],
+               aq: &mut [[[i64; @N@]; @B@]; @C@], ap: &mut [[[i64; @N@]; @B@]; @C@],
+               xs: &[[[i64; @N@]; @B@]; @C@], ts: &[[[i64; 4]; @B@]; @C@], h: &i64, lr: &i64, kind: &i64) {
+    call step_parallel<@N@, @N@, 8, 4, @B@, @C@>(total, ws, bs, gw, gb, tw, tb, q, p, aq, ap, xs, ts, h, lr, kind);
 }
 """
 
@@ -64,9 +65,9 @@ DRIVER = """#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#define N 64
+#define N @N@
 #define L 8
-#define S 32
+#define S @S@
 #define C @C@
 static int64_t ws_[L][N][N], bs_[L][N], gw_[L][N][N], gb_[L][N], tw_[L][N][N], tb_[L][N];
 static int64_t gwc_[C][L][N][N], gbc_[C][L][N];
@@ -130,7 +131,7 @@ def fill(text, **kw):
 def run(roop, rt, weave, einsum, source, call, proto, toml, chunks=1, rounds=30):
     work = pathlib.Path(tempfile.mkdtemp(prefix="roop-weave-speed-"))
     (work / "Roop.toml").write_text(f'[modules]\nweave = "{weave}"\neinsum = "{einsum}"\n{toml}')
-    kw = dict(C=chunks, B=32 // chunks, ROUNDS=rounds, CALL=CALLS[call], PROTO=proto)
+    kw = dict(N=WIDTH, S=BATCH, C=chunks, B=BATCH // chunks, ROUNDS=rounds, CALL=CALLS[call], PROTO=proto)
     (work / "prog.roop").write_text(fill(source, **kw))
     (work / "main.c").write_text(fill(DRIVER, **kw))
     env = dict(os.environ, ROOP_RT_LIB=str(rt))
@@ -146,9 +147,19 @@ def proto(arity):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--baseline", help="a checkout of an older commit, built in release")
+    parser.add_argument("--checkout", help="measure this checkout (built in release) instead of the one holding the script")
+    parser.add_argument("--width", type=int, default=64)
+    parser.add_argument("--batch", type=int, default=32)
+    parser.add_argument("--accelerate-only", action="store_true", help="of the Rust rows, time only Accelerate's")
+    parser.add_argument("--only", default="", help="comma separated: kernels, chunks2, chunks4")
     args = parser.parse_args()
-    roop, rt = ROOT / "target/release/roop", ROOT / "target/release/libroop_rt.a"
-    weave, einsum = ROOT / "roop/weave", ROOT / "roop/einsum"
+    global WIDTH, BATCH
+    WIDTH, BATCH = args.width, args.batch
+    os.environ["WEAVE_WIDTH"], os.environ["WEAVE_SAMPLES"] = str(WIDTH), str(BATCH)
+    only = set(filter(None, args.only.split(",")))
+    root = pathlib.Path(args.checkout).resolve() if args.checkout else ROOT
+    roop, rt = root / "target/release/roop", root / "target/release/libroop_rt.a"
+    weave, einsum = root / "roop/weave", root / "roop/einsum"
     chip = subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"], capture_output=True, text=True).stdout.strip()
     load = os.getloadavg()[0]
     print(f"{chip}, {os.cpu_count()} cores, load average {load:.1f} when it started\n")
@@ -161,22 +172,26 @@ def main():
         rows.append(("before: one sample at a time (the commit given)", run(
             base / "target/release/roop", base / "target/release/libroop_rt.a", base / "roop/weave",
             base / "roop/einsum", PER_SAMPLE, "sample", proto(14), "")))
-    rows += [
-        ("roop, one sample at a time, ancillas computed backward", run(roop, rt, weave, einsum, PER_SAMPLE, "sample", proto(14), off)),
-        ("roop, one sample at a time", run(roop, rt, weave, einsum, PER_SAMPLE, "sample", proto(14), "")),
-        ("roop, the batch as matrices, as loops", run(roop, rt, weave, einsum, BATCHED, "batch", proto(14), off)),
-        ("roop, the batch, ancillas zeroed", run(roop, rt, weave, einsum, BATCHED, "batch", proto(14), cleared)),
-        ("roop, the batch, matrix kernels", run(roop, rt, weave, einsum, BATCHED, "batch", proto(14), "")),
+    plan = [
+        ("loops", "roop, one sample at a time, ancillas computed backward", PER_SAMPLE, "sample", 14, off, 1),
+        ("loops", "roop, one sample at a time", PER_SAMPLE, "sample", 14, "", 1),
+        ("loops", "roop, the batch as matrices, as loops", BATCHED, "batch", 14, off, 1),
+        ("loops", "roop, the batch, ancillas zeroed", BATCHED, "batch", 14, cleared, 1),
+        ("kernels", "roop, the batch, matrix kernels", BATCHED, "batch", 14, "", 1),
+        ("chunks2", "roop, the batch in 2 chunks on threads", CHUNKS, "chunks", 16, "", 2),
+        ("chunks4", "roop, the batch in 4 chunks on threads", CHUNKS, "chunks", 16, "", 4),
     ]
-    for c in (2, 4):
-        rows.append((f"roop, the batch in {c} chunks on threads", run(roop, rt, weave, einsum, CHUNKS, "chunks", proto(16), "", chunks=c)))
+    for name, label, source, call, arity, toml, chunks in plan:
+        if only and name not in only:
+            continue
+        rows.append((label, run(roop, rt, weave, einsum, source, call, proto(arity), toml, chunks=chunks)))
     for label, line in rows:
         print(f"| {label} | {line} |")
 
     native = pathlib.Path(tempfile.mkdtemp(prefix="roop-native-")) / "weave_speed"
     subprocess.run(["rustc", "-O", "-C", "target-cpu=native", str(HERE / "native/weave_speed.rs"), "-o", str(native)], check=True)
     print()
-    print(subprocess.run([str(native), "5"], capture_output=True, text=True, check=True).stdout)
+    print(subprocess.run([str(native), "5"] + (["accelerate"] if args.accelerate_only else []), capture_output=True, text=True, check=True).stdout)
 
 
 if __name__ == "__main__":

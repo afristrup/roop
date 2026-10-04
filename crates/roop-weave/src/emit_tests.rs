@@ -57,7 +57,7 @@ pub fn emit_tests(model: &Model) -> String {
     let gradient_tolerance = quantize(0.05 * scale + 0.005);
     for (tensor, grad) in model.gradients().iter().zip(&grads) {
         for (flat, g) in grad.iter().enumerate() {
-            let unit = gradient_unit(tensor);
+            let unit = gradient_unit(tensor) * model.loss_scale;
             let expected = (g * 4096.0 * unit as f64).round() as i64;
             body += &near(&tensor.element(flat), expected, gradient_tolerance * unit);
         }

@@ -47,6 +47,15 @@ impl Activation {
         self as i64
     }
 
+    /// A bound on the slope of the function, found by scanning it.
+    pub fn lipschitz(self) -> f64 {
+        match self {
+            Self::Sigmoid => 0.2501,
+            Self::Silu | Self::Gelu => 1.1205,
+            _ => 1.0,
+        }
+    }
+
     pub fn eval(self, z: f64) -> f64 {
         match self {
             Self::Identity => z,

@@ -1,0 +1,129 @@
+// The perceptron block of `mlp` with a layer normalization of the hidden layer:
+//
+//     F(x) = W2 f(layernorm(W1 x + b1, g, beta)) + b2
+
+use einsum::qhadamard;
+use einsum::qmatvec;
+use einsum::qmatvec_t;
+use einsum::iouter;
+use super::act::*;
+use super::kernels::*;
+use super::layer_norm::*;
+
+// y += W2 f(layernorm(W1 x + b1)) + b2, with the intermediates computed and undone.
+pub fn mlp_layer<N, M>(
+    y: &mut [i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    g: &[i64; M],
+    beta: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    x: &[i64; N],
+    kind: &i64,
+    eps: &i64,
+) {
+    ancilla z: [i64; M] = 0;
+    ancilla n: [i64; M] = 0;
+    ancilla a: [i64; M] = 0;
+    call affine<N, M>(z, w1, x, b1);
+    call layernorm<M>(n, z, g, beta, eps);
+    call act<M>(a, n, kind);
+    call add_vec<N>(y, b2);
+    call qmatvec(y, w2, a);
+    uncall act<M>(a, n, kind);
+    uncall layernorm<M>(n, z, g, beta, eps);
+    uncall affine<N, M>(z, w1, x, b1);
+}
+
+// The adjoints of `mlp_layer`, for u the adjoint of what it added to.
+pub fn mlp_layer_vjp<N, M>(
+    ax: &mut [i64; N],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gg: &mut [i64; M],
+    gbeta: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    u: &[i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    g: &[i64; M],
+    beta: &[i64; M],
+    w2: &[[i64; M]; N],
+    x: &[i64; N],
+    kind: &i64,
+    eps: &i64,
+) {
+    ancilla z: [i64; M] = 0;
+    ancilla n: [i64; M] = 0;
+    ancilla a: [i64; M] = 0;
+    ancilla d: [i64; M] = 0;
+    ancilla ta: [i64; M] = 0;
+    ancilla tn: [i64; M] = 0;
+    ancilla tz: [i64; M] = 0;
+    ancilla tg: [i64; M] = 0;
+    call affine<N, M>(z, w1, x, b1);
+    call layernorm<M>(n, z, g, beta, eps);
+    call act<M>(a, n, kind);
+    call dact<M>(d, n, kind);
+    call qmatvec_t(ta, w2, u);
+    call qhadamard(tn, d, ta);
+    call layernorm_vjp<M>(tz, tg, tn, z, g, eps);
+    call add_vec<M>(gg, tg);
+    call add_vec<M>(gbeta, tn);
+    call add_vec<N>(gb2, u);
+    call iouter(gw2, u, a);
+    call add_vec<M>(gb1, tz);
+    call iouter(gw1, tz, x);
+    call qmatvec_t(ax, w1, tz);
+    uncall layernorm_vjp<M>(tz, tg, tn, z, g, eps);
+    uncall qhadamard(tn, d, ta);
+    uncall qmatvec_t(ta, w2, u);
+    uncall dact<M>(d, n, kind);
+    uncall act<M>(a, n, kind);
+    uncall layernorm<M>(n, z, g, beta, eps);
+    uncall affine<N, M>(z, w1, x, b1);
+}
+
+// The backward step of `mlp_layer`.
+pub fn mlp_layer_back<N, M>(
+    y: &mut [i64; N],
+    ay: &[i64; N],
+    ax: &mut [i64; N],
+    gw1: &mut [[i64; N]; M],
+    gb1: &mut [i64; M],
+    gg: &mut [i64; M],
+    gbeta: &mut [i64; M],
+    gw2: &mut [[i64; M]; N],
+    gb2: &mut [i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    g: &[i64; M],
+    beta: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    x: &[i64; N],
+    kind: &i64,
+    eps: &i64,
+) {
+    call mlp_layer_vjp<N, M>(
+        ax,
+        gw1,
+        gb1,
+        gg,
+        gbeta,
+        gw2,
+        gb2,
+        ay,
+        w1,
+        b1,
+        g,
+        beta,
+        w2,
+        x,
+        kind,
+        eps,
+    );
+    uncall mlp_layer<N, M>(y, w1, b1, g, beta, w2, b2, x, kind, eps);
+}

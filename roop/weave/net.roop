@@ -175,6 +175,13 @@ pub fn seed<N, K>(aq: &mut [i64; N], q: &[i64; N], t: &[i64; K]) {
     k -= K - 1;
 }
 
+// aq += (q - t) * scale over the first K outputs: the adjoint of the loss, scaled
+pub fn seed_scaled<N, K>(aq: &mut [i64; N], q: &[i64; N], t: &[i64; K], scale: &i64) {
+    ancilla k: i64 = 0;
+    from k == 0 { aq[k] += (q[k] - t[k]) * scale; } loop { k += 1; } until k == K - 1;
+    k -= K - 1;
+}
+
 // The loss of one sample and its gradients, with q holding the input and p
 // zero. Everything else is rebuilt, so on exit q and p are as they were.
 pub fn grad<N, M, L, K>(

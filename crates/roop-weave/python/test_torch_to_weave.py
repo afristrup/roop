@@ -5,6 +5,7 @@ import json
 import os
 import unittest
 
+import contraction
 from torch_to_weave import Unsupported, export
 
 
@@ -143,6 +144,25 @@ class Export(unittest.TestCase):
         if path:
             with open(path, "w") as out:
                 out.write(text)
+
+
+class Contraction(unittest.TestCase):
+    def test_the_spectral_norm_of_known_matrices(self):
+        self.assertAlmostEqual(contraction.spectral_norm([[3.0, 0.0], [0.0, 1.0]]), 3.03, places=6)
+        self.assertAlmostEqual(contraction.spectral_norm([[0.0, -2.0], [2.0, 0.0]]), 2.02, places=6)
+        self.assertEqual(contraction.spectral_norm([[0.0, 0.0]]), 0.0)
+
+    def test_the_bound_is_the_product_of_the_norms_and_the_slope(self):
+        w = [[0.5, 0.0], [0.0, 0.25]]
+        self.assertAlmostEqual(contraction.bound("relu", w, w), 0.5 * 0.5 * 1.01 * 1.01, places=6)
+        self.assertAlmostEqual(contraction.bound("sigmoid", w, w) / contraction.bound("relu", w, w), 0.2501)
+
+    def test_the_chain_is_long_enough_for_one_unit_of_q12(self):
+        for bound in [0.1, 0.5, 0.8, 0.89]:
+            cells = contraction.iterations(bound)
+            self.assertLessEqual(bound ** (cells - 1), 2 ** -12)
+            self.assertGreater(bound ** (cells - 3), 2 ** -12) if bound > 0.3 else None
+        self.assertEqual(contraction.iterations(0.0), 4)
 
 
 if __name__ == "__main__":

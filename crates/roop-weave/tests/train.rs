@@ -3,7 +3,7 @@ mod support;
 use roop_weave::{parse_model, quantize};
 use serde_json::json;
 use std::process::Command;
-use support::{compile, mlp, model, project, roop, text};
+use support::{compile, mlp, mlp_layer, model, project, residual, roop, text};
 
 const XS: [[i64; 4]; 4] = [[1, 1, 1, 0], [1, -1, 1, 0], [-1, 1, 1, 0], [-1, -1, 1, 0]];
 const TS: [f64; 4] = [-0.5, 0.5, 0.5, -0.5];
@@ -71,6 +71,15 @@ fn train_xor(name: &str, optimizer: serde_json::Value, default_rate: f64) {
         mlp("tanh", 6, 4, 5),
         mlp("tanh", 6, 4, 8),
     ];
+    train_layers(name, layers, optimizer, default_rate);
+}
+
+fn train_layers(
+    name: &str,
+    layers: Vec<serde_json::Value>,
+    optimizer: serde_json::Value,
+    default_rate: f64,
+) {
     let mut spec = model(name, 4, 1, layers);
     spec["optimizer"] = optimizer;
     let dir = project(name);
@@ -106,4 +115,24 @@ fn momentum_trains_on_xor() {
 #[test]
 fn adam_trains_on_xor() {
     train_xor("xor_adam", json!({"kind": "adam"}), 0.01);
+}
+
+#[test]
+fn layer_normalized_perceptrons_train_on_xor() {
+    let layers = vec![
+        mlp_layer("tanh", 6, 4, 2),
+        mlp_layer("tanh", 6, 4, 5),
+        mlp_layer("tanh", 6, 4, 8),
+    ];
+    train_layers("xor_layer", layers, json!({"kind": "sgd"}), 0.05);
+}
+
+#[test]
+fn residual_blocks_train_on_xor() {
+    let layers = vec![
+        residual("tanh", 6, 4, 2, 0.3),
+        residual("tanh", 6, 4, 5, 0.3),
+        residual("tanh", 6, 4, 8, 0.3),
+    ];
+    train_layers("xor_residual", layers, json!({"kind": "sgd"}), 0.05);
 }

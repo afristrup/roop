@@ -1,0 +1,83 @@
+// An invertible residual block, y = x + F(x) with F(x) = W2 f(W1 x + b1) + b2 a
+// contraction (Lipschitz constant L below 1), as in invertible ResNets.
+//
+// x + F(x) writes the place it reads, so it is not a constructive update. The block
+// takes y into the other half of the state instead, with the input kept, and then
+// clears the input with the inverse of the block, found by the fixed-point iteration
+//
+//     x_0 = y,   x_(k+1) = y - F(x_k)
+//
+// run as a chain of K cells, each one added into from the one before. The error
+// shrinks by L each step, so K steps leave L^K |F(x)|; K = ceil(12 ln 2 / ln (1 / L))
+// brings that below one unit of Q12. On (q, p):
+//
+//     p += q + F(q)      p is y
+//     q -= x_K(p)        q is x - x_K(y), the remnant r, a few units or none
+//     q += p             q is y + r
+//     p -= q             p is -r
+//
+// Every line adds into a place it does not read, so the block is exactly invertible
+// on (q, p) whatever F and K are, bit for bit, and `uncall` rebuilds (x, 0) from the
+// output. It is the contraction that makes r small and the output y = x + F(x) up
+// to r; with p zero on entry, p leaves as -r.
+
+use super::act::*;
+use super::kernels::*;
+use super::mlp::*;
+
+// e[0] += y, and for each step a[k] += y - F(e[k]) and e[k + 1] += a[k]. The cells a
+// keep the step apart from the chain, so no call reads the array it writes.
+pub fn fixed_point<N, M, K>(
+    e: &mut [[i64; N]; K],
+    a: &mut [[i64; N]; K],
+    y: &[i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+) {
+    ancilla k: i64 = 0;
+    call add_vec<N>(e[0], y);
+    from k == 0 {
+        call add_vec<N>(a[k], y);
+        uncall mlp<N, M>(a[k], w1, b1, w2, b2, e[k], kind);
+        call add_vec<N>(e[k + 1], a[k]);
+    } loop { k += 1; } until k == K - 2;
+    k -= K - 2;
+}
+
+// q -= the last cell of the chain from p
+fn clear_input<N, M, K>(
+    q: &mut [i64; N],
+    p: &[i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+) {
+    ancilla e: [[i64; N]; K] = 0;
+    ancilla a: [[i64; N]; K] = 0;
+    call fixed_point<N, M, K>(e, a, p, w1, b1, w2, b2, kind);
+    uncall add_vec<N>(q, e[K - 1]);
+    uncall fixed_point<N, M, K>(e, a, p, w1, b1, w2, b2, kind);
+}
+
+// The block, with p zero on entry: q leaves as x + F(x) up to the remnant, p as minus
+// it.
+pub fn residual<N, M, K>(
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+) {
+    call add_vec<N>(p, q);
+    call mlp<N, M>(p, w1, b1, w2, b2, q, kind);
+    call clear_input<N, M, K>(q, p, w1, b1, w2, b2, kind);
+    call add_vec<N>(q, p);
+    uncall add_vec<N>(p, q);
+}

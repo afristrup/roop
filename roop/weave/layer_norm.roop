@@ -1,0 +1,77 @@
+// Layer normalization of a hidden layer in Q12:
+// n = g * (z - mean(z)) / sqrt(var(z) + eps) + beta.
+//
+// The mean is taken off into a centered copy, which `rmsnorm` then scales: the
+// variance of z is the mean square of the centered copy. The adjoint is that of
+// `rmsnorm` on the centered copy, followed by the same centering, which is its own
+// adjoint:  dz = r (g u - mean(g u) - zhat mean(g u zhat)),  zhat = (z - mean) r.
+
+use super::kernels::*;
+use super::norm::*;
+
+// c += the sum of z
+fn sum_of<M>(c: &mut i64, z: &[i64; M]) {
+    ancilla j: i64 = 0;
+    from j == 0 { c += z[j]; } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
+}
+
+// m += mean(z)
+pub fn mean_of<M>(m: &mut i64, z: &[i64; M]) {
+    ancilla c: i64 = 0;
+    call sum_of<M>(c, z);
+    m += c / M;
+    uncall sum_of<M>(c, z);
+}
+
+// zc += z - m
+pub fn center<M>(zc: &mut [i64; M], z: &[i64; M], m: &i64) {
+    ancilla j: i64 = 0;
+    from j == 0 { zc[j] += z[j] - m; } loop { j += 1; } until j == M - 1;
+    j -= M - 1;
+}
+
+// n += g * (z - mean(z)) / sqrt(var(z) + eps) + beta
+pub fn layernorm<M>(
+    n: &mut [i64; M],
+    z: &[i64; M],
+    g: &[i64; M],
+    beta: &[i64; M],
+    eps: &i64,
+) {
+    ancilla m: i64 = 0;
+    ancilla zc: [i64; M] = 0;
+    call mean_of<M>(m, z);
+    call center<M>(zc, z, m);
+    call rmsnorm<M>(n, zc, g, eps);
+    call add_vec<M>(n, beta);
+    uncall center<M>(zc, z, m);
+    uncall mean_of<M>(m, z);
+}
+
+// With u the adjoint of what `layernorm` added to, adds the adjoint of z to dz and
+// the gradient of the gain to dg. The gradient of beta is u itself.
+pub fn layernorm_vjp<M>(
+    dz: &mut [i64; M],
+    dg: &mut [i64; M],
+    u: &[i64; M],
+    z: &[i64; M],
+    g: &[i64; M],
+    eps: &i64,
+) {
+    ancilla m: i64 = 0;
+    ancilla mt: i64 = 0;
+    ancilla zc: [i64; M] = 0;
+    ancilla tz: [i64; M] = 0;
+    ancilla tg: [i64; M] = 0;
+    call mean_of<M>(m, z);
+    call center<M>(zc, z, m);
+    call rmsnorm_vjp<M>(tz, tg, u, zc, g, eps);
+    call add_vec<M>(dg, tg);
+    call mean_of<M>(mt, tz);
+    call center<M>(dz, tz, mt);
+    uncall mean_of<M>(mt, tz);
+    uncall rmsnorm_vjp<M>(tz, tg, u, zc, g, eps);
+    uncall center<M>(zc, z, m);
+    uncall mean_of<M>(m, z);
+}

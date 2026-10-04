@@ -34,7 +34,7 @@ pub fn emit_step(model: &Model, batched: bool) -> String {
     let updates: String = model
         .tensors()
         .into_iter()
-        .map(|t| model.optimizer.update(t))
+        .map(|t| model.optimizer.update(t, model.loss_scale))
         .collect();
     let clears: String = model.tensors().into_iter().map(clear).collect();
     let samples = match batched {
