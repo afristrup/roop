@@ -1,0 +1,20 @@
+// The fixed-point sine and cosine, and the wavelength features built on them.
+
+use std::math::*;
+
+test sin_and_cos_of_zero {
+    s: i64, c: i64, angle: i64;
+    call sin_q12(s, angle);
+    call cos_q12(c, angle);
+    expect s == 0 && c == 4096;
+}
+
+test wave_features_round_trip {
+    features: [i64; 8], waves: [i64; 2], omega: [i64; 2];
+    waves[0] += 2048;
+    waves[1] += 4096;
+    omega[0] += 4096;
+    omega[1] += 1;
+    call wave_features<2, 2, 8>(features, waves, omega);
+    expect features[0] != 0 && features[4] != 0;
+}

@@ -1,0 +1,13 @@
+// The Clay 1.5 model assembled from weave blocks.
+
+mod clay_block;
+mod clay_multihead_block;
+mod clay_multihead_stack;
+mod earth_inn_clay;
+mod earth_inn_clay_multihead;
+
+pub use clay_block::*;
+pub use clay_multihead_block::*;
+pub use clay_multihead_stack::*;
+pub use earth_inn_clay::*;
+pub use earth_inn_clay_multihead::*;

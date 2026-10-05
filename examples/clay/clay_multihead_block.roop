@@ -1,0 +1,103 @@
+// Clay-shaped reversible block with real multi-head and per-token MLP shapes.
+
+use einsum::wmatvec;
+use weave::*;
+
+fn row_copy<S, N, L>(row_value: &mut [i64; N], x: &[i64; L], row: &i64) {
+    ancilla d: i64 = 0;
+    from d == 0 { row_value[d] += x[row * N + d]; } loop { d += 1; } until d == N - 1;
+    d -= N - 1;
+}
+
+fn scatter_row<S, N, L>(y: &mut [i64; L], value: &[i64; N], row: &i64) {
+    ancilla d: i64 = 0;
+    from d == 0 { y[row * N + d] += value[d]; } loop { d += 1; } until d == N - 1;
+    d -= N - 1;
+}
+
+fn row_mlp<S, N, M, L>(
+    y: &mut [i64; L],
+    x: &[i64; L],
+    row: &i64,
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    gain: &[i64; N],
+    beta: &[i64; N],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+    eps: &i64,
+) {
+    ancilla xrow: [i64; N] = 0;
+    ancilla normalized: [i64; N] = 0;
+    ancilla z: [i64; M] = 0;
+    ancilla a: [i64; M] = 0;
+    ancilla value: [i64; N] = 0;
+    call row_copy<S, N, L>(xrow, x, row);
+    call layernorm<N>(normalized, xrow, gain, beta, eps);
+    call affine<N, M>(z, w1, normalized, b1);
+    call act<M>(a, z, kind);
+    call add_vec<N>(value, b2);
+    call wmatvec(value, w2, a);
+    call scatter_row<S, N, L>(y, value, row);
+    uncall wmatvec(value, w2, a);
+    uncall add_vec<N>(value, b2);
+    uncall act<M>(a, z, kind);
+    uncall affine<N, M>(z, w1, normalized, b1);
+    uncall layernorm<N>(normalized, xrow, gain, beta, eps);
+    uncall row_copy<S, N, L>(xrow, x, row);
+}
+
+fn row_mlps<S, N, M, L>(
+    y: &mut [i64; L],
+    x: &[i64; L],
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    gain: &[i64; N],
+    beta: &[i64; N],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+    eps: &i64,
+) {
+    auto ancilla row: i64 = 0;
+    from row == 0 {
+        call row_mlp<S, N, M, L>(y, x, row, w1, b1, gain, beta, w2, b2, kind, eps);
+    } loop { row += 1; } until row == S - 1;
+    row -= S - 1;
+}
+
+pub fn clay_multihead_block<S, N, H, K, I, M, L>(
+    q: &mut [i64; L],
+    p: &mut [i64; L],
+    wq: &[[i64; N]; I],
+    wk: &[[i64; N]; I],
+    wv: &[[i64; N]; I],
+    wo: &[[i64; I]; N],
+    attention_gain: &[i64; N],
+    attention_beta: &[i64; N],
+    attention_eps: &i64,
+    scale: &i64,
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    mlp_gain: &[i64; N],
+    mlp_beta: &[i64; N],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+    mlp_eps: &i64,
+) {
+    call multihead_attn_norm<S, N, H, K, I, L>(
+        q,
+        wq,
+        wk,
+        wv,
+        wo,
+        p,
+        attention_gain,
+        attention_beta,
+        attention_eps,
+        scale,
+    );
+    call row_mlps<S, N, M, L>(p, q, w1, b1, mlp_gain, mlp_beta, w2, b2, kind, mlp_eps);
+}

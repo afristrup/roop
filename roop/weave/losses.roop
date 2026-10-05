@@ -47,7 +47,7 @@ fn larger(r: &mut i64, a: &i64, b: &i64) {
 }
 
 // mx[k] += the largest of q[0] to q[k]
-fn maxes<N, K>(mx: &mut [i64; K], q: &[i64; N]) {
+pub fn maxes<N, K>(mx: &mut [i64; K], q: &[i64; N]) {
     ancilla k: i64 = 0;
     mx[0] += q[0];
     from k == 0 {
@@ -57,14 +57,14 @@ fn maxes<N, K>(mx: &mut [i64; K], q: &[i64; N]) {
 }
 
 // ex[k] += exp(q[k] - m)
-fn exps<N, K>(ex: &mut [i64; K], q: &[i64; N], m: &i64) {
+pub fn exps<N, K>(ex: &mut [i64; K], q: &[i64; N], m: &i64) {
     ancilla k: i64 = 0;
     from k == 0 { call exp_neg(ex[k], q[k] - m); } loop { k += 1; } until k == K - 1;
     k -= K - 1;
 }
 
 // s += the sum of ex
-fn total_of<K>(s: &mut i64, ex: &[i64; K]) {
+pub fn total_of<K>(s: &mut i64, ex: &[i64; K]) {
     ancilla k: i64 = 0;
     from k == 0 { s += ex[k]; } loop { k += 1; } until k == K - 1;
     k -= K - 1;

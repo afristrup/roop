@@ -1,0 +1,13 @@
+// value += sin(angle) in Q12 (4096 is 1.0), by the Taylor series to the fifth power.
+pub fn sin_q12(value: &mut i64, angle: &i64) {
+    ancilla square: i64 = 0;
+    ancilla cube: i64 = 0;
+    ancilla fifth: i64 = 0;
+    square += angle * angle / 4096;
+    cube += square * angle / 4096;
+    fifth += cube * square / 4096;
+    value += angle - cube / 6 + fifth / 120;
+    fifth -= cube * square / 4096;
+    cube -= square * angle / 4096;
+    square -= angle * angle / 4096;
+}

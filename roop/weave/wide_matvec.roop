@@ -1,0 +1,12 @@
+// y += w a, a rectangular product in Q12 with each term rounded.
+pub fn wide_matvec<N, M>(y: &mut [i64; N], w: &[[i64; M]; N], a: &[i64; M]) {
+    ancilla i: i64 = 0;
+    from i == 0 {
+        ancilla j: i64 = 0;
+        from j == 0 {
+            y[i] += w[i][j] * a[j] / 4096;
+        } loop { j += 1; } until j == M - 1;
+        j -= M - 1;
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
+}

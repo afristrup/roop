@@ -1,0 +1,63 @@
+// Scenario-conditioned Clay Earth-INN step.
+// First applies a Clay-shaped reversible transformer block, then translates
+// between observation domains using read-only scenario context.
+
+use super::clay_block::clay_block;
+use weave::*;
+
+pub fn earth_inn_clay_step<S, D, N, M, C, I, H>(
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    context: &[i64; C],
+    wq: &[[i64; D]; D],
+    wk: &[[i64; D]; D],
+    wv: &[[i64; D]; D],
+    attention_gain: &[i64; D],
+    attention_beta: &[i64; D],
+    eps: &i64,
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+    scale: &i64,
+    q_w1: &[[i64; I]; H],
+    q_b1: &[i64; H],
+    q_w2: &[[i64; H]; N],
+    q_b2: &[i64; N],
+    p_w1: &[[i64; I]; H],
+    p_b1: &[i64; H],
+    p_w2: &[[i64; H]; N],
+    p_b2: &[i64; N],
+) {
+    call clay_block<S, D, N, M>(
+        q,
+        p,
+        wq,
+        wk,
+        wv,
+        attention_gain,
+        attention_beta,
+        eps,
+        w1,
+        b1,
+        w2,
+        b2,
+        kind,
+        scale,
+    );
+    call conditional_coupling<N, I, C, H>(
+        q,
+        p,
+        context,
+        q_w1,
+        q_b1,
+        q_w2,
+        q_b2,
+        p_w1,
+        p_b1,
+        p_w2,
+        p_b2,
+        kind,
+    );
+}

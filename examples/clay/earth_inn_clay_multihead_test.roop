@@ -1,0 +1,96 @@
+use clay::*;
+
+test earth_inn_clay_multihead_step_round_trip {
+    q: [i64; 8],
+        p: [i64; 8],
+        context: [i64; 2],
+        wq: [[i64; 4]; 4],
+        wk: [[i64; 4]; 4],
+        wv: [[i64; 4]; 4],
+        wo: [[i64; 4]; 4],
+        attention_gain: [i64; 4],
+        attention_beta: [i64; 4],
+        attention_eps: i64,
+        scale: i64,
+        w1: [[i64; 4]; 3],
+        b1: [i64; 3],
+        mlp_gain: [i64; 4],
+        mlp_beta: [i64; 4],
+        w2: [[i64; 3]; 4],
+        b2: [i64; 4],
+        kind: i64,
+        mlp_eps: i64,
+        q_w1: [[i64; 10]; 3],
+        q_b1: [i64; 3],
+        q_w2: [[i64; 3]; 8],
+        q_b2: [i64; 8],
+        p_w1: [[i64; 10]; 3],
+        p_b1: [i64; 3],
+        p_w2: [[i64; 3]; 8],
+        p_b2: [i64; 8];
+    q[0] += 2048;
+    p[3] -= 1000;
+    context[0] += 700;
+    context[1] -= 500;
+    wq[0][0] += 4096;
+    wq[1][1] += 4096;
+    wq[2][2] += 4096;
+    wq[3][3] += 4096;
+    wk[0][0] += 4096;
+    wk[1][1] += 4096;
+    wk[2][2] += 4096;
+    wk[3][3] += 4096;
+    wv[0][0] += 4096;
+    wv[1][1] += 4096;
+    wv[2][2] += 4096;
+    wv[3][3] += 4096;
+    wo[0][0] += 4096;
+    wo[1][1] += 4096;
+    wo[2][2] += 4096;
+    wo[3][3] += 4096;
+    attention_gain[0] += 4096;
+    attention_gain[1] += 4096;
+    attention_gain[2] += 4096;
+    attention_gain[3] += 4096;
+    mlp_gain[0] += 4096;
+    mlp_gain[1] += 4096;
+    mlp_gain[2] += 4096;
+    attention_eps += 1;
+    mlp_eps += 1;
+    scale += 2896;
+    w1[0][0] += 1000;
+    w2[0][0] += 800;
+    q_w1[0][0] += 500;
+    p_w2[1][1] -= 300;
+    kind += 7;
+    call earth_inn_clay_multihead_step<2, 4, 2, 2, 4, 3, 8, 2, 10, 3>(
+        q,
+        p,
+        context,
+        wq,
+        wk,
+        wv,
+        wo,
+        attention_gain,
+        attention_beta,
+        attention_eps,
+        scale,
+        w1,
+        b1,
+        mlp_gain,
+        mlp_beta,
+        w2,
+        b2,
+        kind,
+        mlp_eps,
+        q_w1,
+        q_b1,
+        q_w2,
+        q_b2,
+        p_w1,
+        p_b1,
+        p_w2,
+        p_b2,
+    );
+    expect q[0] != 2048 || p[3] != 0 - 1000;
+}

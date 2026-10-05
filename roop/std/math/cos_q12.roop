@@ -1,0 +1,13 @@
+// value += cos(angle) in Q12, by the Taylor series to the sixth power.
+pub fn cos_q12(value: &mut i64, angle: &i64) {
+    ancilla square: i64 = 0;
+    ancilla fourth: i64 = 0;
+    ancilla sixth: i64 = 0;
+    square += angle * angle / 4096;
+    fourth += square * square / 4096;
+    sixth += fourth * square / 4096;
+    value += 4096 - square / 2 + fourth / 24 - sixth / 720;
+    sixth -= fourth * square / 4096;
+    fourth -= square * square / 4096;
+    square -= angle * angle / 4096;
+}
