@@ -1,0 +1,30 @@
+// Clay wavelength features in 4096 fixed point.
+
+use super::cos_q12::cos_q12;
+use super::sin_q12::sin_q12;
+
+pub fn wave_features<B, H, L>(
+    features: &mut [i64; L],
+    waves: &[i64; B],
+    omega: &[i64; H],
+) {
+    ancilla band: i64 = 0;
+    from band == 0 {
+        ancilla frequency: i64 = 0;
+        from frequency == 0 {
+            ancilla angle: i64 = 0;
+            angle += waves[band] * omega[frequency] / 4096;
+            ancilla sine: i64 = 0;
+            ancilla cosine: i64 = 0;
+            call sin_q12(sine, angle);
+            call cos_q12(cosine, angle);
+            features[band * 2 * H + frequency] += sine;
+            features[band * 2 * H + H + frequency] += cosine;
+            uncall cos_q12(cosine, angle);
+            uncall sin_q12(sine, angle);
+            angle -= waves[band] * omega[frequency] / 4096;
+        } loop { frequency += 1; } until frequency == H - 1;
+        frequency -= H - 1;
+    } loop { band += 1; } until band == B - 1;
+    band -= B - 1;
+}

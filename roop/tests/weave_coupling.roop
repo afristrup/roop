@@ -1,0 +1,93 @@
+// Round trips of the weave blocks that were first built for Clay: couplings,
+// softmax and multi-head attention, and the patch lift.
+
+use weave::*;
+
+test coupling_round_trip {
+    q: [i64; 4],
+        p: [i64; 4],
+        qw1: [[i64; 4]; 3],
+        qb1: [i64; 3],
+        qw2: [[i64; 3]; 4],
+        qb2: [i64; 4],
+        pw1: [[i64; 4]; 3],
+        pb1: [i64; 3],
+        pw2: [[i64; 3]; 4],
+        pb2: [i64; 4];
+    q[0] += 7;
+    q[1] -= 3;
+    p[0] += 2;
+    p[1] += 5;
+    call coupling<4, 3>(q, p, qw1, qb1, qw2, qb2, pw1, pb1, pw2, pb2, 0);
+    expect q[0] == 7 && q[1] == 0 - 3 && p[0] == 2 && p[1] == 5;
+}
+
+test conditional_coupling_round_trip {
+    q: [i64; 4],
+        p: [i64; 4],
+        context: [i64; 2],
+        qw1: [[i64; 6]; 3],
+        qb1: [i64; 3],
+        qw2: [[i64; 3]; 4],
+        qb2: [i64; 4],
+        pw1: [[i64; 6]; 3],
+        pb1: [i64; 3],
+        pw2: [[i64; 3]; 4],
+        pb2: [i64; 4];
+    q[0] += 7;
+    q[1] -= 3;
+    p[0] += 2;
+    p[1] += 5;
+    context[0] += 11;
+    context[1] -= 4;
+    call conditional_coupling<4, 6, 2, 3>(
+        q,
+        p,
+        context,
+        qw1,
+        qb1,
+        qw2,
+        qb2,
+        pw1,
+        pb1,
+        pw2,
+        pb2,
+        0,
+    );
+    expect q[0] == 7 && q[1] == 0 - 3 && p[0] == 2 && p[1] == 5;
+}
+
+test stateful_affine_coupling_round_trip {
+    state: [i64; 4],
+        residual: [i64; 4],
+        context: [i64; 1],
+        w1: [[i64; 3]; 2],
+        b1: [i64; 2],
+        w2: [[i64; 2]; 4],
+        b2: [i64; 4],
+        kind: i64,
+        swap: i64;
+    state[0] += 900;
+    state[1] -= 300;
+    state[2] += 700;
+    context[0] += 500;
+    w1[0][0] += 1000;
+    w1[1][1] -= 800;
+    w2[0][0] += 900;
+    w2[2][1] += 700;
+    b2[0] += 100;
+    b2[2] -= 60;
+    kind += 6;
+    call stateful_affine_coupling<2, 1, 3, 2, 4>(
+        state,
+        residual,
+        context,
+        w1,
+        b1,
+        w2,
+        b2,
+        kind,
+        swap,
+    );
+    expect residual[0] == 900 && state[0] == 900 && state[2] != 700;
+}

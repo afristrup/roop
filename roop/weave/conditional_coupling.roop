@@ -1,0 +1,65 @@
+// Context-conditioned additive coupling with compiler-visible rectangular matvec.
+
+use super::act::*;
+use super::kernels::*;
+use super::wide_matvec::wide_matvec;
+
+fn conditional_mlp<N, I, M>(
+    y: &mut [i64; N],
+    input: &[i64; I],
+    w1: &[[i64; I]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+) {
+    ancilla z: [i64; M] = 0;
+    ancilla a: [i64; M] = 0;
+    call affine<I, M>(z, w1, input, b1);
+    call act<M>(a, z, kind);
+    call add_vec<N>(y, b2);
+    call wide_matvec<N, M>(y, w2, a);
+    uncall act<M>(a, z, kind);
+    uncall affine<I, M>(z, w1, input, b1);
+}
+
+pub fn conditional_coupling<N, I, C, M>(
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    context: &[i64; C],
+    q_w1: &[[i64; I]; M],
+    q_b1: &[i64; M],
+    q_w2: &[[i64; M]; N],
+    q_b2: &[i64; N],
+    p_w1: &[[i64; I]; M],
+    p_b1: &[i64; M],
+    p_w2: &[[i64; M]; N],
+    p_b2: &[i64; N],
+    kind: &i64,
+) {
+    auto ancilla q_input: [i64; I] = 0;
+    auto ancilla p_input: [i64; I] = 0;
+    ancilla i: i64 = 0;
+    from i == 0 {
+        q_input[i] += p[i];
+        p_input[i] += q[i];
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
+    from i == 0 {
+        q_input[N + i] += context[i];
+        p_input[N + i] += context[i];
+    } loop { i += 1; } until i == C - 1;
+    i -= C - 1;
+    call conditional_mlp<N, I, M>(q, q_input, q_w1, q_b1, q_w2, q_b2, kind);
+    call conditional_mlp<N, I, M>(p, p_input, p_w1, p_b1, p_w2, p_b2, kind);
+    from i == 0 {
+        q_input[N + i] -= context[i];
+        p_input[N + i] -= context[i];
+    } loop { i += 1; } until i == C - 1;
+    i -= C - 1;
+    from i == 0 {
+        q_input[i] -= p[i];
+        p_input[i] -= q[i];
+    } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
+}

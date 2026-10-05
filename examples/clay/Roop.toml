@@ -1,0 +1,5 @@
+[modules]
+clay = "."
+std = "../../roop/std"
+weave = "../../roop/weave"
+einsum = "../../roop/einsum"

@@ -1,0 +1,58 @@
+use clay::*;
+
+test clay_block_round_trip {
+    q: [i64; 4],
+        p: [i64; 4],
+        wq: [[i64; 2]; 2],
+        wk: [[i64; 2]; 2],
+        wv: [[i64; 2]; 2],
+        attention_gain: [i64; 2],
+        attention_beta: [i64; 2],
+        eps: i64,
+        w1: [[i64; 4]; 3],
+        b1: [i64; 3],
+        w2: [[i64; 3]; 4],
+        b2: [i64; 4],
+        kind: i64,
+        scale: i64;
+    q[0] += 2048;
+    q[1] -= 700;
+    p[0] += 1100;
+    p[2] += 900;
+    wq[0][0] += 4096;
+    wq[1][1] += 4096;
+    wk[0][0] += 4096;
+    wk[1][1] += 4096;
+    wv[0][0] += 4096;
+    wv[1][1] += 4096;
+    attention_gain[0] += 4096;
+    attention_gain[1] += 4096;
+    eps += 1;
+    w1[0][0] += 1000;
+    w1[1][1] -= 700;
+    w1[2][2] += 500;
+    w2[0][0] += 800;
+    w2[1][1] -= 600;
+    w2[2][2] += 400;
+    b1[0] += 100;
+    b2[1] -= 50;
+    kind += 7;
+    scale += 2896;
+    call clay_block<2, 2, 4, 3>(
+        q,
+        p,
+        wq,
+        wk,
+        wv,
+        attention_gain,
+        attention_beta,
+        eps,
+        w1,
+        b1,
+        w2,
+        b2,
+        kind,
+        scale,
+    );
+    expect q[0] != 2048 || p[0] != 1100;
+}

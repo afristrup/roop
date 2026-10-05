@@ -1,0 +1,20 @@
+// Exact two-half coupling for a Roop-native Earth-INN flow.
+
+use super::mlp::*;
+
+pub fn coupling<N, M>(
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    q_w1: &[[i64; N]; M],
+    q_b1: &[i64; M],
+    q_w2: &[[i64; M]; N],
+    q_b2: &[i64; N],
+    p_w1: &[[i64; N]; M],
+    p_b1: &[i64; M],
+    p_w2: &[[i64; M]; N],
+    p_b2: &[i64; N],
+    kind: &i64,
+) {
+    call mlp<N, M>(q, q_w1, q_b1, q_w2, q_b2, p, kind);
+    call mlp<N, M>(p, p_w1, p_b1, p_w2, p_b2, q, kind);
+}

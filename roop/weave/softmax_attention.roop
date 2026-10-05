@@ -1,0 +1,121 @@
+// Reversible scaled-dot-product attention in Q12 fixed point.
+// The softmax uses the reversible exp_neg approximation from losses.
+
+use einsum::wmatmul;
+use einsum::wmatmul_nt;
+use super::norm_rows::layernorm_rows;
+use super::losses::{exp_neg, maxes, exps, total_of};
+
+pub fn softmax_fold<S, D, N>(m: &mut [[i64; D]; S], x: &[i64; N]) {
+    ancilla s: i64 = 0;
+    from s == 0 {
+        ancilla d: i64 = 0;
+        from d == 0 { m[s][d] += x[s * D + d]; } loop { d += 1; } until d == D - 1;
+        d -= D - 1;
+    } loop { s += 1; } until s == S - 1;
+    s -= S - 1;
+}
+
+pub fn softmax_unfold<S, D, N>(x: &mut [i64; N], m: &[[i64; D]; S]) {
+    ancilla s: i64 = 0;
+    from s == 0 {
+        ancilla d: i64 = 0;
+        from d == 0 { x[s * D + d] += m[s][d]; } loop { d += 1; } until d == D - 1;
+        d -= D - 1;
+    } loop { s += 1; } until s == S - 1;
+    s -= S - 1;
+}
+
+fn scale_row<S>(scaled: &mut [i64; S], a: &[i64; S], scale: &i64) {
+    ancilla c: i64 = 0;
+    from c == 0 { scaled[c] += a[c] * scale / 4096; } loop { c += 1; } until c == S - 1;
+    c -= S - 1;
+}
+
+fn row_softmax_values<S>(p: &mut [i64; S], a: &[i64; S], scale: &i64) {
+    ancilla scaled: [i64; S] = 0;
+    ancilla mx: [i64; S] = 0;
+    ancilla ex: [i64; S] = 0;
+    ancilla total: i64 = 0;
+    call scale_row<S>(scaled, a, scale);
+    call maxes<S, S>(mx, scaled);
+    call exps<S, S>(ex, scaled, mx[S - 1]);
+    call total_of<S>(total, ex);
+    ancilla c: i64 = 0;
+    from c == 0 { p[c] += ex[c] * 4096 / total; } loop { c += 1; } until c == S - 1;
+    c -= S - 1;
+    uncall total_of<S>(total, ex);
+    uncall exps<S, S>(ex, scaled, mx[S - 1]);
+    uncall maxes<S, S>(mx, scaled);
+    uncall scale_row<S>(scaled, a, scale);
+}
+
+fn softmax_rows<S>(p: &mut [[i64; S]; S], scores: &[[i64; S]; S], scale: &i64) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        call row_softmax_values<S>(p[r], scores[r], scale);
+    } loop { r += 1; } until r == S - 1;
+    r -= S - 1;
+}
+
+pub fn softmax_attn<S, D, N>(
+    y: &mut [i64; N],
+    wq: &[[i64; D]; D],
+    wk: &[[i64; D]; D],
+    wv: &[[i64; D]; D],
+    x: &[i64; N],
+    scale: &i64,
+) {
+    ancilla xm: [[i64; D]; S] = 0;
+    ancilla q: [[i64; D]; S] = 0;
+    ancilla k: [[i64; D]; S] = 0;
+    ancilla v: [[i64; D]; S] = 0;
+    ancilla scores: [[i64; S]; S] = 0;
+    ancilla probabilities: [[i64; S]; S] = 0;
+    ancilla o: [[i64; D]; S] = 0;
+    call softmax_fold<S, D, N>(xm, x);
+    call wmatmul_nt(q, xm, wq);
+    call wmatmul_nt(k, xm, wk);
+    call wmatmul_nt(v, xm, wv);
+    call wmatmul_nt(scores, q, k);
+    call softmax_rows<S>(probabilities, scores, scale);
+    call wmatmul(o, probabilities, v);
+    call softmax_unfold<S, D, N>(y, o);
+    uncall wmatmul(o, probabilities, v);
+    uncall softmax_rows<S>(probabilities, scores, scale);
+    uncall wmatmul_nt(scores, q, k);
+    uncall wmatmul_nt(v, xm, wv);
+    uncall wmatmul_nt(k, xm, wk);
+    uncall wmatmul_nt(q, xm, wq);
+    uncall softmax_fold<S, D, N>(xm, x);
+}
+
+// Pre-normalized attention for Clay-style blocks. Normalization is per token row
+// and is computed as read-only branch state, then fully uncomputed.
+pub fn softmax_attn_norm<S, D, N>(
+    y: &mut [i64; N],
+    wq: &[[i64; D]; D],
+    wk: &[[i64; D]; D],
+    wv: &[[i64; D]; D],
+    x: &[i64; N],
+    gain: &[i64; D],
+    beta: &[i64; D],
+    eps: &i64,
+    scale: &i64,
+) {
+    ancilla rows: [[i64; D]; S] = 0;
+    ancilla normalized: [[i64; D]; S] = 0;
+    ancilla flat: [i64; N] = 0;
+    call softmax_fold<S, D, N>(rows, x);
+    call layernorm_rows<D, S>(normalized, rows, gain, beta, eps);
+    call softmax_unfold<S, D, N>(flat, normalized);
+    call softmax_attn<S, D, N>(y, wq, wk, wv, flat, scale);
+    uncall softmax_unfold<S, D, N>(flat, normalized);
+    uncall layernorm_rows<D, S>(normalized, rows, gain, beta, eps);
+    uncall softmax_fold<S, D, N>(rows, x);
+}
+
+// Public matrix softmax for multi-head attention.
+pub fn softmax_matrix<S>(p: &mut [[i64; S]; S], scores: &[[i64; S]; S], scale: &i64) {
+    call softmax_rows<S>(p, scores, scale);
+}

@@ -1,0 +1,66 @@
+// Fixed-wavelength patch projection with explicit residual state.
+// The projection may be rectangular. Exact recovery comes from retaining the
+// source pixels in residual, which is the required auxiliary state.
+
+use einsum::wmatvec;
+use super::kernels::*;
+
+fn copy_flat<L>(to: &mut [i64; L], source: &[i64; L]) {
+    ancilla i: i64 = 0;
+    from i == 0 { to[i] += source[i]; } loop { i += 1; } until i == L - 1;
+    i -= L - 1;
+}
+
+fn patch_project_row<S, E, I, L, O>(
+    tokens: &mut [i64; O],
+    pixels: &[i64; L],
+    row: &i64,
+    weight: &[[i64; I]; E],
+    bias: &[i64; E],
+) {
+    auto ancilla patch: [i64; I] = 0;
+    ancilla value: [i64; E] = 0;
+    ancilla feature: i64 = 0;
+    from feature == 0 {
+        patch[feature] += pixels[row * I + feature];
+    } loop { feature += 1; } until feature == I - 1;
+    feature -= I - 1;
+    call add_vec<E>(value, bias);
+    call wmatvec(value, weight, patch);
+    ancilla output: i64 = 0;
+    from output == 0 {
+        tokens[row * E + output] += value[output];
+    } loop { output += 1; } until output == E - 1;
+    output -= E - 1;
+    uncall wmatvec(value, weight, patch);
+    uncall add_vec<E>(value, bias);
+    uncall copy_flat<I>(patch, pixels);
+}
+
+fn patch_project<S, E, I, L, O>(
+    tokens: &mut [i64; O],
+    pixels: &[i64; L],
+    weight: &[[i64; I]; E],
+    bias: &[i64; E],
+) {
+    auto ancilla row: i64 = 0;
+    from row == 0 {
+        call patch_project_row<S, E, I, L, O>(tokens, pixels, row, weight, bias);
+    } loop { row += 1; } until row == S - 1;
+    row -= S - 1;
+}
+
+pub fn patch_lift<S, E, I, L, O>(
+    tokens: &mut [i64; O],
+    residual: &mut [i64; L],
+    pixels: &[i64; L],
+    weight: &[[i64; I]; E],
+    bias: &[i64; E],
+) {
+    call patch_project<S, E, I, L, O>(tokens, pixels, weight, bias);
+    call copy_flat<L>(residual, pixels);
+}
+
+pub fn patch_restore<L>(pixels: &mut [i64; L], residual: &[i64; L]) {
+    call copy_flat<L>(pixels, residual);
+}

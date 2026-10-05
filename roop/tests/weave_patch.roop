@@ -1,0 +1,23 @@
+// Round trips of the weave blocks that were first built for Clay: couplings,
+// softmax and multi-head attention, and the patch lift.
+
+use weave::*;
+
+test patch_lift_round_trip {
+    tokens: [i64; 4],
+        residual: [i64; 8],
+        pixels: [i64; 8],
+        weight: [[i64; 8]; 4],
+        bias: [i64; 4];
+    pixels[0] += 100;
+    pixels[3] -= 200;
+    weight[0][0] += 4096;
+    weight[1][1] += 4096;
+    weight[2][2] += 4096;
+    weight[3][3] += 4096;
+    bias[0] += 7;
+    call patch_lift<1, 4, 8, 8, 4>(tokens, residual, pixels, weight, bias);
+    expect tokens[0] != 0 && residual[0] == 100;
+    call patch_restore(pixels, residual);
+    expect pixels[0] == 200 && pixels[3] == 0 - 400;
+}

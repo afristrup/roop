@@ -1,0 +1,161 @@
+// Stateful fixed-point affine coupling.
+// The original state is retained in residual, making rounded affine arithmetic
+// exactly reversible as a stateful map.
+
+use super::act::*;
+use super::kernels::*;
+use super::wide_matvec::wide_matvec;
+use super::losses::exp_neg;
+
+fn copy_state<N>(to: &mut [i64; N], source: &[i64; N]) {
+    ancilla i: i64 = 0;
+    from i == 0 { to[i] += source[i]; } loop { i += 1; } until i == N - 1;
+    i -= N - 1;
+}
+
+fn affine_params<H, C, I, M, W>(
+    params: &mut [i64; W],
+    source: &[i64; H],
+    context: &[i64; C],
+    w1: &[[i64; I]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; W],
+    b2: &[i64; W],
+    kind: &i64,
+) {
+    auto ancilla input: [i64; I] = 0;
+    ancilla z: [i64; M] = 0;
+    ancilla a: [i64; M] = 0;
+    ancilla i: i64 = 0;
+    from i == 0 { input[i] += source[i]; } loop { i += 1; } until i == H - 1;
+    i -= H - 1;
+    from i == 0 { input[H + i] += context[i]; } loop { i += 1; } until i == C - 1;
+    i -= C - 1;
+    call affine<I, M>(z, w1, input, b1);
+    call act<M>(a, z, kind);
+    call add_vec<W>(params, b2);
+    call wide_matvec<W, M>(params, w2, a);
+    uncall act<M>(a, z, kind);
+    uncall affine<I, M>(z, w1, input, b1);
+    from i == 0 { input[H + i] -= context[i]; } loop { i += 1; } until i == C - 1;
+    i -= C - 1;
+    from i == 0 { input[i] -= source[i]; } loop { i += 1; } until i == H - 1;
+    i -= H - 1;
+}
+
+fn exp_signed(r: &mut i64, x: &i64) {
+    if x <= 0 {
+        ancilla e: i64 = 0;
+        call exp_neg(e, x);
+        r += e / 4096;
+        uncall exp_neg(e, x);
+    } else {
+        ancilla e: i64 = 0;
+        call exp_neg(e, 0 - x);
+        r += 281474976710656 / e;
+        uncall exp_neg(e, 0 - x);
+    } fi x <= 0;
+}
+
+fn exp_values<H>(out: &mut [i64; H], input: &[i64; H]) {
+    ancilla i: i64 = 0;
+    from i == 0 {
+        call exp_signed(out[i], input[i]);
+    } loop { i += 1; } until i == H - 1;
+    i -= H - 1;
+}
+
+fn split_params<H, W>(shift: &mut [i64; H], raw: &mut [i64; H], params: &[i64; W]) {
+    ancilla i: i64 = 0;
+    from i == 0 {
+        shift[i] += params[i];
+        raw[i] += params[H + i];
+    } loop { i += 1; } until i == H - 1;
+    i -= H - 1;
+}
+
+fn scale_values<H>(scale: &mut [i64; H], tanh: &[i64; H]) {
+    ancilla i: i64 = 0;
+    from i == 0 {
+        scale[i] += tanh[i] * 8192 / 4096;
+    } loop { i += 1; } until i == H - 1;
+    i -= H - 1;
+}
+
+fn choose_source<H, W>(source: &mut [i64; H], residual: &[i64; W], swap: &i64) {
+    ancilla i: i64 = 0;
+    from i == 0 {
+        if swap == 0 {
+            source[i] += residual[i];
+        } else {
+            source[i] += residual[H + i];
+        } fi swap == 0;
+    } loop { i += 1; } until i == H - 1;
+    i -= H - 1;
+}
+
+fn affine_update_half<H, C, I, M, W>(
+    state: &mut [i64; W],
+    residual: &[i64; W],
+    context: &[i64; C],
+    w1: &[[i64; I]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; W],
+    b2: &[i64; W],
+    kind: &i64,
+    swap: &i64,
+) {
+    ancilla params: [i64; W] = 0;
+    ancilla shift: [i64; H] = 0;
+    ancilla raw: [i64; H] = 0;
+    ancilla tanh: [i64; H] = 0;
+    ancilla scale: [i64; H] = 0;
+    ancilla factor: [i64; H] = 0;
+    ancilla source: [i64; H] = 0;
+    call choose_source<H, W>(source, residual, swap);
+    call affine_params<H, C, I, M, W>(params, source, context, w1, b1, w2, b2, kind);
+    call split_params<H, W>(shift, raw, params);
+    call act<H>(tanh, raw, 4);
+    call scale_values<H>(scale, tanh);
+    call exp_values<H>(factor, scale);
+    ancilla i: i64 = 0;
+    from i == 0 {
+        if swap == 0 {
+            state[H + i] += residual[H + i] * (factor[i] - 4096) / 4096 + shift[i];
+        } else {
+            state[i] += residual[i] * (factor[i] - 4096) / 4096 + shift[i];
+        } fi swap == 0;
+    } loop { i += 1; } until i == H - 1;
+    i -= H - 1;
+    uncall exp_values<H>(factor, scale);
+    uncall scale_values<H>(scale, tanh);
+    uncall act<H>(tanh, raw, 4);
+    uncall split_params<H, W>(shift, raw, params);
+    uncall affine_params<H, C, I, M, W>(params, source, context, w1, b1, w2, b2, kind);
+    uncall choose_source<H, W>(source, residual, swap);
+}
+
+pub fn stateful_affine_coupling<H, C, I, M, W>(
+    state: &mut [i64; W],
+    residual: &mut [i64; W],
+    context: &[i64; C],
+    w1: &[[i64; I]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; W],
+    b2: &[i64; W],
+    kind: &i64,
+    swap: &i64,
+) {
+    call copy_state<W>(residual, state);
+    call affine_update_half<H, C, I, M, W>(
+        state,
+        residual,
+        context,
+        w1,
+        b1,
+        w2,
+        b2,
+        kind,
+        swap,
+    );
+}

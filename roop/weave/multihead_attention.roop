@@ -1,0 +1,137 @@
+// Reversible multi-head scaled-dot-product attention in Q12.
+// Q, K and V are rectangular projections into K heads of width H.
+
+use einsum::wmatmul;
+use einsum::wmatmul_nt;
+use super::norm_rows::layernorm_rows;
+use super::softmax_attention::{softmax_matrix, softmax_fold, softmax_unfold};
+
+fn project_heads<S, N, H, K, I>(
+    dst: &mut [[i64; H]; S],
+    src: &[[i64; I]; S],
+    head: &i64,
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla d: i64 = 0;
+        from d == 0 {
+            dst[r][d] += src[r][head * H + d];
+        } loop { d += 1; } until d == H - 1;
+        d -= H - 1;
+    } loop { r += 1; } until r == S - 1;
+    r -= S - 1;
+}
+
+fn scatter_heads<S, N, H, K, I>(
+    dst: &mut [[i64; I]; S],
+    src: &[[i64; H]; S],
+    head: &i64,
+) {
+    ancilla r: i64 = 0;
+    from r == 0 {
+        ancilla d: i64 = 0;
+        from d == 0 {
+            dst[r][head * H + d] += src[r][d];
+        } loop { d += 1; } until d == H - 1;
+        d -= H - 1;
+    } loop { r += 1; } until r == S - 1;
+    r -= S - 1;
+}
+
+fn one_head<S, N, H, K, I>(
+    output: &mut [[i64; I]; S],
+    q: &[[i64; I]; S],
+    k: &[[i64; I]; S],
+    v: &[[i64; I]; S],
+    head: &i64,
+    scale: &i64,
+) {
+    ancilla qh: [[i64; H]; S] = 0;
+    ancilla kh: [[i64; H]; S] = 0;
+    ancilla vh: [[i64; H]; S] = 0;
+    ancilla scores: [[i64; S]; S] = 0;
+    ancilla probabilities: [[i64; S]; S] = 0;
+    ancilla values: [[i64; H]; S] = 0;
+    call project_heads<S, N, H, K, I>(qh, q, head);
+    call project_heads<S, N, H, K, I>(kh, k, head);
+    call project_heads<S, N, H, K, I>(vh, v, head);
+    call wmatmul_nt(scores, qh, kh);
+    call softmax_matrix<S>(probabilities, scores, scale);
+    call wmatmul<S, S, H>(values, probabilities, vh);
+    call scatter_heads<S, N, H, K, I>(output, values, head);
+    uncall wmatmul<S, S, H>(values, probabilities, vh);
+    uncall softmax_matrix<S>(probabilities, scores, scale);
+    uncall wmatmul_nt(scores, qh, kh);
+    uncall project_heads<S, N, H, K, I>(vh, v, head);
+    uncall project_heads<S, N, H, K, I>(kh, k, head);
+    uncall project_heads<S, N, H, K, I>(qh, q, head);
+}
+
+fn all_heads<S, N, H, K, I>(
+    output: &mut [[i64; I]; S],
+    q: &[[i64; I]; S],
+    k: &[[i64; I]; S],
+    v: &[[i64; I]; S],
+    scale: &i64,
+) {
+    auto ancilla head: i64 = 0;
+    from head == 0 {
+        call one_head<S, N, H, K, I>(output, q, k, v, head, scale);
+    } loop { head += 1; } until head == K - 1;
+    head -= K - 1;
+}
+
+pub fn multihead_attn<S, N, H, K, I, L>(
+    y: &mut [i64; L],
+    wq: &[[i64; N]; I],
+    wk: &[[i64; N]; I],
+    wv: &[[i64; N]; I],
+    wo: &[[i64; I]; N],
+    x: &[i64; L],
+    scale: &i64,
+) {
+    ancilla xm: [[i64; N]; S] = 0;
+    ancilla q: [[i64; I]; S] = 0;
+    ancilla k: [[i64; I]; S] = 0;
+    ancilla v: [[i64; I]; S] = 0;
+    ancilla output: [[i64; I]; S] = 0;
+    ancilla projected: [[i64; N]; S] = 0;
+    call softmax_fold<S, N, L>(xm, x);
+    call wmatmul_nt(q, xm, wq);
+    call wmatmul_nt(k, xm, wk);
+    call wmatmul_nt(v, xm, wv);
+    call all_heads<S, N, H, K, I>(output, q, k, v, scale);
+    call wmatmul<S, I, N>(projected, output, wo);
+    call softmax_unfold<S, N, L>(y, projected);
+    uncall wmatmul<S, I, N>(projected, output, wo);
+    uncall all_heads<S, N, H, K, I>(output, q, k, v, scale);
+    uncall wmatmul_nt(v, xm, wv);
+    uncall wmatmul_nt(k, xm, wk);
+    uncall wmatmul_nt(q, xm, wq);
+    uncall softmax_fold<S, N, L>(xm, x);
+}
+
+// Multi-head attention with Clay-style per-token LayerNorm.
+pub fn multihead_attn_norm<S, N, H, K, I, L>(
+    y: &mut [i64; L],
+    wq: &[[i64; N]; I],
+    wk: &[[i64; N]; I],
+    wv: &[[i64; N]; I],
+    wo: &[[i64; I]; N],
+    x: &[i64; L],
+    gain: &[i64; N],
+    beta: &[i64; N],
+    eps: &i64,
+    scale: &i64,
+) {
+    ancilla rows: [[i64; N]; S] = 0;
+    ancilla normalized: [[i64; N]; S] = 0;
+    ancilla flat: [i64; L] = 0;
+    call softmax_fold<S, N, L>(rows, x);
+    call layernorm_rows<N, S>(normalized, rows, gain, beta, eps);
+    call softmax_unfold<S, N, L>(flat, normalized);
+    call multihead_attn<S, N, H, K, I, L>(y, wq, wk, wv, wo, flat, scale);
+    uncall softmax_unfold<S, N, L>(flat, normalized);
+    uncall layernorm_rows<N, S>(normalized, rows, gain, beta, eps);
+    uncall softmax_fold<S, N, L>(rows, x);
+}

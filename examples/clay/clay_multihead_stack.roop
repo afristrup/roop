@@ -1,0 +1,91 @@
+// A depth-generic reversible stack of Clay-shaped multi-head blocks.
+
+use super::clay_multihead_block::clay_multihead_block;
+
+pub fn clay_multihead_stack<S, N, H, K, I, M, L, Depth>(
+    q: &mut [i64; L],
+    p: &mut [i64; L],
+    wq: &[[[i64; N]; I]; Depth],
+    wk: &[[[i64; N]; I]; Depth],
+    wv: &[[[i64; N]; I]; Depth],
+    wo: &[[[i64; I]; N]; Depth],
+    attention_gain: &[[i64; N]; Depth],
+    attention_beta: &[[i64; N]; Depth],
+    attention_eps: &i64,
+    scale: &i64,
+    w1: &[[[i64; N]; M]; Depth],
+    b1: &[[i64; M]; Depth],
+    mlp_gain: &[[i64; N]; Depth],
+    mlp_beta: &[[i64; N]; Depth],
+    w2: &[[[i64; M]; N]; Depth],
+    b2: &[[i64; N]; Depth],
+    kind: &i64,
+    mlp_eps: &i64,
+) {
+    auto ancilla layer: i64 = 0;
+    from layer == 0 {
+        call clay_multihead_block<S, N, H, K, I, M, L>(
+            q,
+            p,
+            wq[layer],
+            wk[layer],
+            wv[layer],
+            wo[layer],
+            attention_gain[layer],
+            attention_beta[layer],
+            attention_eps,
+            scale,
+            w1[layer],
+            b1[layer],
+            mlp_gain[layer],
+            mlp_beta[layer],
+            w2[layer],
+            b2[layer],
+            kind,
+            mlp_eps,
+        );
+    } loop { layer += 1; } until layer == Depth - 1;
+    layer -= Depth - 1;
+}
+
+pub fn clay_multihead_stack_inverse<S, N, H, K, I, M, L, Depth>(
+    q: &mut [i64; L],
+    p: &mut [i64; L],
+    wq: &[[[i64; N]; I]; Depth],
+    wk: &[[[i64; N]; I]; Depth],
+    wv: &[[[i64; N]; I]; Depth],
+    wo: &[[[i64; I]; N]; Depth],
+    attention_gain: &[[i64; N]; Depth],
+    attention_beta: &[[i64; N]; Depth],
+    attention_eps: &i64,
+    scale: &i64,
+    w1: &[[[i64; N]; M]; Depth],
+    b1: &[[i64; M]; Depth],
+    mlp_gain: &[[i64; N]; Depth],
+    mlp_beta: &[[i64; N]; Depth],
+    w2: &[[[i64; M]; N]; Depth],
+    b2: &[[i64; N]; Depth],
+    kind: &i64,
+    mlp_eps: &i64,
+) {
+    uncall clay_multihead_stack<S, N, H, K, I, M, L, Depth>(
+        q,
+        p,
+        wq,
+        wk,
+        wv,
+        wo,
+        attention_gain,
+        attention_beta,
+        attention_eps,
+        scale,
+        w1,
+        b1,
+        mlp_gain,
+        mlp_beta,
+        w2,
+        b2,
+        kind,
+        mlp_eps,
+    );
+}

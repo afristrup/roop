@@ -1,3 +1,11 @@
+mod cos_q12;
+mod sin_q12;
+mod wave_features;
+
+pub use cos_q12::*;
+pub use sin_q12::*;
+pub use wave_features::*;
+
 // Small integer routines. The reversible ones add their result into a variable
 // that is zero, like every constructive routine in std::blas, and the irrev ones
 // say so.

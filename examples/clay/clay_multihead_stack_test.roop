@@ -1,0 +1,143 @@
+use clay::*;
+
+test clay_multihead_stack_round_trip {
+    q: [i64; 8],
+        p: [i64; 8],
+        wq: [[[i64; 4]; 4]; 2],
+        wk: [[[i64; 4]; 4]; 2],
+        wv: [[[i64; 4]; 4]; 2],
+        wo: [[[i64; 4]; 4]; 2],
+        attention_gain: [[i64; 4]; 2],
+        attention_beta: [[i64; 4]; 2],
+        attention_eps: i64,
+        scale: i64,
+        w1: [[[i64; 4]; 3]; 2],
+        b1: [[i64; 3]; 2],
+        mlp_gain: [[i64; 4]; 2],
+        mlp_beta: [[i64; 4]; 2],
+        w2: [[[i64; 3]; 4]; 2],
+        b2: [[i64; 4]; 2],
+        kind: i64,
+        mlp_eps: i64;
+    q[0] += 2048;
+    p[1] -= 1000;
+    wq[0][0][0] += 4096;
+    wq[1][1][1] += 4096;
+    wk[0][0][0] += 4096;
+    wk[1][1][1] += 4096;
+    wv[0][0][0] += 4096;
+    wv[1][1][1] += 4096;
+    wo[0][0][0] += 4096;
+    wo[1][1][1] += 4096;
+    attention_gain[0][0] += 4096;
+    attention_gain[1][1] += 4096;
+    mlp_gain[0][0] += 4096;
+    mlp_gain[1][1] += 4096;
+    attention_eps += 1;
+    mlp_eps += 1;
+    scale += 2896;
+    w1[0][0][0] += 1000;
+    w1[1][1][1] += 900;
+    w2[0][0][0] += 800;
+    w2[1][1][1] += 700;
+    kind += 7;
+    call clay_multihead_stack<2, 4, 2, 2, 4, 3, 8, 2>(
+        q,
+        p,
+        wq,
+        wk,
+        wv,
+        wo,
+        attention_gain,
+        attention_beta,
+        attention_eps,
+        scale,
+        w1,
+        b1,
+        mlp_gain,
+        mlp_beta,
+        w2,
+        b2,
+        kind,
+        mlp_eps,
+    );
+    expect q[0] != 2048 || p[1] != 0 - 1000;
+}
+
+test clay_multihead_stack_explicit_inverse {
+    q: [i64; 8],
+        p: [i64; 8],
+        wq: [[[i64; 2]; 2]; 2],
+        wk: [[[i64; 2]; 2]; 2],
+        wv: [[[i64; 2]; 2]; 2],
+        wo: [[[i64; 2]; 2]; 2],
+        attention_gain: [[i64; 2]; 2],
+        attention_beta: [[i64; 2]; 2],
+        attention_eps: i64,
+        scale: i64,
+        w1: [[[i64; 2]; 2]; 2],
+        b1: [[i64; 2]; 2],
+        mlp_gain: [[i64; 2]; 2],
+        mlp_beta: [[i64; 2]; 2],
+        w2: [[[i64; 2]; 2]; 2],
+        b2: [[i64; 2]; 2],
+        kind: i64,
+        mlp_eps: i64;
+    q[0] += 100;
+    q[1] -= 40;
+    q[2] += 70;
+    p[3] += 90;
+    attention_gain[0][0] += 4096;
+    attention_gain[0][1] += 4096;
+    attention_gain[1][0] += 4096;
+    attention_gain[1][1] += 4096;
+    mlp_gain[0][0] += 4096;
+    mlp_gain[0][1] += 4096;
+    mlp_gain[1][0] += 4096;
+    mlp_gain[1][1] += 4096;
+    attention_eps += 1;
+    scale += 2896;
+    mlp_eps += 1;
+    kind += 7;
+    call clay_multihead_stack<4, 2, 1, 2, 2, 2, 8, 2>(
+        q,
+        p,
+        wq,
+        wk,
+        wv,
+        wo,
+        attention_gain,
+        attention_beta,
+        attention_eps,
+        scale,
+        w1,
+        b1,
+        mlp_gain,
+        mlp_beta,
+        w2,
+        b2,
+        kind,
+        mlp_eps,
+    );
+    call clay_multihead_stack_inverse<4, 2, 1, 2, 2, 2, 8, 2>(
+        q,
+        p,
+        wq,
+        wk,
+        wv,
+        wo,
+        attention_gain,
+        attention_beta,
+        attention_eps,
+        scale,
+        w1,
+        b1,
+        mlp_gain,
+        mlp_beta,
+        w2,
+        b2,
+        kind,
+        mlp_eps,
+    );
+    expect q[0] == 100 && q[1] == -40 && q[2] == 70 && p[3] == 90;
+}

@@ -1,0 +1,36 @@
+// Clay-shaped reversible transformer block.
+// The state is split into q and p: q += attention(p), then p += GELU MLP(q).
+// Each branch computes and uncomputes all temporary state, so the block is
+// reversible even though the attention and MLP branches themselves are not.
+
+use weave::*;
+
+pub fn clay_block<S, D, N, M>(
+    q: &mut [i64; N],
+    p: &mut [i64; N],
+    wq: &[[i64; D]; D],
+    wk: &[[i64; D]; D],
+    wv: &[[i64; D]; D],
+    attention_gain: &[i64; D],
+    attention_beta: &[i64; D],
+    eps: &i64,
+    w1: &[[i64; N]; M],
+    b1: &[i64; M],
+    w2: &[[i64; M]; N],
+    b2: &[i64; N],
+    kind: &i64,
+    scale: &i64,
+) {
+    call softmax_attn_norm<S, D, N>(
+        q,
+        wq,
+        wk,
+        wv,
+        p,
+        attention_gain,
+        attention_beta,
+        eps,
+        scale,
+    );
+    call mlp<N, M>(p, w1, b1, w2, b2, q, kind);
+}
