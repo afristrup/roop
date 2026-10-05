@@ -68,12 +68,13 @@ def run(command, usage=None):
 
 def train(model, xs, ts, epochs, rate, outputs=None, loss="mse", optimizer=None,
           step=0.25, batch=None, roop="roop", name="net", library=LIBRARY, keep_contraction=None,
-          usage=None, loss_scale=1):
+          usage=None, loss_scale=1, checked=False):
     """Trains `model` in place on the samples xs (one row each) and their targets,
     and returns the loss of each epoch, summed over the samples. `library` is the
     directory with the weave and einsum modules, the `roop` of the repository. `usage`, a
     dict, gets the seconds and peak memory of the training program. `loss_scale` multiplies
-    the seed of the backward pass, and the optimizer divides it out again.
+    the seed of the backward pass, and the optimizer divides it out again. `checked` builds
+    with `[checks] overflow = true` and a driver that stops when a step wrapped.
 
     The training step of weave does not keep a residual block a contraction by itself, and
     a step that takes its weights past the bound makes the fixed-point chain that inverts
@@ -95,10 +96,12 @@ def train(model, xs, ts, epochs, rate, outputs=None, loss="mse", optimizer=None,
         path = lambda f: os.path.join(work, f)
         with open(path("Roop.toml"), "w") as f:
             f.write(f'[modules]\nweave = "{library}/weave"\neinsum = "{library}/einsum"\n')
+            if checked:
+                f.write("[checks]\noverflow = true\n")
         with open(path("model.json"), "w") as f:
             json.dump(spec, f)
         run([roop, "weave", path("model.json"), "--batch", str(batch),
-             "--driver", path("main.c"), "-o", path("prog.roop")])
+             "--driver", path("main.c"), *(["--checked"] if checked else []), "-o", path("prog.roop")])
         run([roop, "build", path("prog.roop"), "--link", path("main.c"), "-o", path("prog")])
         with open(path("data.bin"), "wb") as f:
             f.write(pack(xs.flatten().tolist()) + pack(ts.flatten().tolist()))
