@@ -640,6 +640,16 @@ Lean proves the batched forms at these sizes, each forward and backward together
 | `conv_batch`, `conv_back_batch` | 32 rows, 16 channels, kernel 3, 32 steps | 12 s |
 | `mlp_norm_batch`, `mlp_norm_back_batch` (RMS) | 32 rows, width 64, hidden 64 | 57 s |
 | `mlp_layer_batch`, `mlp_layer_back_batch` (layer) | 32 rows, width 64, hidden 64 | 58 s |
+| `attn_batch`, `attn_back_batch` | 64 rows, 16 tokens, width 16 (N = 256) | 26 s |
+| `grad_batch` (forward, loss, seed, backward) | 64 rows, width 128, hidden 128, 8 layers, 16 outputs | 33 s |
+
+The last two rows are in `crates/roop/tests/weave_batch_train.rs`. Not proved: everything marked
+`irrev`, because an irreversible function has no inverse and so nothing to round trip. That is
+`step_batch`, the optimizers in `optim.roop` (`sgd`, momentum, Adam, `isqrt`, `descend`) and the
+contraction projection in `contract*.roop` (`gram`, `dominant`, `shrink`, `project_contraction`,
+`project_gradient`). They are checked by the roop tests against the per-sample forms, not in
+Lean. `grad_batch` is the reversible part of a training step; `step_batch` adds nothing to it but
+the clear and the optimizer, which are the irreversible parts.
 
 The generated Lean file does not grow with the sizes, and with the ancilla fix below neither does
 the checking time: spot checks at 64 rows, width 128, hidden 128 and 40 cells (residual, 11 s),

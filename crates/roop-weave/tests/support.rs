@@ -175,3 +175,27 @@ pub fn compile(dir: &Path, model: &Value, flags: &[&str]) {
     let out = roop(dir, &args);
     assert!(out.status.success(), "{}", text(&out));
 }
+
+/// Runs a main whose exit status is 0 when `check` holds after `call` has run on the
+/// arrays that `setup` makes.
+pub fn holds(name: &str, setup: &str, call: &str, check: &str) -> bool {
+    let dir = project(name);
+    let program = format!(
+        "use weave::*;
+
+irrev fn run(status: &mut i64) {{
+{setup}
+    {call}
+    if {check} {{ status = 0; }} else {{ status = 1; }} fi {check};
+}}
+
+fn main(status: &mut i64) {{
+    irrev {{ call run(status); }}
+}}
+"
+    );
+    std::fs::write(dir.join("prog.roop"), program).unwrap();
+    let out = roop(&dir, &["run", "prog.roop"]);
+    assert!(out.status.code().is_some(), "{}", text(&out));
+    out.status.success()
+}

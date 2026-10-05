@@ -1,4 +1,4 @@
-// n = k * w h / sigma in Q12 for the projector h (Q12) onto the top right singular
+// n = k * w h / sigma in Q12 for the projector h (Q24) onto the top right singular
 // vector of w and its norm sigma (Q12): the gradient of the spectral norm of w, which
 // is the rank one matrix u v^T, scaled by k (Q12).
 pub irrev fn normal<D, R>(
@@ -15,7 +15,7 @@ pub irrev fn normal<D, R>(
             ancilla i: i64 = 0;
             ancilla sum: i64 = 0;
             from i == 0 {
-                sum = sum + w[r][i] * h[i][j];
+                sum = sum + w[r][i] * h[i][j] / 4096;
             } loop { i += 1; } until i == D - 1;
             n[r][j] = k * sum / (sigma + 1) / 4096;
         } loop { j += 1; } until j == D - 1;

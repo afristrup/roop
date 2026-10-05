@@ -27,7 +27,7 @@ irrev fn gram<D, R>(g: &mut [[i64; D]; D], w: &[[i64; D]; R]) {
     } loop { i += 1; } until i == D - 1;
 }
 
-// h = g / trace g, in Q12 from g in Q24, with the trace in Q24 in t.
+// h = g / trace g, in Q24 from g in Q24, with the trace in Q24 in t.
 irrev fn unit_trace<D>(h: &mut [[i64; D]; D], t: &mut i64, g: &[[i64; D]; D]) {
     ancilla i: i64 = 0;
     t = 1;
@@ -38,12 +38,12 @@ irrev fn unit_trace<D>(h: &mut [[i64; D]; D], t: &mut i64, g: &[[i64; D]; D]) {
     from i == 0 {
         ancilla j: i64 = 0;
         from j == 0 {
-            h[i][j] = g[i][j] * 4096 / t;
+            h[i][j] = g[i][j] * 16777216 / t;
         } loop { j += 1; } until j == D - 1;
     } loop { i += 1; } until i == D - 1;
 }
 
-// s = h h in Q12, h = s / trace s, and the trace of s in Q12 in tau.
+// s = h h in Q24, h = s / trace s, and the trace of s in Q24 in tau.
 irrev fn square<D>(h: &mut [[i64; D]; D], tau: &mut i64) {
     ancilla s: [[i64; D]; D] = 0;
     ancilla i: i64 = 0;
@@ -53,7 +53,7 @@ irrev fn square<D>(h: &mut [[i64; D]; D], tau: &mut i64) {
             ancilla l: i64 = 0;
             s[i][j] = 0;
             from l == 0 {
-                s[i][j] = s[i][j] + h[i][l] * h[l][j] / 4096;
+                s[i][j] = s[i][j] + h[i][l] * h[l][j] / 16777216;
             } loop { l += 1; } until l == D - 1;
         } loop { j += 1; } until j == D - 1;
     } loop { i += 1; } until i == D - 1;
@@ -66,12 +66,12 @@ irrev fn square<D>(h: &mut [[i64; D]; D], tau: &mut i64) {
     from i == 0 {
         ancilla j: i64 = 0;
         from j == 0 {
-            h[i][j] = s[i][j] * 4096 / tau;
+            h[i][j] = s[i][j] * 16777216 / tau;
         } loop { j += 1; } until j == D - 1;
     } loop { i += 1; } until i == D - 1;
 }
 
-// h gets the projector onto the top right singular vector of w (Q12, trace 4096), the
+// h gets the projector onto the top right singular vector of w (Q24, trace 2^24), the
 // squares of the trace-normalized Gram matrix being a rank one matrix when the top
 // singular value stands out, and r a bound on the spectral norm of w in Q12.
 pub irrev fn dominant<D, R>(h: &mut [[i64; D]; D], r: &mut i64, w: &[[i64; D]; R]) {
@@ -86,13 +86,13 @@ pub irrev fn dominant<D, R>(h: &mut [[i64; D]; D], r: &mut i64, w: &[[i64; D]; R
     from k == 0 {
         call square<D>(h, tau[k]);
     } loop { k += 1; } until k == 5;
-    lambda = 4096;
+    lambda = 16777216;
     k = 0;
     from k == 0 {
         call isqrt(root, tau[5 - k] * lambda);
         lambda = root;
     } loop { k += 1; } until k == 5;
-    call isqrt(root, t * lambda / 4096);
+    call isqrt(root, t / 4096 * lambda / 4096);
     r = root;
 }
 
