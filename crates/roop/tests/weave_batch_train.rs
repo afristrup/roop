@@ -60,23 +60,23 @@ fn back(y: &mut [[i64; {n}]; {b}], ay: &[[i64; {n}]; {b}], ax: &mut [[i64; {n}];
 }
 
 #[test]
-fn lean_proves_the_batched_attention_block_at_4_rows_4_tokens_and_width_4() {
+fn lean_proves_the_batched_attention_block_at_64_rows_16_tokens_and_width_16() {
     lean_proves(
-        "weave-attn-batch-4",
-        &attention_source(4, 4, 4),
+        "weave-attn-batch-64",
+        &attention_source(16, 16, 64),
         &[
-            "weave__attention_batch__attn_batch__4_4_16_4",
-            "weave__attention_batch__attn_back_batch__4_4_16_4",
+            "weave__attention_batch__attn_batch__16_16_256_64",
+            "weave__attention_batch__attn_back_batch__16_16_256_64",
         ],
     );
 }
 
 #[test]
-fn lean_proves_the_batched_gradient_at_32_rows_width_64_and_3_layers() {
+fn lean_proves_the_batched_gradient_at_64_rows_width_128_and_8_layers() {
     lean_proves(
         "weave-grad-batch-scale",
-        &grad_source(64, 64, 3, 8, 32),
-        &["weave__train_batch__grad_batch__64_64_3_8_32"],
+        &grad_source(128, 128, 8, 16, 64),
+        &["weave__train_batch__grad_batch__128_128_8_16_64"],
     );
 }
 
