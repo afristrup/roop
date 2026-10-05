@@ -357,6 +357,50 @@ range for every weight; now it starts from a bound on the size of its input. Bit
   (the einsums can run on one), or a task where fixed point must matter, such as many more
   steps than 40 epochs.
 
+## LayerNorm and invertible residual blocks, trained with Adam and keep_contraction
+
+`bench/weave_residual_layernorm.py` (run from `crates/roop-weave/python` with `uv run --extra torch`,
+`WEAVE_ROOP` and `ROOP_RT_LIB` set) trains, on scikit-learn's digits (offline, the split of the
+digits section: 1344 train, 449 test), a network of a leapfrog layer followed by `blocks` pairs of
+`Linear(64,32), LayerNorm(32, eps=1e-2), GELU, Linear(32,64)` and `x + F(x)` residual blocks
+(`Linear(64,32), Tanh, Linear(32,64)`, weights scaled to a contraction). The comparison is the
+float mirror, which is the function weave compiles (leapfrog state, the same fixed-point chain of
+39 cells in the residual blocks) in doubles under torch's autograd and Adam, from the same initial
+weights. Both take batches of 32 in order, summed loss, Adam 0.001 with `eps=1e-3`. Weave uses
+`keep_contraction = 0.8`. A plain `nn.Sequential` forward is not this function (the state is a pair
+and a residual block inverts a chain), so it is not used for the accuracy. One seed (0) only.
+
+| model | epochs | float mirror test acc | weave test acc | weave train CE | weave cpu s | weave RSS MB | float cpu s | float RSS MB |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 block | 20 | 0.9488 | 0.9488 (checked build) | 0.050 | 94.9 (checked) | 10 | 5.1 | 399 |
+| 4 blocks | 30 | 0.9777 | 0.9777 | 0.0021 | 19.1 | 11 | 39.6 | 405 |
+
+Per-epoch loss (half squared error of the probabilities per sample), 4 blocks: epochs 1, 2, 3, 10, 30
+are 0.312, 0.083, 0.042, 0.016, 0.000 for the float mirror and 0.319, 0.089, 0.046, 0.013, 0.000 for
+weave. Both have a bump around epochs 9 to 20 (loss up to 0.012) before settling. With one block,
+weave's curve tracks the float curve to the third decimal for the first 3 epochs.
+
+The `--checked` run (`[checks] overflow = true`, `roop weave --driver --checked`) of the 1 block
+model finished 20 epochs without stopping, so no wrap in a step. The 4 block run was unchecked.
+
+Honest caveats:
+
+- One seed and one split; the test set is 449 images, so the equal accuracies prove nothing finer
+  than a few images. The multi-seed run is `--seeds 0 1 2`, which I did not complete.
+- Unexplained: after training, the spectral-norm bound of the residual weights (the Python bound
+  of `contraction.py`, 1.77 for 4 blocks, 3.2 for 1 block) is above the 0.8 that `keep_contraction`
+  asked for, while `project_contraction` on its own shrinks 64 by 32 weights correctly (checked in
+  isolation), and the Python estimate of the bound matches numpy's spectral norm. The loss and
+  accuracy are nonetheless those of the float mirror, whose own bound reaches 1.8 to 6.2. The
+  bound is an upper bound on the Lipschitz constant, so a value above 1 does not make the chain
+  diverge, but this means the cap is not what held the run, and I did not find why. Exporting
+  the trained model again is refused by `torch_to_weave` for the same reason, so the script
+  evaluates through a mirror built with the limit lifted.
+- Build time dominates: `roop build` of the generated training program took 90 to 140 s for these
+  models, against 2 to 20 s of training, so there is no cheap regression test for this model.
+- Memory is the compiled program's peak resident size against the whole torch process (about
+  400 MB, mostly torch itself), not activation memory.
+
 ## What this says
 
 On these tasks fixed point is not what limits accuracy. After the seven fixes weave reaches the
