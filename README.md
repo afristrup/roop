@@ -1,6 +1,6 @@
 # roop
 
-The reversible, parallel programming language. More at [uncompute.ai](https://www.uncompute.ai).
+The reversible, parallel programming language. More at [neversingular.com](https://www.neversingular.com).
 
 Every roop function has an inverse, and the compiler makes it: `f` and `f_inv`
 from one definition. That is a strange constraint for a language, and it buys
