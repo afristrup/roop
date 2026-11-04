@@ -1,4 +1,4 @@
-use roop_revlib::{index, load, load_syrec, lookup, parse, parse_syrec, validate};
+use roop_revlib::{evaluate, index, load, load_syrec, lookup, parse, parse_syrec, validate};
 use std::time::{Duration, Instant};
 
 const USAGE: &str = "usage: cargo run -p roop-revlib --example corpus -- <revlib-directory> [--report] [--benchmark]";
@@ -42,12 +42,13 @@ fn main() -> Result<(), roop_revlib::Error> {
     let mut nodes = 0;
     let mut parse_time = Duration::ZERO;
     let mut validation_time = Duration::ZERO;
+    let mut evaluate_time = Duration::ZERO;
     let mut index_time = Duration::ZERO;
     let mut lookup_time = Duration::ZERO;
     let mut syrec_parse_time = Duration::ZERO;
     if report {
         println!(
-            "kind,file,inputs,outputs,rows,nodes,module,parse_ns,validate_ns,index_ns,lookup_ns"
+            "kind,file,inputs,outputs,rows,nodes,module,parse_ns,validate_ns,evaluate_ns,index_ns,lookup_ns"
         );
     }
     for table in &corpus {
@@ -57,13 +58,20 @@ fn main() -> Result<(), roop_revlib::Error> {
         })?;
         assert_eq!(&parsed, table);
         let (_, validation) = fastest(runs, || validate(table))?;
-        let (indexed, indexing) = fastest(runs, || index(table))?;
-        nodes += indexed.node_count;
         let witnesses: Vec<_> = table
             .rows
             .iter()
             .map(|(cube, output)| (cube.replace('-', "0"), output.as_str()))
             .collect();
+        let (input, output) = witnesses.first().expect("PLA has a row");
+        let (_, evaluating) = fastest(runs, || {
+            let matches = usize::from(evaluate(table, input)?.contains(output));
+            std::hint::black_box(matches);
+            Ok(())
+        })?;
+        evaluate_time += evaluating;
+        let (indexed, indexing) = fastest(runs, || index(table))?;
+        nodes += indexed.node_count;
         let (_, lookups) = fastest(runs, || {
             let mut matches = 0;
             for (input, output) in &witnesses {
@@ -82,7 +90,7 @@ fn main() -> Result<(), roop_revlib::Error> {
         }
         if report {
             println!(
-                "pla,{},{},{},{},{},,{},{},{},{}",
+                "pla,{},{},{},{},{},,{},{},{},{},{}",
                 table.file,
                 table.inputs,
                 table.outputs,
@@ -90,6 +98,7 @@ fn main() -> Result<(), roop_revlib::Error> {
                 indexed.node_count,
                 parsing.as_nanos(),
                 validation.as_nanos(),
+                evaluating.as_nanos(),
                 indexing.as_nanos(),
                 lookups.as_nanos(),
             );
@@ -112,7 +121,7 @@ fn main() -> Result<(), roop_revlib::Error> {
         }
     }
     println!(
-        "validated {} PLA tables, {} rows, {} index nodes, and {} SyReC sources; load {:.2?}, SyReC load {:.2?}, per-source parse {:.2?}, SyReC parse {:.2?}, validation {:.2?}, index {:.2?}, lookup {:.2?}",
+        "validated {} PLA tables, {} rows, {} index nodes, and {} SyReC sources; load {:.2?}, SyReC load {:.2?}, per-source parse {:.2?}, SyReC parse {:.2?}, validation {:.2?}, evaluate {:.2?}, index {:.2?}, lookup {:.2?}",
         corpus.len(),
         rows,
         nodes,
@@ -122,6 +131,7 @@ fn main() -> Result<(), roop_revlib::Error> {
         parse_time,
         syrec_parse_time,
         validation_time,
+        evaluate_time,
         index_time,
         lookup_time,
     );

@@ -261,8 +261,9 @@ above 15 are not reported.
 ## RevLib corpus validation
 
 The RevLib benchmark entry point parses every PLA table, validates its syntax,
-builds its ternary index, and checks every cube against one concrete matching
-input. It also parses the SyReC sources. Run `--benchmark` to emit one CSV
+builds its ternary index, checks every cube against one concrete matching
+input through that index, and evaluates one matching input per table with the
+linear reference evaluator. It also parses the SyReC sources. Run `--benchmark` to emit one CSV
 record per source function and time parsing for every PLA and SyReC source, plus every PLA execution phase:
 
 ```sh
@@ -270,18 +271,18 @@ cargo run --release -p roop-revlib --example corpus -- /path/to/revlib --benchma
 ```
 
 `--benchmark` implies `--report` and takes the best of three runs for each
-per-source parse, validation, index-construction, and full-row-witness lookup
-measurement. Its CSV has dimensions, row and node counts, and nanosecond phase
+per-source parse, validation, one reference evaluation per table,
+index-construction, and full-row-witness lookup measurement. Its CSV has dimensions, row and node counts, and nanosecond phase
 measurements. The
-stand-alone validation measurement is separate; index construction also
+stand-alone validation and evaluator measurements are separate; index construction also
 validates its input by contract.
 
 On the local RevLib archive, all 139 available source functions, comprising 133
-PLA tables with 173,529 rows and six SyReC sources, completed loading in 30.97
-ms, per-source PLA parsing in 11.94 ms, SyReC parsing in 6.37 microseconds,
-stand-alone validation in 2.39 ms, index construction in 18.26 ms, and 173,529
-indexed witness lookups in 127.53 ms. This validates the corpus
-interface and index, not a compilation of every PLA table to reversible Roop
+PLA tables with 173,529 rows and six SyReC sources, completed loading in 19.09
+ms, per-source PLA parsing in 10.17 ms, SyReC parsing in 6.49 microseconds,
+stand-alone validation in 1.95 ms, 133 representative reference evaluations in
+2.33 ms, index construction in 19.34 ms, and 173,529 indexed witness lookups
+in 120.13 ms. This validates the corpus interface, reference evaluator, and index, not a compilation of every PLA table to reversible Roop
 code.
 
 ## Lean proof profile
