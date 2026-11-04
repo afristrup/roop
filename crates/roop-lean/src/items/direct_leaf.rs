@@ -1,6 +1,6 @@
-use roop_syntax::{BinOp, Block, Expr, FnDef, Place, StmtKind, UpdateOp};
+use roop_syntax::{Block, Expr, FnDef, Place, StmtKind, UpdateOp};
 
-/// Whether a function can get a no-ancilla contract by direct simplification.
+/// Whether a function can get a no-ancilla contract by structural splitting.
 pub fn direct_leaf(def: &FnDef) -> bool {
     direct_block(&def.body)
 }
@@ -25,9 +25,13 @@ fn direct_block(block: &Block) -> bool {
 
 fn direct_expr(expr: &Expr) -> bool {
     match expr {
-        Expr::Binary(_, BinOp::Div | BinOp::BitAnd | BinOp::BitOr, _) => false,
         Expr::Unary(_, expr) | Expr::Cast(expr, _) => direct_expr(expr),
         Expr::Binary(lhs, _, rhs) => direct_expr(lhs) && direct_expr(rhs),
-        _ => true,
+        Expr::Int(_)
+        | Expr::Float(_)
+        | Expr::Bool(_)
+        | Expr::Byte(_)
+        | Expr::Place(Place::Var(_)) => true,
+        _ => false,
     }
 }

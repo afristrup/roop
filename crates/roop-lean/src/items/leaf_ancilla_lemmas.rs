@@ -13,12 +13,12 @@ pub fn leaf_ancilla_lemmas(def: &FnDef) -> String {
         .into_iter()
         .map(|(name, suffix)| {
             format!(
-                "theorem {} {} (h : {} {} = Except.error Roop.Fail.ancilla) : False := by\n  simp [{}, Roop.check, Roop.aget, Roop.aset, bind, Except.bind, pure, Except.pure] at h <;> (repeat' split at h) <;> simp_all [{}, Roop.check, Roop.aget, Roop.aset, bind, Except.bind, pure, Except.pure]\n",
+                "theorem {} {} (h : {} {} = Except.error Roop.Fail.ancilla) : False := by\n  simp only [{}, Roop.check, bind, Except.bind, pure, Except.pure] at h
+  repeat' first | split at h | simp_all\n",
                 esc_thm(&format!("{}_{suffix}", def.name)),
                 params.join(" "),
                 esc_fn(&name),
                 inputs.join(" "),
-                esc_fn(&name),
                 esc_fn(&name)
             )
         })
