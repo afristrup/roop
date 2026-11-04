@@ -2,7 +2,7 @@ use crate::{
     Ctx, Env, LeanError, esc, esc_ty, expr_type, is_byte, is_float, lean_cast, lean_expr_as,
     operand_type, read_place,
 };
-use roop_syntax::{BinOp, Expr, UnOp};
+use roop_syntax::{BinOp, Expr, Type, UnOp};
 
 /// A Lean expression for a roop expression. Reads of array elements use
 /// `(\u{2190} ...)`, so the result must sit inside a `do` block.
@@ -33,6 +33,14 @@ pub fn lean_expr(cx: &Ctx, env: &Env, expr: &Expr) -> Result<String, LeanError> 
         Expr::Binary(lhs, op, rhs) => {
             let ty = operand_type(cx, env, lhs, rhs)?;
             let (float, byte) = (is_float(&ty), is_byte(&ty));
+            if matches!(op, BinOp::BitAnd | BinOp::BitOr)
+                && !byte
+                && ty != Type::Named("i64".into())
+            {
+                return Err(LeanError::Unsupported(
+                    "bitwise operation on non-integers".into(),
+                ));
+            }
             let (l, r) = (
                 lean_expr_as(cx, env, lhs, &ty)?,
                 lean_expr_as(cx, env, rhs, &ty)?,
@@ -50,6 +58,11 @@ pub fn lean_expr(cx: &Ctx, env: &Env, expr: &Expr) -> Result<String, LeanError> 
                 (BinOp::Div, true) => format!("({l} / {r})"),
                 (BinOp::Div, false) => format!("(BitVec.sdiv {l} {r})"),
                 (BinOp::Rem, false) => format!("(BitVec.srem {l} {r})"),
+                (BinOp::BitAnd | BinOp::BitOr, true) => {
+                    return Err(LeanError::Unsupported("bitwise operation on floats".into()));
+                }
+                (BinOp::BitAnd, false) => format!("({l} &&& {r})"),
+                (BinOp::BitOr, false) => format!("({l} ||| {r})"),
                 (BinOp::Rem, true) => {
                     return Err(LeanError::Unsupported("remainder of floats".into()));
                 }

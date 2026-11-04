@@ -165,9 +165,11 @@ pub enum Token<'a> {
     Percent,
     #[token("&")]
     Amp,
-    #[token("&&")]
+    #[token("&&", priority = 2)]
     AmpAmp,
-    #[token("||")]
+    #[token("|", priority = 1)]
+    Pipe,
+    #[token("||", priority = 2)]
     PipePipe,
     #[token("!")]
     Bang,

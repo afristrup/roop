@@ -5,6 +5,8 @@ pub enum BinOp {
     Mul,
     Div,
     Rem,
+    BitAnd,
+    BitOr,
     Eq,
     Ne,
     Lt,

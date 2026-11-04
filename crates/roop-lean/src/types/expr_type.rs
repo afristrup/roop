@@ -16,9 +16,13 @@ pub fn expr_type(cx: &Ctx, env: &Env, expr: &Expr) -> Result<Type, LeanError> {
         Expr::Unary(UnOp::Not, _) => named("bool"),
         Expr::Unary(UnOp::Neg, inner) => expr_type(cx, env, inner)?,
         Expr::Binary(lhs, op, rhs) => match op {
-            BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Rem => {
-                operand_type(cx, env, lhs, rhs)?
-            }
+            BinOp::Add
+            | BinOp::Sub
+            | BinOp::Mul
+            | BinOp::Div
+            | BinOp::Rem
+            | BinOp::BitAnd
+            | BinOp::BitOr => operand_type(cx, env, lhs, rhs)?,
             _ => named("bool"),
         },
     })

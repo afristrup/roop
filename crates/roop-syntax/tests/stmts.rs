@@ -153,3 +153,16 @@ fn an_auto_names_its_region_and_a_statement_its_label() {
     );
     assert_eq!(body.stmts[0].attrs, [roop_syntax::Attr::Label("r".into())]);
 }
+
+#[test]
+fn parses_integer_bitwise_expressions() {
+    use roop_syntax::{BinOp, Expr};
+    let StmtKind::Update { value, .. } = first_stmt("x ^= y & y;") else {
+        panic!("expected update");
+    };
+    assert!(matches!(value, Expr::Binary(_, BinOp::BitAnd, _)));
+    let StmtKind::Update { value, .. } = first_stmt("x ^= y | y;") else {
+        panic!("expected update");
+    };
+    assert!(matches!(value, Expr::Binary(_, BinOp::BitOr, _)));
+}

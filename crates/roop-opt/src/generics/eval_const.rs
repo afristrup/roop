@@ -20,6 +20,8 @@ pub fn eval_const(expr: &Expr, env: &HashMap<String, i64>) -> Option<(i64, bool)
                 BinOp::Mul => a.checked_mul(b),
                 BinOp::Div => a.checked_div(b),
                 BinOp::Rem => a.checked_rem(b),
+                BinOp::BitAnd => Some(a & b),
+                BinOp::BitOr => Some(a | b),
                 _ => None,
             }?;
             Some((n, ua || ub))

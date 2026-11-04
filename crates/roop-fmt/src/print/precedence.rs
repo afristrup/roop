@@ -5,9 +5,11 @@ pub fn precedence(op: BinOp) -> u8 {
     match op {
         BinOp::Or => 1,
         BinOp::And => 2,
-        BinOp::Eq | BinOp::Ne => 3,
-        BinOp::Lt | BinOp::Le | BinOp::Gt | BinOp::Ge => 4,
-        BinOp::Add | BinOp::Sub => 5,
-        BinOp::Mul | BinOp::Div | BinOp::Rem => 6,
+        BinOp::BitOr => 3,
+        BinOp::BitAnd => 4,
+        BinOp::Eq | BinOp::Ne => 5,
+        BinOp::Lt | BinOp::Le | BinOp::Gt | BinOp::Ge => 6,
+        BinOp::Add | BinOp::Sub => 7,
+        BinOp::Mul | BinOp::Div | BinOp::Rem => 8,
     }
 }

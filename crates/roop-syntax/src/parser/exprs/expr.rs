@@ -60,8 +60,10 @@ pub fn expr<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Expr, Err<'a>> + Clon
             mul,
             select! { Token::Plus => BinOp::Add, Token::Minus => BinOp::Sub },
         );
+        let bit_and = binary_level(add, select! { Token::Amp => BinOp::BitAnd }).boxed();
+        let bit_or = binary_level(bit_and, select! { Token::Pipe => BinOp::BitOr }).boxed();
         let cmp = binary_level(
-            add,
+            bit_or,
             select! {
                 Token::Lt => BinOp::Lt, Token::Le => BinOp::Le,
                 Token::Gt => BinOp::Gt, Token::Ge => BinOp::Ge,
