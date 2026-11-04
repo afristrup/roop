@@ -1,4 +1,4 @@
-use roop_revlib::{index, load, load_syrec, lookup, validate};
+use roop_revlib::{index, load, load_syrec, lookup, parse, parse_syrec, validate};
 use std::time::{Duration, Instant};
 
 const USAGE: &str = "usage: cargo run -p roop-revlib --example corpus -- <revlib-directory> [--report] [--benchmark]";
@@ -35,18 +35,27 @@ fn main() -> Result<(), roop_revlib::Error> {
         }
     }
     let directory = std::path::Path::new(&directory);
-    let (corpus, parse_time) = fastest(1, || load(directory))?;
-    let (syrec, syrec_time) = fastest(1, || load_syrec(directory))?;
+    let (corpus, load_time) = fastest(1, || load(directory))?;
+    let (syrec, syrec_load_time) = fastest(1, || load_syrec(directory))?;
     let runs = if benchmark { 3 } else { 1 };
     let mut rows = 0;
     let mut nodes = 0;
+    let mut parse_time = Duration::ZERO;
     let mut validation_time = Duration::ZERO;
     let mut index_time = Duration::ZERO;
     let mut lookup_time = Duration::ZERO;
+    let mut syrec_parse_time = Duration::ZERO;
     if report {
-        println!("kind,file,inputs,outputs,rows,nodes,module,validate_ns,index_ns,lookup_ns");
+        println!(
+            "kind,file,inputs,outputs,rows,nodes,module,parse_ns,validate_ns,index_ns,lookup_ns"
+        );
     }
     for table in &corpus {
+        let (parsed, parsing) = fastest(runs, || {
+            let source = std::fs::read_to_string(&table.file)?;
+            parse(&table.file, &source)
+        })?;
+        assert_eq!(&parsed, table);
         let (_, validation) = fastest(runs, || validate(table))?;
         let (indexed, indexing) = fastest(runs, || index(table))?;
         nodes += indexed.node_count;
@@ -63,6 +72,7 @@ fn main() -> Result<(), roop_revlib::Error> {
             std::hint::black_box(matches);
             Ok(())
         })?;
+        parse_time += parsing;
         validation_time += validation;
         index_time += indexing;
         lookup_time += lookups;
@@ -72,35 +82,45 @@ fn main() -> Result<(), roop_revlib::Error> {
         }
         if report {
             println!(
-                "pla,{},{},{},{},{},,{},{},{}",
+                "pla,{},{},{},{},{},,{},{},{},{}",
                 table.file,
                 table.inputs,
                 table.outputs,
                 table.rows.len(),
                 indexed.node_count,
+                parsing.as_nanos(),
                 validation.as_nanos(),
                 indexing.as_nanos(),
                 lookups.as_nanos(),
             );
         }
     }
-    if report {
-        for source in &syrec {
+    for source in &syrec {
+        let (parsed, parsing) = fastest(runs, || {
+            let text = std::fs::read_to_string(&source.file)?;
+            parse_syrec(&source.file, &text)
+        })?;
+        assert_eq!(&parsed, source);
+        syrec_parse_time += parsing;
+        if report {
             println!(
-                "syrec,{file},,,,,{module},,,",
+                "syrec,{file},,,,,{module},{parse},,,",
                 file = source.file,
-                module = source.module
+                module = source.module,
+                parse = parsing.as_nanos(),
             );
         }
     }
     println!(
-        "validated {} PLA tables, {} rows, {} index nodes, and {} SyReC sources; parse {:.2?}, SyReC parse {:.2?}, validation {:.2?}, index {:.2?}, lookup {:.2?}",
+        "validated {} PLA tables, {} rows, {} index nodes, and {} SyReC sources; load {:.2?}, SyReC load {:.2?}, per-source parse {:.2?}, SyReC parse {:.2?}, validation {:.2?}, index {:.2?}, lookup {:.2?}",
         corpus.len(),
         rows,
         nodes,
         syrec.len(),
+        load_time,
+        syrec_load_time,
         parse_time,
-        syrec_time,
+        syrec_parse_time,
         validation_time,
         index_time,
         lookup_time,
