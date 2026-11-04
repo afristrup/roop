@@ -33,6 +33,7 @@ pub fn einsum_def<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>> 
                 external: false,
                 world: false,
                 einsum: Some(Einsum { spec, elem }),
+                einsum_generated: false,
             })
         })
 }

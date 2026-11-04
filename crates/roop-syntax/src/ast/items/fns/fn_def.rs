@@ -25,4 +25,6 @@ pub struct FnDef {
     /// Declared `einsum fn name: T = "ij,jk->ik";`: the contraction, which
     /// `roop-opt` writes out as loops before the checks.
     pub einsum: Option<Einsum>,
+    /// Created by the einsum lowering pass.
+    pub einsum_generated: bool,
 }

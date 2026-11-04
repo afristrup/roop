@@ -31,6 +31,7 @@ pub fn item<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>> + Clon
                 external: false,
                 world: false,
                 einsum: None,
+                einsum_generated: false,
             })
         });
 

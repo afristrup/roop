@@ -29,6 +29,7 @@ pub fn extern_def<'a, I: TokenInput<'a>>() -> impl Parser<'a, I, Item, Err<'a>> 
                 external: true,
                 world: world.is_some(),
                 einsum: None,
+                einsum_generated: false,
             })
         })
 }

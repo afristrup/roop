@@ -31,6 +31,7 @@ pub fn split_test(program: &Program, test: &str) -> Option<(Program, usize)> {
             external: false,
             world: false,
             einsum: None,
+            einsum_generated: false,
         }));
     }
     Some((out, def.body.stmts.len()))

@@ -25,5 +25,6 @@ pub fn einsum_fn(
         external: false,
         world: false,
         einsum: None,
+        einsum_generated: true,
     }
 }

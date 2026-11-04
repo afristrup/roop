@@ -27,8 +27,9 @@ pub fn lean_theorems(
     modular: &HashMap<String, LoopLemmas>,
     ancillas: bool,
     one_way: bool,
+    counted: Option<(usize, i64)>,
 ) -> Option<String> {
-    let text = theorems(def, deps, loop_lemmas, modular, ancillas, one_way)?;
+    let text = theorems(def, deps, loop_lemmas, modular, ancillas, one_way, counted)?;
     let calls = roop_check::calls_in(&def.body, false).len();
     if calls <= 2 {
         return Some(text);
@@ -40,6 +41,17 @@ pub fn lean_theorems(
     Some(text.replace("theorem ", &limit))
 }
 
+fn counted_ancilla_proof(def: &FnDef, callee: &str, at: usize, inverse: bool) -> String {
+    let id = format!("{}__loop{at}", def.name);
+    let suffix = if inverse { "_inv" } else { "" };
+    let no_ancilla = esc_thm(&format!("{id}_loop{suffix}_no_ancilla"));
+    let stop = esc_thm(&format!("{id}_loop{suffix}_stop"));
+    let stop_fn = esc_fn(&format!("{id}_{}", if inverse { "entry" } else { "stop" }));
+    format!(
+        "  simp only [{callee}, Roop.check, bind, Except.bind, pure, Except.pure] at {HYP}\n  refine (Roop.bind_ancilla {HYP}).elim ?_ ?_\n  · exact {no_ancilla}\n  · rintro ⟨z, hz, {HYP}⟩\n    have hs := {stop} hz\n    simp [{stop_fn}, pure, Except.pure, beq_iff_eq] at hs\n    rw [hs] at {HYP}\n    simp [Roop.check, pure, Except.pure] at {HYP}\n"
+    )
+}
+
 fn theorems(
     def: &FnDef,
     deps: &[String],
@@ -47,6 +59,7 @@ fn theorems(
     modular: &HashMap<String, LoopLemmas>,
     ancillas: bool,
     one_way: bool,
+    counted: Option<(usize, i64)>,
 ) -> Option<String> {
     let mutable: Vec<&Param> = def.params.iter().filter(|p| is_mut_ref(&p.ty)).collect();
     if mutable.is_empty() && !ancillas {
@@ -68,6 +81,11 @@ fn theorems(
     let thm = |suffix: &str| esc_thm(&format!("{}_{suffix}", def.name));
 
     let mut text = String::new();
+    let theorem = if counted.is_some() {
+        "set_option maxHeartbeats 1000000 in\ntheorem"
+    } else {
+        "theorem"
+    };
     let chain = chain_calls(def);
     let backward: Option<Vec<(String, bool)>> = chain
         .as_ref()
@@ -82,14 +100,18 @@ fn theorems(
                 &backward,
             ),
         ] {
-            let body = guarded_proof(
-                calls
-                    .as_ref()
-                    .and_then(|calls| chain_proof(&raw, calls, modular, HYP)),
-                proof(HYP),
-            );
+            let body = counted
+                .map(|(at, _)| counted_ancilla_proof(def, callee, at, name.starts_with("inv_")))
+                .unwrap_or_else(|| {
+                    guarded_proof(
+                        calls
+                            .as_ref()
+                            .and_then(|calls| chain_proof(&raw, calls, modular, HYP)),
+                        proof(HYP),
+                    )
+                });
             text.push_str(&format!(
-                "theorem {} {} ({HYP} : {callee} {} = Except.error Roop.Fail.ancilla) : False := by\n{body}\n",
+                "{theorem} {} {} ({HYP} : {callee} {} = Except.error Roop.Fail.ancilla) : False := by\n{body}\n",
                 thm(name),
                 all_params.join(" "),
                 inputs.join(" "),
@@ -139,7 +161,7 @@ fn theorems(
         roundtrip.clone(),
     );
     text.push_str(&format!(
-        "theorem {} {} ({OUT} : {tuple}) ({HYP} : {f} {} = Except.ok {OUT}) :\n    {f_inv} {} = Except.ok {} := by\n{inv_f_proof}\n",
+        "{theorem} {} {} ({OUT} : {tuple}) ({HYP} : {f} {} = Except.ok {OUT}) :\n    {f_inv} {} = Except.ok {} := by\n{inv_f_proof}\n",
         thm("inv_f"),
         all_params.join(" "),
         inputs.join(" "),
@@ -150,7 +172,7 @@ fn theorems(
         return Some(text);
     }
     text.push_str(&format!(
-        "theorem {} {} ({OUT} : {tuple}) ({INIT} : {tuple}) ({HYP} : {f_inv} {} = Except.ok {INIT}) :\n    {f} {} = Except.ok {OUT} := by\n{f_inv_proof}\n",
+        "{theorem} {} {} ({OUT} : {tuple}) ({INIT} : {tuple}) ({HYP} : {f_inv} {} = Except.ok {INIT}) :\n    {f} {} = Except.ok {OUT} := by\n{f_inv_proof}\n",
         thm("f_inv"),
         read_only.join(" "),
         with_components(OUT).join(" "),

@@ -1,4 +1,46 @@
-use roop_syntax::{Block, Expr, FnDef, Place, StmtKind, UpdateOp};
+use roop_syntax::{Block, Expr, FnDef, Place, StmtKind, UpdateOp, counted_loop};
+
+pub fn counted_ancilla(def: &FnDef) -> Option<(usize, i64)> {
+    if !def.einsum_generated {
+        return None;
+    }
+    let [stmt] = def.body.stmts.as_slice() else {
+        return None;
+    };
+    let StmtKind::Ancilla {
+        name,
+        init: Expr::Int(0),
+        body,
+        ..
+    } = &stmt.kind
+    else {
+        return None;
+    };
+    let [loop_stmt, cleanup] = body.stmts.as_slice() else {
+        return None;
+    };
+    let StmtKind::From {
+        entry, step, until, ..
+    } = &loop_stmt.kind
+    else {
+        return None;
+    };
+    let counted = counted_loop(entry, step, until)?;
+    let StmtKind::Update {
+        target: Place::Var(target),
+        op: UpdateOp::Sub,
+        value: Expr::Int(amount),
+    } = &cleanup.kind
+    else {
+        return None;
+    };
+    (counted.var == name
+        && matches!(counted.lo, Expr::Int(0))
+        && counted.step == 1
+        && matches!(counted.hi, Expr::Int(limit) if limit == amount)
+        && target == name)
+        .then_some((loop_stmt.span.start, *amount))
+}
 
 /// Whether a function can get a no-ancilla contract by structural splitting.
 pub fn direct_leaf(def: &FnDef) -> bool {

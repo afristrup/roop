@@ -1,7 +1,7 @@
 use crate::{
     Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, SESSION_PRELUDE, Translation, call_lemmas,
-    direct_leaf, esc_fn, leaf_ancilla_lemmas, lean_commute, lean_enum, lean_fn, lean_loop_lemmas,
-    lean_session, lean_struct, lean_theorems, lean_try_lemmas,
+    counted_ancilla, direct_leaf, esc_fn, leaf_ancilla_lemmas, lean_commute, lean_enum, lean_fn,
+    lean_loop_lemmas, lean_session, lean_struct, lean_theorems, lean_try_lemmas,
 };
 use roop_check::{calls_in, is_irreversible_fn};
 use roop_syntax::{FnDef, Item, Program};
@@ -199,7 +199,15 @@ fn translate_fn(
                 .iter()
                 .any(|p| p.construct == Construct::Try || p.one_way);
             fn_one_way = one_way;
-            if let Some(theorems) = lean_theorems(def, deps, &known, modular, ancillas, one_way) {
+            if let Some(theorems) = lean_theorems(
+                def,
+                deps,
+                &known,
+                modular,
+                ancillas,
+                one_way,
+                counted_ancilla(def),
+            ) {
                 text.push_str(&theorems);
                 if simple_leaf {
                     text.push_str(&leaf_ancilla_lemmas(def));

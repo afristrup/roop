@@ -120,5 +120,6 @@ pub fn build_bennett(
         external: false,
         world: false,
         einsum: None,
+        einsum_generated: false,
     })
 }
