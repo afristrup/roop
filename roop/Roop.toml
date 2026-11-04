@@ -5,6 +5,7 @@ history = "examples/history"
 server = "examples/server"
 weave = "weave"
 einsum = "einsum"
+revlib = "benchmarks/revlib"
 
 [parallel]
 # Bare #[parallel] picks CPU threads or a GPU, whichever is estimated faster.

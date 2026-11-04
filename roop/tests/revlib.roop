@@ -1,0 +1,36 @@
+use revlib::*;
+
+test simple_alu_matches_revlib {
+    op0: i64,
+        op1: i64,
+        op2: i64,
+        op3: i64,
+        out0: i64,
+        out1: i64,
+        out2: i64,
+        out3: i64,
+        x10: i64,
+        x11: i64,
+        x12: i64,
+        x13: i64,
+        x20: i64,
+        x21: i64,
+        x22: i64,
+        x23: i64;
+    op1 += 1;
+    op2 += 2;
+    op3 += 3;
+    x10 += 7;
+    x11 += 7;
+    x12 += 7;
+    x13 += 7;
+    x20 += 3;
+    x21 += 3;
+    x22 += 3;
+    x23 += 3;
+    call simple_alu(op0, out0, x10, x20);
+    call simple_alu(op1, out1, x11, x21);
+    call simple_alu(op2, out2, x12, x22);
+    call simple_alu(op3, out3, x13, x23);
+    expect out0 == 10 && out1 == 4 && out2 == 21 && out3 == 4;
+}
