@@ -1,0 +1,21 @@
+// Non-negative i64 adapter for RevLib's avg8_237.src.
+pub fn avg8(
+    x0: &mut i64,
+    x1: &mut i64,
+    x2: &i64,
+    x3: &i64,
+    x4: &i64,
+    x5: &i64,
+    x6: &i64,
+    x7: &i64,
+    x8: &i64,
+) {
+    x1 += x2;
+    x1 += x3;
+    x1 += x4;
+    x1 += x5;
+    x1 += x6;
+    x1 += x7;
+    x1 += x8;
+    x0 += x1 / 8;
+}
