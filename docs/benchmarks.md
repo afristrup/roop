@@ -290,6 +290,15 @@ accepted by Lean 4.35. Profiling the generated file with `lean --profile` took
 reported 18.3 s in `simp`, 10.8 s in tactic execution, and 1.86 s in type
 checking. The totals overlap because Lean processes declarations concurrently.
 
+Declaration-boundary runs locate the cost more precisely. On the same
+representative generated file, the prefix through activations and `drift` took
+3.44 s and 1.93 GB. Including the first nested Einsum sum certificate took
+3.86 s and 2.02 GB; including all four Einsum certificates took 5.02 s and
+2.27 GB; and the prefix through `net` took 5.46 s and 2.42 GB. These are
+single-run localization measurements, not a comparison table. They show that
+the next optimization must share or abstract monomorphized Einsum certificates;
+the higher-level Weave composition contracts add comparatively little.
+
 A guarded fast path for lifted pieces that `simp` can fully discharge reduced the
 same profile to 17.4 s in `simp`, 10.3 s in tactic execution, and 1.84 s in
 type checking. The proof still falls back to the existing general tactic when
