@@ -257,3 +257,17 @@ can match it: not here. The old row is `0baf7b8`, built from a `git archive` int
 its own target directory. Other work on the machine, including Lean runs, was
 active throughout, and the numbers that were taken when the load average was
 above 15 are not reported.
+
+## RevLib corpus validation
+
+The RevLib benchmark entry point parses every PLA table, validates its syntax,
+builds its ternary index, and checks every cube against one concrete matching
+input. It also parses the SyReC sources:
+
+```sh
+cargo run --release -p roop-revlib --example corpus -- /path/to/revlib
+```
+
+On the local RevLib archive, 133 PLA tables with 173,529 rows and six SyReC
+sources completed in 190.43 ms. This validates the corpus interface and index,
+not a compilation of every PLA table to reversible Roop code.
