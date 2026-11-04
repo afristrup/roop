@@ -1,8 +1,10 @@
+mod alu;
 mod arb8;
 mod avg16;
 mod avg8;
 mod simple_alu;
 
+pub use alu::*;
 pub use arb8::*;
 pub use avg16::*;
 pub use avg8::*;

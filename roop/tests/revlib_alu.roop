@@ -1,0 +1,10 @@
+use revlib::*;
+
+test alu_matches_revlib_for_nonnegative_values {
+    op: i64, x0: i64, x1: i64, x2: i64;
+    x1 += 12;
+    x2 += 3;
+    op += 3;
+    call alu(op, x0, x1, x2);
+    expect x0 == 4;
+}
