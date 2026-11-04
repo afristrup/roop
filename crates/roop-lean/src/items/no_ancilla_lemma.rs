@@ -1,7 +1,8 @@
-use crate::{HYP, LemmaShape, LoopLemmas, esc_fn, proof_script, unfold_simp};
+use crate::{HYP, LemmaShape, Lifted, LoopLemmas, esc_fn, proof_script, unfold_simp};
 
 /// A lifted piece never fails on an unrestored ancilla.
 pub fn no_ancilla_lemma(
+    info: &Lifted,
     shape: &LemmaShape,
     part: &str,
     deps: &[String],
@@ -10,6 +11,11 @@ pub fn no_ancilla_lemma(
     let a = "\u{ab}__a\u{bb}";
     let piece = esc_fn(&format!("{}_{part}", shape.id));
     let mut unfold = vec![piece.clone()];
+    if matches!(part, "body" | "body_inv") {
+        if let Some(update) = &info.additive_update {
+            unfold.push(update.delta.clone());
+        }
+    }
     unfold.extend(deps.iter().cloned());
     let simple = format!(
         "  simp [{}, Roop.check, Roop.aget, Roop.aset, bind, Except.bind, pure, Except.pure] at {HYP} <;> done\n",

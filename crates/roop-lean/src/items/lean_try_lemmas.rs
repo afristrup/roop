@@ -14,10 +14,10 @@ pub fn lean_try_lemmas(
     let shape = LemmaShape::new(info);
     let mut text = String::new();
     for part in ["body", "handler"] {
-        text.push_str(&piece_lemmas(&shape, part, false, deps, earlier));
+        text.push_str(&piece_lemmas(info, &shape, part, false, deps, earlier));
     }
     for part in ["body", "handler", "body_inv", "handler_inv"] {
-        text.push_str(&no_ancilla_lemma(&shape, part, deps, earlier));
+        text.push_str(&no_ancilla_lemma(info, &shape, part, deps, earlier));
     }
     let (s, p) = ("\u{ab}__s\u{bb}", "\u{ab}__p\u{bb}");
     let forward = format!(

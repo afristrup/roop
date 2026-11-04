@@ -30,13 +30,14 @@ pub fn lean_try(
         .filter(|(name, _)| name != outcome_root)
         .partition(|(name, _)| written.contains(name));
     let id = format!("{}__try{at}", env.function);
-    let info = Lifted {
+    let mut info = Lifted {
         id: id.clone(),
         construct: Construct::Try,
         captures,
         state,
         parallel: None,
         one_way: true,
+        additive_update: None,
     };
     let piece = |part: &str| esc_fn(&format!("{id}_{part}"));
     let args: Vec<String> = info.captures.iter().map(|(n, _)| esc(n)).collect();
@@ -55,12 +56,20 @@ pub fn lean_try(
     let result = out.fresh("__try");
     match dir {
         Dir::Forward => {
-            lean_piece(cx, env, out, &info, &piece("body"), Piece::Block(body), dir)?;
             lean_piece(
                 cx,
                 env,
                 out,
-                &info,
+                &mut info,
+                &piece("body"),
+                Piece::Block(body),
+                dir,
+            )?;
+            lean_piece(
+                cx,
+                env,
+                out,
+                &mut info,
                 &piece("handler"),
                 Piece::Block(handler),
                 dir,
@@ -92,7 +101,7 @@ pub fn lean_try(
                 cx,
                 env,
                 out,
-                &info,
+                &mut info,
                 &piece("body_inv"),
                 Piece::Block(body),
                 dir,
@@ -101,7 +110,7 @@ pub fn lean_try(
                 cx,
                 env,
                 out,
-                &info,
+                &mut info,
                 &piece("handler_inv"),
                 Piece::Block(handler),
                 dir,

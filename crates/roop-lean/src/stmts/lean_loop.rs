@@ -42,6 +42,7 @@ pub fn lean_loop(
         state,
         parallel,
         one_way: false,
+        additive_update: None,
     };
     let piece = |part: &str| esc_fn(&format!("{id}_{part}"));
     let args: Vec<String> = info.captures.iter().map(|(n, _)| esc(n)).collect();
@@ -53,7 +54,7 @@ pub fn lean_loop(
                 cx,
                 env,
                 out,
-                &info,
+                &mut info,
                 &piece("entry"),
                 Piece::Condition(entry),
                 dir,
@@ -62,13 +63,29 @@ pub fn lean_loop(
                 cx,
                 env,
                 out,
-                &info,
+                &mut info,
                 &piece("stop"),
                 Piece::Condition(until),
                 dir,
             )?;
-            lean_piece(cx, env, out, &info, &piece("body"), Piece::Block(body), dir)?;
-            lean_piece(cx, env, out, &info, &piece("step"), Piece::Block(step), dir)?;
+            lean_piece(
+                cx,
+                env,
+                out,
+                &mut info,
+                &piece("body"),
+                Piece::Block(body),
+                dir,
+            )?;
+            lean_piece(
+                cx,
+                env,
+                out,
+                &mut info,
+                &piece("step"),
+                Piece::Block(step),
+                dir,
+            )?;
             format!(
                 "{} {} {} {}",
                 applied("entry"),
@@ -82,7 +99,7 @@ pub fn lean_loop(
                 cx,
                 env,
                 out,
-                &info,
+                &mut info,
                 &piece("body_inv"),
                 Piece::Block(body),
                 dir,
@@ -91,7 +108,7 @@ pub fn lean_loop(
                 cx,
                 env,
                 out,
-                &info,
+                &mut info,
                 &piece("step_inv"),
                 Piece::Block(step),
                 dir,

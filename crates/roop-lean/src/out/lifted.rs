@@ -6,6 +6,12 @@ pub enum Construct {
     Try,
 }
 
+#[derive(Clone, Debug)]
+pub struct AdditiveUpdate {
+    pub delta: String,
+    pub index: String,
+}
+
 /// A loop or `try` whose parts were lifted into top-level definitions: the
 /// variables they read (`captures`) and the tuple of variables they write
 /// (`state`).
@@ -20,4 +26,5 @@ pub struct Lifted {
     /// Holds a `try` somewhere inside. A `try` is undone only on states it
     /// produced, so the pieces are inverses in one direction only.
     pub one_way: bool,
+    pub additive_update: Option<AdditiveUpdate>,
 }

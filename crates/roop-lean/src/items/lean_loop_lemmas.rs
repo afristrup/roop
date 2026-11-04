@@ -19,7 +19,7 @@ pub fn lean_loop_lemmas(
     let (s, r) = ("\u{ab}__s\u{bb}", "\u{ab}__r\u{bb}");
     let mut text = String::new();
     for part in ["body", "step"] {
-        text.push_str(&piece_lemmas(&shape, part, both, deps, earlier));
+        text.push_str(&piece_lemmas(info, &shape, part, both, deps, earlier));
     }
 
     let janus = |order: [&str; 4]| {
@@ -90,7 +90,7 @@ pub fn lean_loop_lemmas(
         "Except.pure".to_string(),
     ];
     for part in ["entry", "stop", "body", "step", "body_inv", "step_inv"] {
-        text.push_str(&no_ancilla_lemma(&shape, part, deps, earlier));
+        text.push_str(&no_ancilla_lemma(info, &shape, part, deps, earlier));
     }
     for (name, order) in [
         ("loop_no_ancilla", ["entry", "stop", "body", "step"]),
