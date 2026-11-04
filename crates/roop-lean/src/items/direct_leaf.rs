@@ -11,23 +11,23 @@ fn direct_block(block: &Block) -> bool {
             target: Place::Var(_),
             op: UpdateOp::Add | UpdateOp::Sub | UpdateOp::Xor,
             value,
-        } => no_division(value),
+        } => direct_expr(value),
         StmtKind::Swap(Place::Var(_), Place::Var(_)) => true,
         StmtKind::If {
             cond,
             then_block,
             else_block,
             ..
-        } => no_division(cond) && direct_block(then_block) && direct_block(else_block),
+        } => direct_expr(cond) && direct_block(then_block) && direct_block(else_block),
         _ => false,
     })
 }
 
-fn no_division(expr: &Expr) -> bool {
+fn direct_expr(expr: &Expr) -> bool {
     match expr {
-        Expr::Binary(_, BinOp::Div, _) => false,
-        Expr::Unary(_, expr) | Expr::Cast(expr, _) => no_division(expr),
-        Expr::Binary(lhs, _, rhs) => no_division(lhs) && no_division(rhs),
+        Expr::Binary(_, BinOp::Div | BinOp::BitAnd | BinOp::BitOr, _) => false,
+        Expr::Unary(_, expr) | Expr::Cast(expr, _) => direct_expr(expr),
+        Expr::Binary(lhs, _, rhs) => direct_expr(lhs) && direct_expr(rhs),
         _ => true,
     }
 }
