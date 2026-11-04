@@ -1,0 +1,18 @@
+// Translation of RevLib's lu_238.src to i64 bit-vector operations.
+pub fn lu(op: &i64, x0: &mut i64, x1: &i64, x2: &i64) {
+    if op == 0 {
+        x0 ^= x1 & x2;
+    } else {
+        if op == 1 {
+            x0 ^= x1 | x2;
+        } else {
+            if op == 2 {
+                x0 ^= x1;
+                x0 ^= x2;
+            } else {
+                x0 ^= x1;
+                x0 ^= -1;
+            } fi op == 2;
+        } fi op == 1;
+    } fi op == 0;
+}
