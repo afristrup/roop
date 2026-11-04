@@ -31,6 +31,7 @@ pub fn lean_loop_lemmas(
         janus(["stop", "entry", "body_inv", "step_inv"]),
     );
     let mut chain = Vec::new();
+    let mut exits = Vec::new();
     let mut directions = vec![(
         "loop_inv_f",
         ["entry", "stop", "body", "step", "body_inv", "step_inv"],
@@ -75,7 +76,11 @@ pub fn lean_loop_lemmas(
             applied[1],
             applied.join(" "),
         ));
-        chain.push(theorem);
+        if name.ends_with("stop") {
+            exits.push(theorem);
+        } else {
+            chain.push(theorem);
+        }
     }
 
     let mut rewrite = vec![
@@ -107,5 +112,12 @@ pub fn lean_loop_lemmas(
         rewrite.push(theorem);
     }
     text.extend(termination_lemma(info, &shape));
-    (text, LoopLemmas { chain, rewrite })
+    (
+        text,
+        LoopLemmas {
+            chain,
+            exits,
+            rewrite,
+        },
+    )
 }

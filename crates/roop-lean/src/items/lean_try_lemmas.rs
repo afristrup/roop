@@ -66,6 +66,7 @@ pub fn lean_try_lemmas(
         text,
         LoopLemmas {
             chain: vec![inv_f],
+            exits: Vec::new(),
             rewrite: vec![forward_never, backward_never],
         },
     )

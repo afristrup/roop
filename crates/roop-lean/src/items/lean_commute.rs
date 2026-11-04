@@ -65,7 +65,7 @@ pub fn lean_commute(info: &Lifted, deps: &[String], lifted: &str) -> Option<Stri
         typed.join(" "),
         order(v, w),
         order(w, v),
-        unfold_simp(&unfold, "\u{22a2}"),
+        unfold_simp(&unfold, "\u{22a2}", false),
         SCRIPT,
     ))
 }

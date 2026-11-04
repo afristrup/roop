@@ -58,7 +58,7 @@ fn theorems(
     let proof = |target: &str| {
         format!(
             "{}{}\n",
-            unfold_simp(&unfold, target),
+            unfold_simp(&unfold, target, !loop_lemmas.exits.is_empty()),
             proof_script(loop_lemmas, roop_check::calls_in(&def.body, false).len())
         )
     };

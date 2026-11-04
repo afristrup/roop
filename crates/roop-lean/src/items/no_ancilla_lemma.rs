@@ -18,7 +18,7 @@ pub fn no_ancilla_lemma(
         shape.state,
         shape.args,
         shape.destructure(a),
-        unfold_simp(&unfold, HYP),
+        unfold_simp(&unfold, HYP, false),
         proof_script(earlier, 0),
     )
 }

@@ -23,6 +23,16 @@ pub fn proof_script(loop_lemmas: &LoopLemmas, calls: usize) -> String {
         .iter()
         .map(|lemma| format!("  all_goals (try roop_loop {lemma})\n"))
         .collect();
+    let exits: String = loop_lemmas
+        .exits
+        .iter()
+        .map(|lemma| format!("  all_goals (try roop_loop {lemma})\n"))
+        .collect();
+    let contracts = (!loop_lemmas.exits.is_empty()).then(|| {
+        format!(
+            "  all_goals (try (repeat' (first | (split at *; all_goals (try simp only [Roop.check, bind, Except.bind, pure, Except.pure] at *)) | split)))\n{exits}"
+        )
+    });
     let with_ext = format!("{simp}, Prod.ext_iff");
     let round = format!(
         "  all_goals (try simp [{simp}] at *)
@@ -40,7 +50,7 @@ pub fn proof_script(loop_lemmas: &LoopLemmas, calls: usize) -> String {
         ROUNDS.max(calls + 1).min(MOST_ROUNDS)
     };
     format!(
-        "  all_goals (try (repeat' roop_cases))
+        "{}  all_goals (try (repeat' roop_cases))
   all_goals (try roop_slt)
   all_goals (try (repeat' (first | (split at *; all_goals (try simp [{simp}] at *)) | split)))
   all_goals (try simp [{simp}] at *)
@@ -49,6 +59,7 @@ pub fn proof_script(loop_lemmas: &LoopLemmas, calls: usize) -> String {
   all_goals (try (repeat' (apply And.intro)))
   all_goals (try (first | done | ((try (repeat roop_ands)); (try subst_vars); (try roop_fields); (try simp at *); ext : 1 <;> simp [*]; done) | ((try (repeat roop_ands)); (try subst_vars); roop_unfold_cyclic; simp [{simp}]; done) | ((try (repeat roop_ands)); (try subst_vars); roop_pointwise; simp [Vector.getElem_set] at *; (repeat' split) <;> (try subst_vars) <;> (try simp_all) <;> (try omega); done)))
   all_goals first | done | assumption | omega | bv_omega | bv_decide | (ext : 2 <;> simp [Vector.getElem_set] <;> (repeat' split) <;> (try subst_vars) <;> (try simp) <;> (try rfl) <;> (try omega))",
+        contracts.unwrap_or_default(),
         round.repeat(rounds)
     )
 }
