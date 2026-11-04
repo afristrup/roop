@@ -486,3 +486,28 @@ fn back(y: &mut [i64; 4], ay: &[i64; 4], ax: &mut [i64; 4],
     assert!(report.contains("weave__conv__conv__2_3_2_4_6"), "{report}");
     assert!(report.contains("Lean accepted the file"), "{report}");
 }
+
+#[test]
+#[ignore = "a large Lean proof: run with --ignored"]
+fn lean_proves_a_width_64_two_layer_network() {
+    let src = "
+use weave::forward;
+
+fn net(q: &mut [i64; 64], p: &mut [i64; 64], ws: &[[[i64; 64]; 64]; 2], bs: &[[i64; 64]; 2], h: &i64, kind: &i64) {
+    call forward<64, 64, 2>(q, p, ws, bs, h, kind);
+}
+";
+    let dir = project("weave-lean-64", &config(), src);
+    let out = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    let report = String::from_utf8_lossy(&out.stdout);
+    for name in [
+        "einsum__wmatvec__64_64",
+        "einsum__wmatvec_t__64_64",
+        "weave__net__forward__64_64_2",
+        "net",
+    ] {
+        assert!(report.contains(name), "{name} missing: {report}");
+    }
+    assert!(report.contains("Lean accepted the file"), "{report}");
+}
