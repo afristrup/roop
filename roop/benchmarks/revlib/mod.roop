@@ -1,3 +1,5 @@
+mod arb8;
 mod simple_alu;
 
+pub use arb8::*;
 pub use simple_alu::*;

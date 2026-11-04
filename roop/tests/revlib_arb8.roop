@@ -1,0 +1,77 @@
+use revlib::*;
+
+test arb8_selects_the_first_request_and_idles {
+    r3: bool, a0: i64, a1: i64, a2: i64, a3: i64, a4: i64, a5: i64, a6: i64, a7: i64;
+    r3 ^= true;
+    call arb8(
+        false,
+        false,
+        false,
+        r3,
+        false,
+        false,
+        false,
+        false,
+        a0,
+        a1,
+        a2,
+        a3,
+        a4,
+        a5,
+        a6,
+        a7,
+    );
+    expect a0 == 0
+        && a1 == 0
+        && a2 == 0
+        && a3 == 1
+        && a4 == 0
+        && a5 == 0
+        && a6 == 0
+        && a7 == 0;
+    uncall arb8(
+        false,
+        false,
+        false,
+        r3,
+        false,
+        false,
+        false,
+        false,
+        a0,
+        a1,
+        a2,
+        a3,
+        a4,
+        a5,
+        a6,
+        a7,
+    );
+    r3 ^= true;
+    call arb8(
+        false,
+        false,
+        false,
+        r3,
+        false,
+        false,
+        false,
+        false,
+        a0,
+        a1,
+        a2,
+        a3,
+        a4,
+        a5,
+        a6,
+        a7,
+    );
+    expect a0 == 0
+        && a1 == 0
+        && a2 == 0
+        && a3 == 0
+        && a4 == 0
+        && a5 == 0
+        && a6 == 0
+        && a7 == 0;
+}
