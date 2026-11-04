@@ -16,3 +16,7 @@ changing those parts. It does not replace the language reference.
 
 Each chapter links to the code it describes. The public language rules are in
 [the reference](../reference.md).
+
+## Related work
+
+[Lessons from ReQWIRE](../related-works/reqwire-lessons.md) explains the

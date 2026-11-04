@@ -65,3 +65,22 @@ fn only_the_outer_pair_of_calls_on_one_ancilla_is_zeroed() {
     assert_eq!(calls(&ir, "add"), 4, "{ir}");
     assert_eq!(calls(&ir, "add_inv"), 2, "{ir}");
 }
+
+#[test]
+fn a_zero_initialised_scalar_ancilla_uses_the_same_cleanup_witness() {
+    let src = "fn add_scalar(t: &mut i64, k: &i64) { t += k; }
+        fn user(x: &mut i64, k: &i64) {
+            ancilla t: i64 = 0;
+            call add_scalar(t, k);
+            x += t;
+            uncall add_scalar(t, k);
+        }";
+    let cleared = support::ir_with(src, &zeroing());
+    support::verify(&cleared);
+    assert_eq!(calls(&cleared, "add_scalar"), 2, "{cleared}");
+    assert_eq!(calls(&cleared, "add_scalar_inv"), 0, "{cleared}");
+
+    let conservative = support::ir(src);
+    support::verify(&conservative);
+    assert_eq!(calls(&conservative, "add_scalar_inv"), 2, "{conservative}");
+}

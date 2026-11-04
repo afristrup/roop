@@ -8,3 +8,5 @@
   - [Lean verification](05-lean.md)
   - [The runtime and external world](06-runtime.md)
   - [Weave code generation](07-weave.md)
+- [Related work](../related-works/README.md)
+  - [Lessons from ReQWIRE](../related-works/reqwire-lessons.md)

@@ -8,8 +8,8 @@ mod stmts;
 pub use driver::check;
 pub use error::CheckError;
 pub use places::place_root;
+pub use rules::{CleanTemporary, check_parallel_body, clean_temporaries};
 pub use rules::{TaskItem, task_groups};
-pub use rules::{check_parallel_body, uncompute_pairs};
 pub use rules::{compliant, dual, unfold, well_formed};
 pub use stmts::{
     BodyEffects, BodyFeatures, Mutability, body_effects, body_features, calls_in, channels_used,

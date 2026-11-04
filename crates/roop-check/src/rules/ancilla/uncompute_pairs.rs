@@ -12,6 +12,17 @@ struct Open<'a> {
     first: bool,
 }
 
+/// A temporary computation whose inverse can be replaced by restoring the
+/// temporary's zero entry value. The checker establishes this from the source
+/// statements, so code generation need not infer it again.
+#[derive(Clone, Copy, Debug)]
+pub struct CleanTemporary<'a> {
+    /// The statement that computes the temporary from its zero entry value.
+    pub compute: &'a Stmt,
+    /// The inverse statement that normally clears the temporary.
+    pub uncompute: &'a Stmt,
+}
+
 /// Whether a statement is `call f(.., name, ..)` or `uncall` of it, with the
 /// ancilla the only thing `f` may write, so that undoing the call is no more than
 /// zeroing the ancilla.
@@ -29,7 +40,7 @@ fn computes(stmt: &Stmt, name: &str, mutability: &Mutability, effectful: &HashSe
     !effectful.contains(callee.as_str()) && writes_name && writes_only_name
 }
 
-/// The pairs of statements in the scope of the ancilla `name` that make its
+/// The temporary computations in the scope of the ancilla `name` that make its
 /// value and take it off again: `call f(name, ..)` and `uncall f(name, ..)`, in
 /// either order, with nothing in between that writes what `f` reads, and with the
 /// ancilla at zero before the first. Between them it holds `f` of those
@@ -38,13 +49,13 @@ fn computes(stmt: &Stmt, name: &str, mutability: &Mutability, effectful: &HashSe
 /// order. Empty when the ancilla does not start at zero, or when any statement
 /// that writes it is not a straight-line one. `effectful` are the functions that
 /// do more than write their arguments.
-pub fn uncompute_pairs<'a>(
+pub fn clean_temporaries<'a>(
     name: &str,
     init: &Expr,
     body: &'a Block,
     mutability: &Mutability,
     effectful: &HashSet<&str>,
-) -> Vec<(&'a Stmt, &'a Stmt)> {
+) -> Vec<CleanTemporary<'a>> {
     if !starts_zero(init) {
         return Vec::new();
     }
@@ -67,7 +78,10 @@ pub fn uncompute_pairs<'a>(
                 && computes(top.stmt, name, mutability, effectful)
                 && computes(stmt, name, mutability, effectful)
             {
-                pairs.push((top.stmt, stmt));
+                pairs.push(CleanTemporary {
+                    compute: top.stmt,
+                    uncompute: stmt,
+                });
             }
             continue;
         }

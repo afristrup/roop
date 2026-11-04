@@ -1,5 +1,5 @@
 use crate::{Clear, CodegenError, Dir, FnGen, declare_ancilla, gen_block};
-use roop_check::uncompute_pairs;
+use roop_check::clean_temporaries;
 use roop_syntax::{Block, Expr, Stmt, Type};
 
 pub fn gen_ancilla(
@@ -14,11 +14,11 @@ pub fn gen_ancilla(
     g.vars.push((name.into(), slot.clone()));
     let enclosing = g.clears.len();
     let ctx = g.ctx;
-    if ctx.options.clear_ancillas && matches!(ty, Type::Array(..)) {
-        for (first, second) in uncompute_pairs(name, init, body, &ctx.mutability, &ctx.effectful) {
+    if ctx.options.clear_ancillas {
+        for temporary in clean_temporaries(name, init, body, &ctx.mutability, &ctx.effectful) {
             let last: &Stmt = match dir {
-                Dir::Forward => second,
-                Dir::Backward => first,
+                Dir::Forward => temporary.uncompute,
+                Dir::Backward => temporary.compute,
             };
             g.clears.push(Clear {
                 stmt: std::ptr::from_ref(last) as usize,

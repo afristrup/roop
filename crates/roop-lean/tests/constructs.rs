@@ -82,3 +82,15 @@ fn floating_point_functions_translate_but_claim_no_roundtrip() {
     assert!(support::lean_accepts(&t).is_ok());
     assert!(!t.lean.contains("f_inv_f"));
 }
+
+#[test]
+fn a_called_temporary_is_proved_restored_before_its_scope_ends() {
+    support::verified(
+        "fn add(t: &mut i64, k: &i64) { t += k; }
+         fn user(x: &mut i64, k: &i64) {
+            ancilla t: i64 = 0 {
+                call add(t, k); x += t; uncall add(t, k);
+            }
+         }",
+    );
+}
