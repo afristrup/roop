@@ -11,8 +11,12 @@ pub fn no_ancilla_lemma(
     let piece = esc_fn(&format!("{}_{part}", shape.id));
     let mut unfold = vec![piece.clone()];
     unfold.extend(deps.iter().cloned());
+    let simple = format!(
+        "  simp [{}, Roop.check, Roop.aget, Roop.aset, bind, Except.bind, pure, Except.pure] at {HYP} <;> done\n",
+        unfold.join(", ")
+    );
     format!(
-        "theorem {} {} ({a} : {}) ({HYP} : {piece} {} {a} = Except.error Roop.Fail.ancilla) : False := by\n{}{}{}\n",
+        "theorem {} {} ({a} : {}) ({HYP} : {piece} {} {a} = Except.error Roop.Fail.ancilla) : False := by\n  first\n  | ({simple})\n  | (\n{}{}{})\n",
         shape.theorem(&format!("{part}_no_ancilla")),
         shape.explicit,
         shape.state,

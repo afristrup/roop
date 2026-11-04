@@ -282,6 +282,11 @@ accepted by Lean 4.35. Profiling the generated file with `lean --profile` took
 reported 18.3 s in `simp`, 10.8 s in tactic execution, and 1.86 s in type
 checking. The totals overlap because Lean processes declarations concurrently.
 
+A guarded fast path for lifted pieces that `simp` can fully discharge reduced the
+same profile to 17.4 s in `simp`, 10.3 s in tactic execution, and 1.84 s in
+type checking. The proof still falls back to the existing general tactic when
+simplification leaves a goal.
+
 The corresponding width-64 run was still checking after 75 s at 2.70 GB
 resident memory and was intentionally stopped. This is a bounded baseline, not
 a timeout or a kernel-only measurement. It identifies proof normalization and
