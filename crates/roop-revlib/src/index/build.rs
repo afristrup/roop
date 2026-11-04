@@ -32,6 +32,7 @@ pub fn index(pla: &Pla) -> Result<Index, Error> {
     Ok(Index {
         file: pla.file.clone(),
         inputs: pla.inputs,
+        node_count: nodes.len(),
         nodes,
     })
 }

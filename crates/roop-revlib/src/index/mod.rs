@@ -8,6 +8,7 @@ pub use lookup::*;
 pub struct Index {
     pub(crate) file: String,
     pub(crate) inputs: usize,
+    pub node_count: usize,
     pub(crate) nodes: Vec<Node>,
 }
 

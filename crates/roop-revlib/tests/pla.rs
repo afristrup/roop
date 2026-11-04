@@ -8,6 +8,7 @@ fn parses_and_validates_revlib_pla_files() {
     assert!(evaluate(&table, "010").unwrap().is_empty());
     let indexed = index(&table).unwrap();
     assert_eq!(lookup(&indexed, "111").unwrap(), vec!["011"]);
+    assert_eq!(indexed.node_count, 7);
     let Ok(directory) = std::env::var("ROOP_REVLIB_DIR") else {
         return;
     };

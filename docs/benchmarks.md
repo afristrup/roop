@@ -262,12 +262,14 @@ above 15 are not reported.
 
 The RevLib benchmark entry point parses every PLA table, validates its syntax,
 builds its ternary index, and checks every cube against one concrete matching
-input. It also parses the SyReC sources:
+input. It also parses the SyReC sources. Add `--report` to emit one CSV record
+per source function with PLA dimensions, row count, and index-node count:
 
 ```sh
-cargo run --release -p roop-revlib --example corpus -- /path/to/revlib
+cargo run --release -p roop-revlib --example corpus -- /path/to/revlib --report
 ```
 
-On the local RevLib archive, 133 PLA tables with 173,529 rows and six SyReC
-sources completed in 190.43 ms. This validates the corpus interface and index,
-not a compilation of every PLA table to reversible Roop code.
+On the local RevLib archive, all 139 available source functions, comprising 133
+PLA tables with 173,529 rows and six SyReC sources, completed in 194.20 ms.
+This validates the corpus interface and index, not a compilation of every PLA
+table to reversible Roop code.
