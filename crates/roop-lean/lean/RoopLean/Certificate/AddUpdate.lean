@@ -1,5 +1,3 @@
-module
-
 import Mathlib.Algebra.Group.Defs
 import RoopLean.Certificate.Rev
 
