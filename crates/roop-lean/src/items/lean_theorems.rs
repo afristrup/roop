@@ -48,7 +48,7 @@ fn counted_ancilla_proof(def: &FnDef, callee: &str, at: usize, inverse: bool) ->
     let stop = esc_thm(&format!("{id}_loop{suffix}_stop"));
     let stop_fn = esc_fn(&format!("{id}_{}", if inverse { "entry" } else { "stop" }));
     format!(
-        "  simp only [{callee}, Roop.check, bind, Except.bind, pure, Except.pure] at {HYP}\n  refine (Roop.bind_ancilla {HYP}).elim ?_ ?_\n  · exact {no_ancilla}\n  · rintro ⟨z, hz, {HYP}⟩\n    have hs := {stop} hz\n    simp [{stop_fn}, pure, Except.pure, beq_iff_eq] at hs\n    rw [hs] at {HYP}\n    simp [Roop.check, pure, Except.pure] at {HYP}\n"
+        "  simp only [{callee}] at {HYP}\n  refine (Roop.bind_ancilla {HYP}).elim ?_ ?_\n  · exact {no_ancilla}\n  · rintro ⟨z, hz, {HYP}⟩\n    have hs := {stop} hz\n    simp [{stop_fn}, pure, Except.pure, beq_iff_eq] at hs\n    rw [hs] at {HYP}\n    simp [Roop.check, bind, Except.bind, pure, Except.pure] at {HYP}\n"
     )
 }
 
