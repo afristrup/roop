@@ -1,4 +1,4 @@
-use roop_revlib::{load, parse, validate};
+use roop_revlib::{load, load_syrec, parse, validate};
 
 #[test]
 fn parses_and_validates_revlib_pla_files() {
@@ -12,4 +12,6 @@ fn parses_and_validates_revlib_pla_files() {
     for table in &corpus {
         validate(table).unwrap();
     }
+    let syrec = load_syrec(directory.as_ref()).unwrap();
+    assert_eq!(syrec.len(), 6);
 }
