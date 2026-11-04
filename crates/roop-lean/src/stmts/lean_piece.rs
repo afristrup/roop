@@ -100,7 +100,11 @@ fn additive_update<'a>(
     let Expr::Place(Place::Var(index_name)) = &**index else {
         return Ok(None);
     };
-    if !info.captures.iter().any(|(name, _)| name == index_name) || expr_uses(value, root) {
+    let index_is_state =
+        info.state[1].0 == *index_name && info.state[1].1 == Type::Named("i64".into());
+    if (!info.captures.iter().any(|(name, _)| name == index_name) && !index_is_state)
+        || expr_uses(value, root)
+    {
         return Ok(None);
     }
     Ok(Some((root, index_name, value)))
@@ -164,6 +168,7 @@ fn lean_additive_piece(
         info.additive_update = Some(AdditiveUpdate {
             delta: delta.clone(),
             index: esc(index),
+            index_is_state: info.state[1].0 == index,
         });
     }
     let mut inner = Out::default();

@@ -75,17 +75,32 @@ fn additive_update_lemmas(info: &Lifted, shape: &LemmaShape, both: bool) -> Stri
     let mut text = String::new();
     for (suffix, from, to, theorem, op) in directions {
         let delta = format!("({} {})", update.delta, shape.args);
+        let (theorem, index, args) = if update.index_is_state {
+            let theorem = match theorem {
+                "aget_aset_add_sub_inverse_state" => "aget_aset_add_sub_inverse_by",
+                "aget_aset_sub_add_inverse_state" => "aget_aset_sub_add_inverse_by",
+                _ => unreachable!(),
+            };
+            (
+                theorem,
+                "a2".to_string(),
+                format!("a1 (fun z => z) {delta} a2 b2 b1 __forward"),
+            )
+        } else {
+            (
+                theorem,
+                update.index.clone(),
+                format!("a1 {} {delta} a2 b2 b1 __forward", update.index),
+            )
+        };
         text.push_str(&format!(
-            "theorem {} {} (a b : {}) ({HYP} : {} a = Except.ok b) :\n    {} b = Except.ok a := by\n  obtain \u{27e8}a1, a2\u{27e9} := a\n  obtain \u{27e8}b1, b2\u{27e9} := b\n  have h : (do\n    let x \u{2190} Roop.aget a1 {}\n    let d \u{2190} {delta} a2\n    let out \u{2190} Roop.aset a1 {} (x {op} d)\n    pure (out, a2)) = Except.ok (b1, b2) := by\n    simpa only [{}] using {HYP}\n  have result := Roop.{theorem} a1 {} {delta} a2 b2 b1 h\n  simpa only [{}] using result\n",
+            "theorem {} {} (a b : {}) ({HYP} : {} a = Except.ok b) :\n    {} b = Except.ok a := by\n  obtain \u{27e8}a1, a2\u{27e9} := a\n  obtain \u{27e8}b1, b2\u{27e9} := b\n  have __forward : (do\n    let x \u{2190} Roop.aget a1 {index}\n    let d \u{2190} {delta} a2\n    let out \u{2190} Roop.aset a1 {index} (x {op} d)\n    pure (out, a2)) = Except.ok (b1, b2) := by\n    simpa only [{}] using {HYP}\n  have result := Roop.{theorem} {args}\n  simpa only [{}] using result\n",
             shape.theorem(&format!("body_{suffix}")),
             shape.explicit,
             shape.state,
             shape.applied(from),
             shape.applied(to),
-            update.index,
-            update.index,
             shape.piece(from),
-            update.index,
             shape.piece(to),
         ));
     }

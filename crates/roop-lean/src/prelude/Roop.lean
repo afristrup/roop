@@ -274,6 +274,45 @@ theorem additive_updates_commute {n : Nat} (v : Vector I64 n) (i j : I64)
       all_goals simp [agree, aget, aset, bind, Except.bind, pure, Except.pure, hi, hj, hej]
     · simp [agree, aget, aset, bind, Except.bind, pure, Except.pure, hi, hj]
 
+theorem additive_updates_commute_state {n : Nat} (v : Vector I64 n) (i j : I64)
+    (e : I64 → Res I64) (hne : i.toNat ≠ j.toNat) :
+    agree
+      (do
+        let t ← (do
+          let x ← aget v i
+          let d ← e i
+          let v ← aset v i (x + d)
+          pure (v, i))
+        let u ← (do
+          let x ← aget t.1 j
+          let d ← e j
+          let v ← aset t.1 j (x + d)
+          pure (v, j))
+        pure (u.1, (0 : I64)))
+      (do
+        let t ← (do
+          let x ← aget v j
+          let d ← e j
+          let v ← aset v j (x + d)
+          pure (v, j))
+        let u ← (do
+          let x ← aget t.1 i
+          let d ← e i
+          let v ← aset t.1 i (x + d)
+          pure (v, i))
+        pure (u.1, (0 : I64))) := by
+  by_cases hi : i.toNat < n
+  · by_cases hj : j.toNat < n
+    · rcases hei : e i with err | di <;> rcases hej : e j with err | dj
+      all_goals simp [agree, aget, aset, bind, Except.bind, pure, Except.pure, hi, hj, hei, hej,
+        Vector.set_comm, hne, Ne.symm hne]
+    · rcases hei : e i with err | di
+      all_goals simp [agree, aget, aset, bind, Except.bind, pure, Except.pure, hi, hj, hei]
+  · by_cases hj : j.toNat < n
+    · rcases hej : e j with err | dj
+      all_goals simp [agree, aget, aset, bind, Except.bind, pure, Except.pure, hi, hj, hej]
+    · simp [agree, aget, aset, bind, Except.bind, pure, Except.pure, hi, hj]
+
 /-- A reversible loop `from entry { body } loop { step } until stop`:
 assert `entry`, then alternate `body` and `step` until `stop` holds, asserting
 that `entry` is false again after every `step`. -/

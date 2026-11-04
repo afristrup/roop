@@ -10,6 +10,7 @@ pub enum Construct {
 pub struct AdditiveUpdate {
     pub delta: String,
     pub index: String,
+    pub index_is_state: bool,
 }
 
 /// A loop or `try` whose parts were lifted into top-level definitions: the

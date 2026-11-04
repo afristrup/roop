@@ -55,6 +55,13 @@ pub fn lean_commute(info: &Lifted, deps: &[String], lifted: &str) -> Option<Stri
             with(&after("\u{ab}__u\u{bb}"), "(0 : Roop.I64)"),
         )
     };
+    if info
+        .additive_update
+        .as_ref()
+        .is_some_and(|update| update.index_is_state)
+    {
+        return additive_commute(info, &explicit, &typed, &order, "«__v»", "«__w»");
+    }
     let mut unfold = vec![esc_fn(&format!("{id}_body")), "Roop.agree".to_string()];
     unfold.extend(deps.iter().cloned());
     let (v, w) = ("\u{ab}__v\u{bb}", "\u{ab}__w\u{bb}");
@@ -67,6 +74,34 @@ pub fn lean_commute(info: &Lifted, deps: &[String], lifted: &str) -> Option<Stri
         order(w, v),
         unfold_simp(&unfold, "\u{22a2}", false),
         SCRIPT,
+    ))
+}
+
+fn additive_commute(
+    info: &Lifted,
+    explicit: &[String],
+    typed: &[String],
+    order: &dyn Fn(&str, &str) -> String,
+    v: &str,
+    w: &str,
+) -> Option<String> {
+    info.additive_update.as_ref()?;
+    let body = esc_fn(&format!("{}_body", info.id));
+    let delta = esc_fn(&format!("{}_body_delta", info.id));
+    let args = info
+        .captures
+        .iter()
+        .map(|(name, _)| esc(name))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let delta = format!("({delta} {args})");
+    Some(format!(
+        "theorem {} {} {} ({v} {w} : Roop.I64) (hvw : {v} ≠ {w}) :\n    Roop.agree\n    {}\n    {} := by\n  have hne : {v}.toNat ≠ {w}.toNat := fun h => hvw (BitVec.eq_of_toNat_eq h)\n  simpa only [{body}] using Roop.additive_updates_commute_state «__s1» {v} {w} {delta} hne\n",
+        esc_thm(&format!("{}_commute", info.id)),
+        explicit.join(" "),
+        typed.join(" "),
+        order(v, w),
+        order(w, v),
     ))
 }
 
