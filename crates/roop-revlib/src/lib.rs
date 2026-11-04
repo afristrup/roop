@@ -1,11 +1,13 @@
 mod corpus;
 mod error;
+mod evaluate;
 mod pla;
 mod syrec;
 mod validate;
 
 pub use corpus::*;
 pub use error::*;
+pub use evaluate::*;
 pub use pla::*;
 pub use syrec::*;
 pub use validate::*;
