@@ -192,6 +192,48 @@ theorem aget_aset_sub_add_inverse_state {n : Nat} {β : Type} (v : Vector I64 n)
         Vector.getElem_set_self, BitVec.sub_add_cancel, he]
   · simp [aget, aset, bind, Except.bind, pure, Except.pure, hi] at h
 
+theorem aget_aset_add_sub_inverse_by {n : Nat} {β : Type} (v : Vector I64 n)
+    (i : β → I64) (e : β → Res I64) (z z2 : β) (out : Vector I64 n)
+    (h : (do
+      let x ← aget v (i z)
+      let d ← e z
+      let out ← aset v (i z) (x + d)
+      pure (out, z)) = Except.ok (out, z2)) :
+    (do
+      let y ← aget out (i z2)
+      let d ← e z2
+      let v ← aset out (i z2) (y - d)
+      pure (v, z2)) = Except.ok (v, z) := by
+  by_cases hi : (i z).toNat < n
+  · rcases he : e z with err | d
+    · simp [aget, aset, bind, Except.bind, pure, Except.pure, hi, he] at h
+    · simp [aget, aset, bind, Except.bind, pure, Except.pure, hi, he] at h
+      rcases h with ⟨rfl, rfl⟩
+      simp [aget, aset, bind, Except.bind, pure, Except.pure, hi,
+        Vector.getElem_set_self, BitVec.add_sub_cancel, he]
+  · simp [aget, aset, bind, Except.bind, pure, Except.pure, hi] at h
+
+theorem aget_aset_sub_add_inverse_by {n : Nat} {β : Type} (v : Vector I64 n)
+    (i : β → I64) (e : β → Res I64) (z z2 : β) (out : Vector I64 n)
+    (h : (do
+      let x ← aget v (i z)
+      let d ← e z
+      let out ← aset v (i z) (x - d)
+      pure (out, z)) = Except.ok (out, z2)) :
+    (do
+      let y ← aget out (i z2)
+      let d ← e z2
+      let v ← aset out (i z2) (y + d)
+      pure (v, z2)) = Except.ok (v, z) := by
+  by_cases hi : (i z).toNat < n
+  · rcases he : e z with err | d
+    · simp [aget, aset, bind, Except.bind, pure, Except.pure, hi, he] at h
+    · simp [aget, aset, bind, Except.bind, pure, Except.pure, hi, he] at h
+      rcases h with ⟨rfl, rfl⟩
+      simp [aget, aset, bind, Except.bind, pure, Except.pure, hi,
+        Vector.getElem_set_self, BitVec.sub_add_cancel, he]
+  · simp [aget, aset, bind, Except.bind, pure, Except.pure, hi] at h
+
 def fuelBound : Nat := 1000000
 
 /-- Two runs agree when both fail, whatever the reason, or both end in the same
