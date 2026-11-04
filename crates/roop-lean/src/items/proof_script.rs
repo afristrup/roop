@@ -4,7 +4,7 @@ pub const SIMP_BASE: &str = "beq_iff_eq, Prod.eta, Vector.getElem_set_self, Vect
 
 /// Calls in sequence feed each other's results, one loop per round. A function
 /// with many calls gets a round for each, up to a limit.
-pub const ROUNDS: usize = 4;
+pub const ROUNDS: usize = 1;
 const MOST_ROUNDS: usize = 24;
 
 /// The proof script. Split every branch (pruning the impossible ones as we go),
