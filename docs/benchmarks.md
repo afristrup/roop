@@ -311,6 +311,15 @@ resident memory and was intentionally stopped. This is a bounded baseline, not
 a timeout or a kernel-only measurement. It identifies proof normalization and
 tactics for monomorphized Einsum loops as the next optimization target.
 
+An additive-loop certificate now lifts a recognized `out[i] += delta` body into
+one shared delta computation and applies a fixed array-update inverse theorem.
+With the same two-layer forward template, accepted checks took 6.09 s median at
+width 2 (three runs: 6.00, 6.09, and 6.11 s), 6.37 s at width 4, 7.70 s at width
+8, and 19.19 s at width 16. Peak resident memory was 2.38 to 2.43 GB at width 2
+and 3.01 GB at width 16. The width-2 baseline was 6.19 s, so the small case
+improves modestly; the wider points show that the surrounding monomorphized
+program remains the next bottleneck.
+
 ```sh
 lean --profile prog.lean
 ```
