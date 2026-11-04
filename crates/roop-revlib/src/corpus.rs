@@ -10,12 +10,7 @@ pub fn load(directory: &Path) -> Result<Vec<Pla>, Error> {
     paths.sort();
     paths
         .into_iter()
-        .map(|path| {
-            Ok(parse(
-                &path.display().to_string(),
-                &std::fs::read_to_string(path)?,
-            )?)
-        })
+        .map(|path| parse(&path.display().to_string(), &std::fs::read_to_string(path)?))
         .collect()
 }
 
@@ -28,11 +23,6 @@ pub fn load_syrec(directory: &Path) -> Result<Vec<Syrec>, Error> {
     paths.sort();
     paths
         .into_iter()
-        .map(|path| {
-            Ok(parse_syrec(
-                &path.display().to_string(),
-                &std::fs::read_to_string(path)?,
-            )?)
-        })
+        .map(|path| parse_syrec(&path.display().to_string(), &std::fs::read_to_string(path)?))
         .collect()
 }
