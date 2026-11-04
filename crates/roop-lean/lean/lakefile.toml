@@ -1,0 +1,11 @@
+name = "roop_lean"
+version = "0.1.0"
+defaultTargets = ["RoopLean"]
+
+[[require]]
+name = "cslib"
+git = "https://github.com/leanprover/cslib"
+rev = "v4.35.0"
+
+[[lean_lib]]
+name = "RoopLean"
