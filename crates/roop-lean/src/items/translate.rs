@@ -1,7 +1,7 @@
 use crate::{
     Construct, Ctx, Dir, LeanError, LoopLemmas, PRELUDE, SESSION_PRELUDE, Translation, call_lemmas,
-    esc_fn, lean_commute, lean_enum, lean_fn, lean_loop_lemmas, lean_session, lean_struct,
-    lean_theorems, lean_try_lemmas,
+    direct_leaf, esc_fn, leaf_ancilla_lemmas, lean_commute, lean_enum, lean_fn, lean_loop_lemmas,
+    lean_session, lean_struct, lean_theorems, lean_try_lemmas,
 };
 use roop_check::{calls_in, is_irreversible_fn};
 use roop_syntax::{FnDef, Item, Program};
@@ -177,11 +177,9 @@ fn translate_fn(
         inexact |= backward.lifted.contains("Float") || mentions_float_struct(cx, &backward.lifted);
         text.push_str(&backward.lifted);
         text.push_str(&backward.text);
-        // A function with calls is itself called through its theorems, which
-        // include never failing on an unrestored ancilla. A plain leaf is
-        // unfolded where it is called instead.
         let ancillas =
             forward.ancillas > 0 || backward.ancillas > 0 || !calls_in(&def.body, false).is_empty();
+        let simple_leaf = !ancillas && direct_leaf(def);
         if !inexact && proofs {
             for info in &forward.pieces {
                 let (lemma_text, names) = match info.construct {
@@ -203,9 +201,12 @@ fn translate_fn(
             fn_one_way = one_way;
             if let Some(theorems) = lean_theorems(def, deps, &known, modular, ancillas, one_way) {
                 text.push_str(&theorems);
-                let (callable, names) = call_lemmas(def, ancillas, one_way);
+                if simple_leaf {
+                    text.push_str(&leaf_ancilla_lemmas(def));
+                }
+                let (callable, names) = call_lemmas(def, ancillas || simple_leaf, one_way);
                 text.push_str(&callable);
-                if ancillas {
+                if ancillas || simple_leaf {
                     call_names = Some(names);
                     text.push_str(&format!(
                         "attribute [irreducible] {} {}\n\n",
