@@ -273,3 +273,20 @@ On the local RevLib archive, all 139 available source functions, comprising 133
 PLA tables with 173,529 rows and six SyReC sources, completed in 194.20 ms.
 This validates the corpus interface and index, not a compilation of every PLA
 table to reversible Roop code.
+
+## Lean proof profile
+
+A valid width-2, two-layer Weave proof was generated with `roop lean` and
+accepted by Lean 4.35. Profiling the generated file with `lean --profile` took
+5.33 s wall time and 2.41 GB peak resident memory. Its cumulative profile
+reported 18.3 s in `simp`, 10.8 s in tactic execution, and 1.86 s in type
+checking. The totals overlap because Lean processes declarations concurrently.
+
+The corresponding width-64 run was still checking after 75 s at 2.70 GB
+resident memory and was intentionally stopped. This is a bounded baseline, not
+a timeout or a kernel-only measurement. It identifies proof normalization and
+tactics for monomorphized Einsum loops as the next optimization target.
+
+```sh
+lean --profile prog.lean
+```
