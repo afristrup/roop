@@ -150,6 +150,16 @@ def aget {α : Type} {n : Nat} (v : Vector α n) (i : I64) : Res α :=
 def aset {α : Type} {n : Nat} (v : Vector α n) (i : I64) (x : α) : Res (Vector α n) :=
   if h : i.toNat < n then .ok (v.set i.toNat x h) else .error .outOfBounds
 
+theorem aget_ne_ancilla {α : Type} {n : Nat} (v : Vector α n) (i : I64) :
+    aget v i ≠ Except.error Fail.ancilla := by
+  unfold aget
+  split <;> simp
+
+theorem aset_ne_ancilla {α : Type} {n : Nat} (v : Vector α n) (i : I64) (x : α) :
+    aset v i x ≠ Except.error Fail.ancilla := by
+  unfold aset
+  split <;> simp
+
 theorem aget_aset_add_sub_inverse_state {n : Nat} {β : Type} (v : Vector I64 n) (i : I64)
     (e : β → Res I64) (z z2 : β) (out : Vector I64 n)
     (h : (do
@@ -1108,6 +1118,30 @@ theorem bind_ancilla {α β : Type} {x : Res α} {f : α → Res β}
     have : e = Fail.ancilla := by simpa [bind, Except.bind] using h
     rw [this]
   | ok a => exact Or.inr ⟨a, rfl, h⟩
+
+theorem bind_ne_ancilla {α β : Type} {x : Res α} {f : α → Res β}
+    (hx : x ≠ Except.error Fail.ancilla)
+    (hf : ∀ a, f a ≠ Except.error Fail.ancilla) :
+    (x >>= f) ≠ Except.error Fail.ancilla := by
+  intro h
+  rcases bind_ancilla h with hancilla | ⟨a, _, ha⟩
+  · exact hx hancilla
+  · exact hf a ha
+
+theorem aget_aset_add_no_ancilla {n : Nat} {β : Type} (v : Vector I64 n)
+    (i : β → I64) (e : β → Res I64) (z : β) (he : e z ≠ Except.error Fail.ancilla) :
+    (do
+      let x ← aget v (i z)
+      let d ← e z
+      let out ← aset v (i z) (x + d)
+      pure (out, z)) ≠ Except.error Fail.ancilla := by
+  apply bind_ne_ancilla (aget_ne_ancilla v (i z))
+  intro x
+  apply bind_ne_ancilla he
+  intro d
+  apply bind_ne_ancilla (aset_ne_ancilla v (i z) (x + d))
+  intro out
+  simp [pure, Except.pure]
 
 /-- A bind that succeeded: its first part did, and the rest did on its result. -/
 theorem bind_ok {α β : Type} {x : Res α} {f : α → Res β} {b : β}
