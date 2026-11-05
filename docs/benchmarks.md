@@ -167,7 +167,7 @@ code at 1M elements and up is identical with `auto` on or off, and the differenc
 in the first table was run-to-run noise. The cost model's GPU side, calibrated for
 64-bit integer loops, has not been re-checked.
 
-CUDA runtime verification passed on an NVIDIA GeForce RTX 4090 with driver 595.99.02. The tests launch PTX, copy writable buffers back, and check modular 64-bit addition and generated-inverse restoration for a compiler-emitted CUDA loop. CUDA throughput benchmarks are not included yet.
+CUDA runtime verification passed on an NVIDIA GeForce RTX 4090 with driver 595.99.02. The tests launch PTX, copy writable buffers back, and check modular 64-bit addition and generated-inverse restoration for a compiler-emitted CUDA loop.\n\nRun `python3 bench/calibrate_cuda.py` after `cargo build --release -p roop -p roop-rt` to compare compiler-emitted CPU-thread and CUDA additions. The CUDA measurement includes module loading, allocation, host-device copies, launch, and copyback. Two best-of-three runs gave these per-call ranges in microseconds:\n\n| N | CPU threads | CUDA end to end |\n|---:|---:|---:|\n| 4 | 24.39 to 24.49 | 316.10 to 466.40 |\n| 4096 | 28.73 to 29.65 | 239.25 to 240.49 |\n| 65536 | 35.60 to 37.86 | 1156.73 to 1174.89 |\n| 1048576 | 113.79 to 113.87 | 14897.78 to 14960.97 |\n\nCPU threads win at every measured size. This measures the present dispatch path, not steady-state kernel throughput with resident device buffers.
 
 ## weave's training step
 

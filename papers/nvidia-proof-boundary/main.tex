@@ -106,7 +106,7 @@ The present development has four distinct claims.
 \item The generic source certificate calculus is checked in Lean.
 \item Generated PTX launches and copies writable buffers in a recorded RTX 4090 test.
 \item No theorem currently relates emitted Roop GPU code to the source certificate calculus.
-\item No benchmark in the repository establishes CUDA throughput or competitiveness.
+\item A reproducible end-to-end dispatch benchmark finds CPU threads faster than CUDA at four tested sizes through 1,048,576 words when module loading and transfers occur on every call. It does not measure steady-state kernels with resident device buffers.
 \end{enumerate}
 
 The next implementation milestone is therefore not a larger performance claim. It is a generated, machine-checkable contract for one additive kernel together with a proof that the compiler chooses that kernel only when its contract applies.
