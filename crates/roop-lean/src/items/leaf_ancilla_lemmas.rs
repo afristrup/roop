@@ -14,7 +14,7 @@ pub fn leaf_ancilla_lemmas(def: &FnDef) -> String {
         .map(|(name, suffix)| {
             format!(
                 "theorem {} {} (h : {} {} = Except.error Roop.Fail.ancilla) : False := by\n  simp only [{}, Roop.check, bind, Except.bind, pure, Except.pure] at h
-  repeat' first | split at h | simp_all\n",
+  repeat' first | split at * | simp_all\n",
                 esc_thm(&format!("{}_{suffix}", def.name)),
                 params.join(" "),
                 esc_fn(&name),
