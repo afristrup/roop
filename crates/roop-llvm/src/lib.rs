@@ -7,6 +7,8 @@ mod stmts;
 mod types;
 
 pub use error::CodegenError;
+pub use state::{KernelBufferContract, KernelContract};
+
 pub use module::{
     Compiled, CostModel, Options, ParallelOptions, compile, compile_all, compile_with, embed_blobs,
 };

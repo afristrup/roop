@@ -6,6 +6,7 @@ mod fn_gen;
 mod gen_output;
 mod kernel;
 mod kernel_arg;
+mod kernel_contract;
 mod slot;
 mod value;
 
@@ -17,5 +18,6 @@ pub use fn_gen::*;
 pub use gen_output::*;
 pub use kernel::*;
 pub use kernel_arg::*;
+pub use kernel_contract::*;
 pub use slot::*;
 pub use value::*;

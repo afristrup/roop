@@ -9,7 +9,7 @@ pub const USAGE: &str =
        roop lsp
 
   build        compile to LLVM IR, an object, or an executable
-    --emit ir    write LLVM IR (and AIR/PTX modules) for inspection
+    --emit ir    write LLVM IR, GPU modules, and CUDA contracts for inspection
     --emit obj   write a relocatable object (default without a `main`)
     --emit exe   link an executable; --link supplies the main (a .c/.ll/.o file)
     --link FILE  extra input for linking, implies --emit exe

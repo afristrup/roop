@@ -22,7 +22,7 @@
 \end{aug}
 
 \begin{abstract}
-Roop emits PTX and can execute generated kernels on NVIDIA hardware. A passing hardware test establishes a useful regression fact, but it does not prove that a GPU execution implements the Lean source semantics. We formulate the source, compiler, and backend relations needed for such a result. A conditional composition theorem shows exactly how the relations imply executable reversibility. The current repository establishes a source-level certificate calculus for a restricted class of transformations and records a PTX launch and copyback test on an RTX 4090. The compiler correspondence and PTX refinement hypotheses remain open.
+Roop emits PTX and can execute generated kernels on NVIDIA hardware. A passing hardware test establishes a useful regression fact, but it does not prove that a GPU execution implements the Lean source semantics. We formulate the source, compiler, and backend relations needed for such a result. A conditional composition theorem shows exactly how the relations imply executable reversibility. The current repository establishes a source-level certificate calculus for a restricted class of transformations, records a PTX launch and copyback test on an RTX 4090, and emits a CUDA launch-contract manifest. The compiler correspondence and PTX refinement hypotheses remain open.
 \end{abstract}
 
 \begin{keyword}[class=MSC]
@@ -83,6 +83,8 @@ The theorem is deliberately conditional. A source theorem cannot establish eithe
 
 The repository records passing CUDA runtime tests on an NVIDIA GeForce RTX 4090 through driver 595.99.02. One test launches PTX and checks writable-buffer copyback. Another launches a hand-written two-buffer kernel that computes $p_i\leftarrow(p_i+q_i)-q_i$ at four coordinates, including \texttt{i64::MIN} and \texttt{i64::MAX}, and checks exact restoration. An end-to-end regression checks the Lean model for a 4,096-coordinate Roop source, compiles it to PTX, runs it, checks each forward word against C unsigned 64-bit modular addition, then runs its generated inverse and checks exact restoration. These are paired checks for one program, not a compiler refinement proof. They do not establish a representation relation, absence of races, numerical equivalence, or behavior for arbitrary kernel launches.
 
+\texttt{roop build --emit ir} also writes a \texttt{cuda-contract.json} sidecar for every emitted NVPTX kernel. It records the kernel name, direction, induction variable, and each buffer's size, alignment, and copyback mode. Compiler and CLI regressions check those fields for a simple coupling update. The manifest is a compiler witness. Lean does not check it, and it does not establish the representation relation.
+
 The source side is stronger for the additive coupling calculus. The checked Lean module proves exact modular round trips for fixed-width tensors and arbitrary finite lists of certified transformations. The \texttt{roop weave --certificate} command emits a checked plan with opaque update symbols and an FNV-1a fingerprint of the emitted Roop source. The theorem in this paper would apply to that fragment once the two refinement hypotheses are proved.
 
 \section{A first refinement target}
@@ -97,19 +99,19 @@ where the kernel does not write $q$. Its source inverse is
 \]
 The required representation relation maps each source tensor coordinate to the corresponding device buffer word. The compiler theorem must show that the emitted index expression covers each intended coordinate once and that the alias conditions keep the read-only $q$ buffer distinct from the updated $p$ buffer. The backend theorem must then cover the declared grid, block size, memory accesses, and synchronization policy.
 
-This target does not prove a general CUDA memory model theorem. It produces one auditable refinement result whose source contract already has a Lean certificate. Further kernels can reuse its memory representation and proof structure only after their own indexing and alias obligations are discharged.
+This target does not prove a general CUDA memory model theorem. The emitted contract records the relevant kernel and buffer facts, but it does not prove their relation to the source program. A refinement proof must still connect the contract to the generated PTX and to the source certificate. Further kernels need their own indexing and alias obligations.
 
 \section{Development status}
 
 The present development has four distinct claims.
 \begin{enumerate}
 \item The generic source certificate calculus is checked in Lean.
-\item Generated PTX launches and copies writable buffers in a recorded RTX 4090 test.
+\item \texttt{roop build --emit ir} writes a tested CUDA contract manifest, and generated PTX launches and copies writable buffers in a recorded RTX 4090 test.
 \item No theorem currently relates emitted Roop GPU code to the source certificate calculus.
 \item A reproducible end-to-end dispatch benchmark finds CPU threads faster than CUDA at four tested sizes through 1,048,576 words after a warm-up loads the module and a bounded pool reuses allocations, while host-device transfers occur on every call. It does not measure steady-state kernels with resident device buffers.
 \end{enumerate}
 
-The next implementation milestone is therefore not a larger performance claim. It is a generated, machine-checkable contract for one additive kernel together with a proof that the compiler chooses that kernel only when its contract applies.
+The next implementation milestone is a proof that the emitted contract describes the generated PTX and that the compiler emits it only when the source contract applies.
 
 \begin{thebibliography}{9}
 

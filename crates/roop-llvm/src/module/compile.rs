@@ -1,6 +1,6 @@
 use crate::{
-    CodegenError, Compiled, Ctx, Dialect, Dir, Kernel, Options, air_module, entry_symbol,
-    gen_function, module_header, ptx_module, try_variants, type_decls,
+    CodegenError, Compiled, Ctx, Dialect, Dir, Kernel, KernelContract, Options, air_module,
+    entry_symbol, gen_function, module_header, ptx_module, try_variants, type_decls,
 };
 use roop_syntax::{Item, Program};
 
@@ -170,9 +170,15 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
         kernels.iter().filter(|k| k.dialect == dialect).collect()
     };
     let (air, ptx) = (pick(Dialect::Air), pick(Dialect::Nvptx));
+    let cuda_contracts = kernels
+        .iter()
+        .filter(|kernel| kernel.dialect == Dialect::Nvptx)
+        .map(KernelContract::from_kernel)
+        .collect();
     Ok(Compiled {
         air: (!air.is_empty()).then(|| air_module(&types, &air)),
         ptx: (!ptx.is_empty()).then(|| ptx_module(&types, &ptx)),
         host,
+        cuda_contracts,
     })
 }

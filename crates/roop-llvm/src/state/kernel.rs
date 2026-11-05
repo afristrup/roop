@@ -1,9 +1,11 @@
-use crate::{Dialect, KernelArg};
+use crate::{Dialect, Dir, KernelArg};
 
 #[derive(Clone, Debug)]
 pub struct Kernel {
     pub dialect: Dialect,
     pub name: String,
+    pub direction: Dir,
+    pub induction: String,
     /// The complete `define` for the kernel.
     pub text: String,
     /// LLVM parameter types in order, for the function type in metadata.

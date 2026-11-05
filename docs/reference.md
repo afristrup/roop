@@ -988,8 +988,11 @@ CUDA regressions ran on an NVIDIA GeForce RTX 4090 with driver 595.99.02.
 buffers back, and checks a hand-written modular add/subtract kernel. A CLI
 regression also builds a compiler-emitted 4,096-word CUDA loop, checks its forward
 modular addition, and checks generated-inverse restoration. These are hardware
-regressions, not a backend refinement theorem. `docs/benchmarks.md` records the
-end-to-end CUDA dispatch measurements.
+regressions, not a backend refinement theorem. With `--emit ir`, the compiler also
+writes `prog.cuda-contract.json`, recording each NVPTX kernel's direction, induction
+variable, and device-buffer layout. It is a compiler witness, not a Lean-checked
+refinement certificate. `docs/benchmarks.md` records the end-to-end CUDA dispatch
+measurements.
 
 ## Formatting
 

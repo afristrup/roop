@@ -48,6 +48,23 @@ fn nvptx_loop_lowers_to_a_ptx_entry_point() {
     let device = out.ptx.expect("a PTX module");
     assert!(device.contains("define ptx_kernel void @axpy_k"));
     assert!(out.host.contains("call i32 @roop_gpu_dispatch(i32 1"));
+    assert_eq!(out.cuda_contracts.len(), 2);
+    let forward = &out.cuda_contracts[0];
+    assert_eq!(forward.direction, "forward");
+    assert_eq!(forward.induction, "i");
+    assert!(
+        forward
+            .buffers
+            .iter()
+            .any(|buffer| buffer.name == "a" && buffer.bytes == 512 && buffer.writable)
+    );
+    assert!(
+        forward
+            .buffers
+            .iter()
+            .any(|buffer| buffer.name == "b" && buffer.bytes == 512 && !buffer.writable)
+    );
+    assert_eq!(out.cuda_contracts[1].direction, "backward");
     assert!(out.air.is_none());
     if let Some(ptx) = lower_to_ptx(&device) {
         assert!(ptx.contains(".visible .entry axpy_k"));

@@ -114,6 +114,8 @@ pub fn gen_kernel(
     parent.kernels.push(Kernel {
         dialect,
         name: name.clone(),
+        direction: dir,
+        induction: var.into(),
         text,
         param_types: params,
         args,

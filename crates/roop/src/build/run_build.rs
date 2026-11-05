@@ -4,6 +4,7 @@ use crate::{
 };
 use roop_llvm::{compile_all, embed_blobs};
 use roop_opt::fuse_parallel;
+use serde_json::json;
 use std::path::Path;
 
 pub fn build(args: &BuildArgs) -> Result<(), CliError> {
@@ -94,6 +95,31 @@ fn write_ir(output: &Path, compiled: &roop_llvm::Compiled) -> Result<(), CliErro
     }
     if let Some(ptx) = &compiled.ptx {
         write(&output.with_extension("ptx.ll"), ptx)?;
+    }
+    if !compiled.cuda_contracts.is_empty() {
+        let kernels: Vec<_> = compiled
+            .cuda_contracts
+            .iter()
+            .map(|contract| {
+                json!({
+                    "kernel": contract.kernel,
+                    "direction": contract.direction,
+                    "induction": contract.induction,
+                    "buffers": contract.buffers.iter().map(|buffer| json!({
+                        "name": buffer.name,
+                        "bytes": buffer.bytes,
+                        "align": buffer.align,
+                        "writable": buffer.writable,
+                    })).collect::<Vec<_>>(),
+                })
+            })
+            .collect();
+        let text = serde_json::to_string_pretty(&json!({
+            "schema": "roop.cuda-contract.v1",
+            "kernels": kernels,
+        }))
+        .expect("CUDA contracts only contain JSON values");
+        write(&output.with_extension("cuda-contract.json"), &(text + "\n"))?;
     }
     Ok(())
 }

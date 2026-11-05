@@ -232,6 +232,37 @@ fn builds_and_proves_a_program_that_imports_from_a_roop_toml_module() {
 }
 
 #[test]
+fn emitted_cuda_contract_records_kernel_buffers() {
+    let source = "fn add(q: &[i64; 4], p: &mut [i64; 4], i: &mut i64) {
+        #[parallel(cuda)] from i == 0 { p[i] += q[i]; } loop { i += 1; } until i == 3;
+    }";
+    let dir = project(
+        "cuda-contract",
+        "[parallel]\ntargets = [\"cuda\"]\n",
+        source,
+    );
+    let output = roop(&dir, &["build", "prog.roop", "--emit", "ir"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = std::fs::read_to_string(dir.join("prog.cuda-contract.json")).unwrap();
+    let manifest: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(manifest["schema"], "roop.cuda-contract.v1");
+    let kernels = manifest["kernels"].as_array().unwrap();
+    assert_eq!(kernels.len(), 2);
+    let forward = kernels
+        .iter()
+        .find(|kernel| kernel["direction"] == "forward")
+        .unwrap();
+    assert_eq!(forward["induction"], "i");
+    let buffers = forward["buffers"].as_array().unwrap();
+    assert!(buffers.iter().any(|buffer| {
+        buffer["name"] == "q" && buffer["bytes"] == 32 && buffer["writable"] == false
+    }));
+    assert!(buffers.iter().any(|buffer| {
+        buffer["name"] == "p" && buffer["bytes"] == 32 && buffer["writable"] == true
+    }));
+}
+
+#[test]
 fn emitted_cuda_coupling_roundtrips_machine_integers() {
     let source = "fn add(q: &[i64; 4096], p: &mut [i64; 4096], i: &mut i64) {
         #[parallel(cuda)] from i == 0 { p[i] += q[i]; } loop { i += 1; } until i == 4095;

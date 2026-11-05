@@ -4,4 +4,5 @@ pub struct Compiled {
     pub host: String,
     pub air: Option<String>,
     pub ptx: Option<String>,
+    pub cuda_contracts: Vec<crate::KernelContract>,
 }
