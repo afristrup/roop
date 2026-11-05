@@ -60,7 +60,7 @@ fn scalar_additive_update_lemmas(_info: &Lifted, shape: &LemmaShape, both: bool)
         .into_iter()
         .map(|(suffix, from, to, cancel)| {
             format!(
-                "theorem {} {} (a b : {}) ({HYP} : {} a = Except.ok b) :\n    {} b = Except.ok a := by\n  obtain ⟨a1, a2⟩ := a\n  simp [{}, {}, pure, Except.pure, BitVec.{}] at {HYP} ⊢\n  subst b\n  simp [BitVec.{}]\n",
+                "theorem {} {} («__before» «__after» : {}) ({HYP} : {} «__before» = Except.ok «__after») :\n    {} «__after» = Except.ok «__before» := by\n  obtain ⟨«__before1», «__before2»⟩ := «__before»\n  simp [{}, {}, pure, Except.pure, BitVec.{}] at {HYP} ⊢\n  subst «__after»\n  simp [BitVec.{}]\n",
                 shape.theorem(&format!("step_{suffix}")),
                 shape.explicit,
                 shape.state,
@@ -114,18 +114,23 @@ fn additive_update_lemmas(info: &Lifted, shape: &LemmaShape, both: bool) -> Stri
             };
             (
                 theorem,
-                "a2".to_string(),
-                format!("a1 (fun z => z) {delta} a2 b2 b1 __forward"),
+                "«__before2»".to_string(),
+                format!(
+                    "«__before1» (fun z => z) {delta} «__before2» «__after2» «__after1» __forward"
+                ),
             )
         } else {
             (
                 theorem,
                 update.index.clone(),
-                format!("a1 {} {delta} a2 b2 b1 __forward", update.index),
+                format!(
+                    "«__before1» {} {delta} «__before2» «__after2» «__after1» __forward",
+                    update.index
+                ),
             )
         };
         text.push_str(&format!(
-            "theorem {} {} (a b : {}) ({HYP} : {} a = Except.ok b) :\n    {} b = Except.ok a := by\n  obtain \u{27e8}a1, a2\u{27e9} := a\n  obtain \u{27e8}b1, b2\u{27e9} := b\n  have __forward : (do\n    let x \u{2190} Roop.aget a1 {index}\n    let d \u{2190} {delta} a2\n    let out \u{2190} Roop.aset a1 {index} (x {op} d)\n    pure (out, a2)) = Except.ok (b1, b2) := by\n    simpa only [{}] using {HYP}\n  have result := Roop.{theorem} {args}\n  simpa only [{}] using result\n",
+            "theorem {} {} («__before» «__after» : {}) ({HYP} : {} «__before» = Except.ok «__after») :\n    {} «__after» = Except.ok «__before» := by\n  obtain \u{27e8}«__before1», «__before2»\u{27e9} := «__before»\n  obtain \u{27e8}«__after1», «__after2»\u{27e9} := «__after»\n  have __forward : (do\n    let x \u{2190} Roop.aget «__before1» {index}\n    let d \u{2190} {delta} «__before2»\n    let out \u{2190} Roop.aset «__before1» {index} (x {op} d)\n    pure (out, «__before2»)) = Except.ok («__after1», «__after2») := by\n    simpa only [{}] using {HYP}\n  have result := Roop.{theorem} {args}\n  simpa only [{}] using result\n",
             shape.theorem(&format!("body_{suffix}")),
             shape.explicit,
             shape.state,

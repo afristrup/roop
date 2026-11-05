@@ -81,3 +81,13 @@ fn captured_names_may_be_t_and_u() {
     );
     assert_eq!(t.parallel, ["scale"]);
 }
+
+#[test]
+fn captured_name_b_does_not_shadow_generated_states() {
+    let t = support::verified(
+        "fn scale(a: &mut [i64; 8], b: &[i64; 8], k: &i64, i: &mut i64) {
+            #[parallel] from i == 0 { a[i] += b[i] * k; } loop { i += 1; } until i == 7;
+         }",
+    );
+    assert_eq!(t.parallel, ["scale"]);
+}
