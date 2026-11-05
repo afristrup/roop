@@ -77,7 +77,7 @@ Apply inverse refinement to obtain a state $m'$ satisfying
 Source reversal reduces the right side to $s$. Observability gives equality of the compared host-visible values.
 \end{proof}
 
-The theorem is deliberately conditional. A source theorem cannot establish either refinement statement by itself. Likewise, a regression test cannot quantify over all represented states.
+The theorem is deliberately conditional. A source theorem cannot establish either refinement statement by itself. Likewise, a regression test cannot quantify over all represented states. The Lean module \texttt{Refinement.lean} checks this representation-relational composition over arbitrary state types. It does not instantiate the relation for Roop source state, host dispatch, or PTX.
 
 \section{Current evidence}
 
