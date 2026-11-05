@@ -14,6 +14,9 @@ pub fn piece_lemmas(
     if part == "body" && info.additive_update.is_some() {
         return additive_update_lemmas(info, shape, both);
     }
+    if part == "step" && info.scalar_additive_update.is_some() {
+        return scalar_additive_update_lemmas(info, shape, both);
+    }
     let (a, b) = ("\u{ab}__a\u{bb}", "\u{ab}__b\u{bb}");
     let id = &shape.id;
     let (fwd, inv) = (
@@ -42,6 +45,34 @@ pub fn piece_lemmas(
         ));
     }
     text
+}
+
+fn scalar_additive_update_lemmas(_info: &Lifted, shape: &LemmaShape, both: bool) -> String {
+    let directions = if both {
+        vec![
+            ("inv_f", "step", "step_inv", "add_sub_cancel"),
+            ("f_inv", "step_inv", "step", "sub_add_cancel"),
+        ]
+    } else {
+        vec![("inv_f", "step", "step_inv", "add_sub_cancel")]
+    };
+    directions
+        .into_iter()
+        .map(|(suffix, from, to, cancel)| {
+            format!(
+                "theorem {} {} (a b : {}) ({HYP} : {} a = Except.ok b) :\n    {} b = Except.ok a := by\n  obtain ⟨a1, a2⟩ := a\n  simp [{}, {}, pure, Except.pure, BitVec.{}] at {HYP} ⊢\n  subst b\n  simp [BitVec.{}]\n",
+                shape.theorem(&format!("step_{suffix}")),
+                shape.explicit,
+                shape.state,
+                shape.applied(from),
+                shape.applied(to),
+                shape.piece(from),
+                shape.piece(to),
+                cancel,
+                cancel,
+            )
+        })
+        .collect()
 }
 
 fn additive_update_lemmas(info: &Lifted, shape: &LemmaShape, both: bool) -> String {

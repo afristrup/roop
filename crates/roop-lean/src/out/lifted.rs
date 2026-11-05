@@ -13,6 +13,9 @@ pub struct AdditiveUpdate {
     pub index_is_state: bool,
 }
 
+#[derive(Clone, Debug)]
+pub struct ScalarAdditiveUpdate;
+
 /// A loop or `try` whose parts were lifted into top-level definitions: the
 /// variables they read (`captures`) and the tuple of variables they write
 /// (`state`).
@@ -28,4 +31,5 @@ pub struct Lifted {
     /// produced, so the pieces are inverses in one direction only.
     pub one_way: bool,
     pub additive_update: Option<AdditiveUpdate>,
+    pub scalar_additive_update: Option<ScalarAdditiveUpdate>,
 }

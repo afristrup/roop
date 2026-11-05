@@ -43,6 +43,7 @@ pub fn lean_loop(
         parallel,
         one_way: false,
         additive_update: None,
+        scalar_additive_update: None,
     };
     let piece = |part: &str| esc_fn(&format!("{id}_{part}"));
     let args: Vec<String> = info.captures.iter().map(|(n, _)| esc(n)).collect();

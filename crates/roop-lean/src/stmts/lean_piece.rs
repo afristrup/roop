@@ -1,6 +1,7 @@
 use crate::{
-    AdditiveUpdate, Ctx, Dir, Env, LeanError, Lifted, Out, esc, esc_fn, esc_thm, lean_block,
-    lean_expr, lean_type, place_type, tuple_expr, tuple_type, unpack_state, unref,
+    AdditiveUpdate, Ctx, Dir, Env, LeanError, Lifted, Out, ScalarAdditiveUpdate, esc, esc_fn,
+    esc_thm, lean_block, lean_expr, lean_type, place_type, tuple_expr, tuple_type, unpack_state,
+    unref,
 };
 use roop_syntax::{Block, Expr, Place, StmtKind, Type, UpdateOp};
 
@@ -22,6 +23,11 @@ pub fn lean_piece(
         && let Some((target, index, value)) = additive_update(cx, env, info, block)?
     {
         return lean_additive_piece(cx, env, out, info, name, target, index, value, dir);
+    }
+    if let Piece::Block(block) = piece
+        && scalar_additive_update(cx, env, info, block)?
+    {
+        info.scalar_additive_update = Some(ScalarAdditiveUpdate);
     }
     let mut inner_env = Env {
         vars: info.captures.iter().chain(&info.state).cloned().collect(),
@@ -108,6 +114,29 @@ fn additive_update<'a>(
         return Ok(None);
     }
     Ok(Some((root, index_name, value)))
+}
+
+fn scalar_additive_update(
+    cx: &Ctx,
+    env: &Env,
+    info: &Lifted,
+    block: &Block,
+) -> Result<bool, LeanError> {
+    if block.stmts.len() != 1 || info.state.len() != 2 {
+        return Ok(false);
+    }
+    let stmt = &block.stmts[0];
+    let StmtKind::Update {
+        target: target_place @ Place::Var(target),
+        op: UpdateOp::Add,
+        value,
+    } = &stmt.kind
+    else {
+        return Ok(false);
+    };
+    Ok(info.state[1].0 == *target
+        && place_type(cx, env, target_place)? == Type::Named("i64".into())
+        && !expr_uses(value, target))
 }
 
 fn args_with(captures: &[(String, Type)]) -> String {
