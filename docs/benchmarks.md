@@ -354,9 +354,12 @@ to 0.80 s. Lean reports cumulative 16.5 s in `simp`, 26.2 s in tactics, and
 11.8 s in type checking; these overlap and do not establish that the trusted
 kernel dominates. A counted-inner-loop composition certificate was also accepted,
 but a width-16 check took 23.18 s at 2.53 GB RSS. It reduced peak memory from
-3.03 GB but was slower than the 18.51 s baseline, so it was not adopted. The
-next optimization should preserve this lower-memory representation while
-reducing its generated proof elaboration cost.
+3.03 GB but was slower than the 18.51 s baseline, so it was not adopted. A
+structural call-dispatch certificate was also accepted for both activation
+directions and every branch. It checked width 16 in 18.23 s at 2.94 GB RSS,
+which reduced memory but did not beat the 18.01 s wall-clock baseline, so it
+was not adopted. The next optimization should preserve the lower-memory
+representation while reducing generated proof elaboration cost.
 
 ```sh
 lean --profile prog.lean
