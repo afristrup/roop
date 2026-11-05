@@ -335,6 +335,15 @@ right-hand side does not read that component. A subsequent accepted width-16
 check took 18.51 s and 3.03 GB RSS. This single run is a 1.7% directional
 improvement over 18.83 s; it is not a multi-run comparison. The current width-64 generated proof did not finish within a 55-second Lean check budget.
 
+A width-16 trace with `set_option trace.profiler true` and a 10 ms threshold
+attributes the largest individual declarations to the four scalar activation
+branch roundtrips (0.97 to 1.10 s each). The width-sensitive Drift roundtrips
+take 0.66 to 0.90 s, and the nested `wmatvec_t` loop-body roundtrips take 0.63
+to 0.80 s. Lean reports cumulative 16.5 s in `simp`, 26.2 s in tactics, and
+11.8 s in type checking; these overlap and do not establish that the trusted
+kernel dominates. The next certificate should therefore compose an inner
+counted loop without re-running the general tactic on its enclosing body.
+
 ```sh
 lean --profile prog.lean
 ```
