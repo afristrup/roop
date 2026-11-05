@@ -23,7 +23,13 @@ LLVM IR and native linker
 tokens, parsing, the AST, spans, and visitors. `roop-check` rejects programs
 that cannot be reversed safely. `roop-opt` specialises length parameters,
 renames generated items, handles Bennett transformations, and applies selected
-optimisations. `roop-llvm` emits LLVM IR and target-specific parallel code. For an NVPTX IR build, `roop build --emit ir` also writes `program.ptx.ll` and `program.cuda-contract.json`. The JSON file names each emitted kernel and records its direction, induction variable, and device buffers with their byte size, alignment, and copyback mode. It is generated from the compiler's kernel representation and checked against PTX entry names in a CLI regression. It does not prove that PTX refines the Roop or Lean semantics.
+optimisations. `roop-llvm` emits LLVM IR and target-specific parallel code. For an
+NVPTX IR build, `roop build --emit ir` also writes `program.ptx.ll` and
+`program.cuda-contract.json`. The JSON file names each emitted kernel and records
+its direction, induction variable, and device buffers with their byte size,
+alignment, and copyback mode. It is generated from the compiler's kernel
+representation and checked against PTX entry names in a CLI regression. It does not
+prove that PTX refines the Roop or Lean semantics.
 
 The Lean path shares loading, parsing, and checking. `roop-lean` translates the
 checked program into a pure Lean model. `roop weave` uses `roop-weave` to read
