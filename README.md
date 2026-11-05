@@ -93,7 +93,7 @@ in `editors/`.
 - `try` gets only `f_inv_f`, not the reverse. Sessions are checked as
   specifications, not matched against the task code. Floating point carries no
   round-trip claim, and GPU floating point can differ between runtimes.
-- On an NVIDIA GeForce RTX 4090 with driver 595.99.02, the CUDA regressions launch PTX, copy writable buffers back, check a hand-written modular add/subtract kernel, and run a compiler-emitted four-word loop forward and backward. They are hardware regressions, not a general CUDA refinement theorem.
+- On an NVIDIA GeForce RTX 4090 with driver 595.99.02, the CUDA regressions launch PTX, copy writable buffers back, check a hand-written modular add/subtract kernel, and run a compiler-emitted 4,096-word loop forward and backward. They are hardware regressions, not a general CUDA refinement theorem.
 - `keep` moves information into a history that lives until the process ends, so
   the energy cost of erasing is deferred, not removed. `history_limit` in
   `Roop.toml` bounds it and `std::process::forget` empties it; see

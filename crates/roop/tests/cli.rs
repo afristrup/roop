@@ -233,8 +233,8 @@ fn builds_and_proves_a_program_that_imports_from_a_roop_toml_module() {
 
 #[test]
 fn emitted_cuda_coupling_roundtrips_machine_integers() {
-    let source = "fn add(q: &[i64; 4], p: &mut [i64; 4], i: &mut i64) {
-        #[parallel(cuda)] from i == 0 { p[i] += q[i]; } loop { i += 1; } until i == 3;
+    let source = "fn add(q: &[i64; 4096], p: &mut [i64; 4096], i: &mut i64) {
+        #[parallel(cuda)] from i == 0 { p[i] += q[i]; } loop { i += 1; } until i == 4095;
     }";
     let dir = project(
         "cuda-coupling",
@@ -244,21 +244,28 @@ fn emitted_cuda_coupling_roundtrips_machine_integers() {
     std::fs::write(
         dir.join("main.c"),
         r#"
-#include <limits.h>
 #include <stdint.h>
+#include <string.h>
+#define N 4096
 void add(int64_t*, int64_t*, int64_t*);
 void add_inv(int64_t*, int64_t*, int64_t*);
 int main(void) {
-    int64_t q[4] = {1, -1, INT64_MAX, INT64_MIN};
-    int64_t p[4] = {INT64_MAX, INT64_MIN, 1, -1};
-    int64_t initial[4] = {INT64_MAX, INT64_MIN, 1, -1};
-    uint64_t want[4];
-    for (int n = 0; n < 4; n++) want[n] = (uint64_t)p[n] + (uint64_t)q[n];
+    int64_t q[N], p[N];
+    uint64_t q0[N], p0[N];
+    for (int n = 0; n < N; n++) {
+        q0[n] = UINT64_C(0x8000000000000000) + UINT64_C(0x9e3779b97f4a7c15) * (uint64_t)n;
+        p0[n] = UINT64_C(0x7fffffffffffffff) - UINT64_C(0xd1b54a32d192ed03) * (uint64_t)n;
+        memcpy(&q[n], &q0[n], sizeof q[n]);
+        memcpy(&p[n], &p0[n], sizeof p[n]);
+    }
     int64_t i = 0;
     add(q, p, &i);
-    for (int n = 0; n < 4; n++) if ((uint64_t)p[n] != want[n]) return n + 1;
+    for (int n = 0; n < N; n++) {
+        if ((uint64_t)p[n] != p0[n] + q0[n]) return n + 1;
+        if ((uint64_t)q[n] != q0[n]) return n + N + 1;
+    }
     add_inv(q, p, &i);
-    for (int n = 0; n < 4; n++) if (p[n] != initial[n]) return n + 5;
+    for (int n = 0; n < N; n++) if ((uint64_t)p[n] != p0[n]) return n + 2 * N + 1;
     return i != 0;
 }
 "#,
