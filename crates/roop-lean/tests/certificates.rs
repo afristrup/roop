@@ -12,7 +12,7 @@ fn arbitrary_coupling_networks_have_a_checked_roundtrip_certificate() {
         .args(["env", "lean", "RoopLean/Certificate/TensorNetwork.lean"])
         .current_dir(root)
         .output();
-    let Ok(output) = output else { return };
+    let output = output.expect("Lean must be available to check the certificate");
     assert!(
         output.status.success(),
         "{}",

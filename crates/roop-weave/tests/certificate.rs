@@ -44,7 +44,7 @@ fn a_generated_certificate_checks_an_arbitrary_coupling_plan() {
         .current_dir(root)
         .output();
     let _ = std::fs::remove_file(&file);
-    let Ok(output) = output else { return };
+    let output = output.expect("Lean must be available to check the certificate");
     assert!(
         output.status.success(),
         "{}{}",
@@ -111,7 +111,7 @@ fn a_deep_certificate_checks_without_expanding_updates() {
         .current_dir(root)
         .output();
     let _ = std::fs::remove_file(&file);
-    let Ok(output) = output else { return };
+    let output = output.expect("Lean must be available to check the certificate");
     assert!(
         output.status.success(),
         "{}{}",
