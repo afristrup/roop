@@ -1,5 +1,5 @@
 use crate::{CliError, WeaveArgs};
-use roop_weave::{emit_driver, emit_model, parse_model};
+use roop_weave::{emit_certificate, emit_driver, emit_model, parse_model};
 
 /// `roop weave`: compiles a model of reversible layers, as JSON, to roop code.
 pub fn run_weave(args: &WeaveArgs) -> Result<(), CliError> {
@@ -11,6 +11,10 @@ pub fn run_weave(args: &WeaveArgs) -> Result<(), CliError> {
             CliError::Tool("--driver needs --batch, the samples a step takes".into())
         })?;
         std::fs::write(path, emit_driver(&model, batch))
+            .map_err(|e| CliError::Io(path.display().to_string(), e))?;
+    }
+    if let Some(path) = &args.certificate {
+        std::fs::write(path, emit_certificate(&model))
             .map_err(|e| CliError::Io(path.display().to_string(), e))?;
     }
     let code = emit_model(&model, args.tests, args.batch, args.main);

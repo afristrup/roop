@@ -1,0 +1,78 @@
+mod support;
+
+use roop_weave::{emit_certificate, parse_model};
+use std::process::Command;
+use support::{attention, leapfrog, mlp, model, project, roop, text};
+
+#[test]
+fn a_generated_certificate_checks_an_arbitrary_coupling_plan() {
+    let model = parse_model(
+        &model(
+            "net",
+            4,
+            1,
+            vec![
+                leapfrog("tanh", 3, 4, 1),
+                mlp("relu", 2, 4, 2),
+                attention(2, 2, 3),
+            ],
+        )
+        .to_string(),
+    )
+    .unwrap();
+    let text = emit_certificate(&model);
+    assert!(text.contains("net_update_4"), "{text}");
+    assert!(text.contains("intoFirst := true"), "{text}");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../roop-lean/lean");
+    let file = std::env::temp_dir().join(format!(
+        "roop-weave-certificate-{}.lean",
+        std::process::id()
+    ));
+    std::fs::write(&file, text).unwrap();
+    let lake = std::env::var("HOME")
+        .ok()
+        .map(|home| format!("{home}/.elan/bin/lake"))
+        .filter(|lake| std::path::Path::new(lake).is_file())
+        .unwrap_or_else(|| "lake".into());
+    let output = Command::new(lake)
+        .args(["env", "lean", file.to_str().unwrap()])
+        .current_dir(root)
+        .output();
+    let _ = std::fs::remove_file(&file);
+    let Ok(output) = output else { return };
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn the_cli_writes_a_checked_certificate() {
+    let dir = project("certificate-cli");
+    let specification = model("cli_net", 4, 1, vec![mlp("relu", 2, 4, 1)]);
+    std::fs::write(dir.join("model.json"), specification.to_string()).unwrap();
+    let output = roop(
+        &dir,
+        &["weave", "model.json", "--certificate", "model.lean"],
+    );
+    assert!(output.status.success(), "{}", text(&output));
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../roop-lean/lean");
+    let lake = std::env::var("HOME")
+        .ok()
+        .map(|home| format!("{home}/.elan/bin/lake"))
+        .filter(|lake| std::path::Path::new(lake).is_file())
+        .unwrap_or_else(|| "lake".into());
+    let output = Command::new(lake)
+        .args(["env", "lean", dir.join("model.lean").to_str().unwrap()])
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

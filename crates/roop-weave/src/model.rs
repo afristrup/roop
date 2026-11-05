@@ -54,6 +54,20 @@ impl Model {
         flags
     }
 
+    /// Whether each certified update writes the first tensor. Leapfrog has two
+    /// force updates into the second tensor around one drift into the first.
+    pub fn certificate_directions(&self) -> Vec<bool> {
+        let mut directions = Vec::new();
+        for (layer, into_q) in self.layers.iter().zip(self.adds_into_q()) {
+            if matches!(layer, Layer::Leapfrog { .. }) {
+                directions.extend([false, true, false]);
+            } else {
+                directions.push(into_q);
+            }
+        }
+        directions
+    }
+
     /// The step size and every number as weave holds them, on the 1/4096 grid.
     pub fn snapped(&self) -> Self {
         let on_grid = |x: f64| quantize(x) as f64 / 4096.0;
