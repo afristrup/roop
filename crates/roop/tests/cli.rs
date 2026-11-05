@@ -230,3 +230,46 @@ fn builds_and_proves_a_program_that_imports_from_a_roop_toml_module() {
     let report = String::from_utf8_lossy(&out.stdout).into_owned();
     assert!(report.contains("lib__add, twice"), "{report}");
 }
+
+#[test]
+fn emitted_cuda_coupling_roundtrips_machine_integers() {
+    let source = "fn add(q: &[i64; 4], p: &mut [i64; 4], i: &mut i64) {
+        #[parallel(cuda)] from i == 0 { p[i] += q[i]; } loop { i += 1; } until i == 3;
+    }";
+    let dir = project(
+        "cuda-coupling",
+        "[parallel]\ntargets = [\"cuda\"]\n",
+        source,
+    );
+    std::fs::write(
+        dir.join("main.c"),
+        r#"
+#include <limits.h>
+#include <stdint.h>
+void add(int64_t*, int64_t*, int64_t*);
+void add_inv(int64_t*, int64_t*, int64_t*);
+int main(void) {
+    int64_t q[4] = {1, -1, INT64_MAX, INT64_MIN};
+    int64_t p[4] = {INT64_MAX, INT64_MIN, 1, -1};
+    int64_t initial[4] = {INT64_MAX, INT64_MIN, 1, -1};
+    int64_t i = 0;
+    add(q, p, &i);
+    add_inv(q, p, &i);
+    for (int n = 0; n < 4; n++) if (p[n] != initial[n]) return n + 1;
+    return i != 0;
+}
+"#,
+    )
+    .unwrap();
+    let lean = roop(&dir, &["lean", "prog.roop", "--check"]);
+    assert!(lean.status.success(), "{}", stderr(&lean));
+    let output = roop(
+        &dir,
+        &["build", "prog.roop", "--link", "main.c", "-o", "prog"],
+    );
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(
+        Command::new(dir.join("prog")).status().unwrap().code(),
+        Some(0)
+    );
+}
