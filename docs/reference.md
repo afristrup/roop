@@ -990,7 +990,7 @@ regression also builds a compiler-emitted 4,096-word CUDA loop, checks its forwa
 modular addition, and checks generated-inverse restoration. These are hardware
 regressions, not a backend refinement theorem. With `--emit ir`, the compiler also
 writes `prog.cuda-contract.json`, recording each NVPTX kernel's direction, induction
-variable, and device-buffer layout. It is a compiler witness, not a Lean-checked
+variable, and device-buffer roles and layout. It is a compiler witness, not a Lean-checked
 refinement certificate. `docs/benchmarks.md` records the end-to-end CUDA dispatch
 measurements.
 

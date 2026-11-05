@@ -13,6 +13,7 @@ pub fn air_arg_metadata(index: usize, arg: &KernelArg) -> String {
             align,
             writable,
             space,
+            ..
         } => {
             let access = if *writable {
                 "air.read_write"

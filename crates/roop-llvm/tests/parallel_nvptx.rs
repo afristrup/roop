@@ -73,6 +73,47 @@ fn nvptx_loop_lowers_to_a_ptx_entry_point() {
 }
 
 #[test]
+fn cuda_kernel_buffer_roles_avoid_runtime_name_collisions() {
+    let src = "fn add(params: &[i64; 4], err: &mut [i64; 4], i: &mut i64) {
+        #[parallel(cuda)] from i == 0 { err[i] += params[i]; } loop { i += 1; } until i == 3;
+    }";
+    let out = support::compiled(src, &Options::default());
+    let ptx = out.ptx.expect("a PTX module");
+    let signature = ptx
+        .lines()
+        .find(|line| line.contains("define ptx_kernel void "))
+        .unwrap();
+    assert!(signature.contains("%buf0"), "{signature}");
+    assert!(signature.contains("%buf1"), "{signature}");
+    assert_eq!(signature.matches("%params").count(), 1, "{signature}");
+    assert_eq!(signature.matches("%err").count(), 1, "{signature}");
+    let contract = out
+        .cuda_contracts
+        .iter()
+        .find(|contract| contract.direction == "forward")
+        .unwrap();
+    assert!(
+        contract
+            .buffers
+            .iter()
+            .any(|buffer| buffer.name == "params" && buffer.role == "capture")
+    );
+    assert!(
+        contract
+            .buffers
+            .iter()
+            .any(|buffer| buffer.name == "err" && buffer.role == "capture")
+    );
+    assert!(
+        contract
+            .buffers
+            .iter()
+            .any(|buffer| buffer.role == "launch_params")
+    );
+    assert!(contract.buffers.iter().any(|buffer| buffer.role == "error"));
+}
+
+#[test]
 fn apple_gpu_rejects_double_precision_but_cuda_accepts_it() {
     let body = "fn f(a: &mut [f64; 4], i: &mut i64) {
         #[parallel(TARGET)] from i == 0 { a[i] += 1.0; } loop { i += 1; } until i == 3;

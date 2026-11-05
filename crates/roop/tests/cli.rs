@@ -261,11 +261,23 @@ fn emitted_cuda_contract_records_kernel_buffers() {
     assert_eq!(forward["induction"], "i");
     let buffers = forward["buffers"].as_array().unwrap();
     assert!(buffers.iter().any(|buffer| {
-        buffer["name"] == "q" && buffer["bytes"] == 32 && buffer["writable"] == false
+        buffer["name"] == "q"
+            && buffer["role"] == "capture"
+            && buffer["bytes"] == 32
+            && buffer["writable"] == false
     }));
     assert!(buffers.iter().any(|buffer| {
-        buffer["name"] == "p" && buffer["bytes"] == 32 && buffer["writable"] == true
+        buffer["name"] == "p"
+            && buffer["role"] == "capture"
+            && buffer["bytes"] == 32
+            && buffer["writable"] == true
     }));
+    assert!(
+        buffers
+            .iter()
+            .any(|buffer| buffer["role"] == "launch_params")
+    );
+    assert!(buffers.iter().any(|buffer| buffer["role"] == "error"));
 }
 
 #[test]

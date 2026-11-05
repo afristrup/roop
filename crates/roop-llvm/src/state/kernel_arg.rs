@@ -1,9 +1,17 @@
 /// One kernel parameter. Buffers are device memory; the thread id is a
 /// scalar the hardware supplies (AIR only, PTX reads special registers).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum KernelBufferRole {
+    Capture,
+    LaunchParams,
+    Error,
+}
+
 #[derive(Clone, Debug)]
 pub enum KernelArg {
     Buffer {
         name: String,
+        role: KernelBufferRole,
         /// LLVM type of one element held by the buffer.
         llvm_ty: String,
         size: u64,

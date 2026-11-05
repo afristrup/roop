@@ -1,4 +1,4 @@
-use crate::{Dir, Kernel, KernelArg};
+use crate::{Dir, Kernel, KernelArg, KernelBufferRole};
 
 /// A compact description of one emitted device kernel.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -13,6 +13,7 @@ pub struct KernelContract {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KernelBufferContract {
     pub name: String,
+    pub role: &'static str,
     pub bytes: u64,
     pub align: u64,
     pub writable: bool,
@@ -26,12 +27,18 @@ impl KernelContract {
             .filter_map(|arg| match arg {
                 KernelArg::Buffer {
                     name,
+                    role,
                     size,
                     align,
                     writable,
                     ..
                 } => Some(KernelBufferContract {
                     name: name.clone(),
+                    role: match role {
+                        KernelBufferRole::Capture => "capture",
+                        KernelBufferRole::LaunchParams => "launch_params",
+                        KernelBufferRole::Error => "error",
+                    },
                     bytes: *size,
                     align: *align,
                     writable: *writable,

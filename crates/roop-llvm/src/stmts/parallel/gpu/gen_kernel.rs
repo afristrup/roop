@@ -1,6 +1,6 @@
 use crate::{
-    CodegenError, Dialect, Dir, FnGen, Kernel, KernelArg, Slot, gen_block, kernel_prologue, layout,
-    llvm_type, mem_store, params_space, ptr_type,
+    CodegenError, Dialect, Dir, FnGen, Kernel, KernelArg, KernelBufferRole, Slot, gen_block,
+    kernel_prologue, layout, llvm_type, mem_store, params_space, ptr_type,
 };
 use roop_syntax::{Block, Type};
 
@@ -28,6 +28,7 @@ pub fn gen_kernel(
         params.push(ptr_type(dialect, &llvm_ty, 1));
         args.push(KernelArg::Buffer {
             name: var_name.clone(),
+            role: KernelBufferRole::Capture,
             llvm_ty,
             size,
             align,
@@ -46,9 +47,15 @@ pub fn gen_kernel(
     // The launch parameters never change, so on Apple GPUs they go in the
     // cached constant address space (2). PTX keeps them in global memory.
     let params_space = params_space(dialect);
-    for (name, llvm_ty, writable, space) in [
-        ("params", "i64", false, params_space),
-        ("err", "i32", true, 1),
+    for (name, role, llvm_ty, writable, space) in [
+        (
+            "params",
+            KernelBufferRole::LaunchParams,
+            "i64",
+            false,
+            params_space,
+        ),
+        ("err", KernelBufferRole::Error, "i32", true, 1),
     ] {
         let (size, align) = (
             if llvm_ty == "i64" { 8 } else { 4 },
@@ -57,6 +64,7 @@ pub fn gen_kernel(
         params.push(ptr_type(dialect, llvm_ty, space));
         args.push(KernelArg::Buffer {
             name: name.into(),
+            role,
             llvm_ty: llvm_ty.into(),
             size,
             align,
@@ -92,8 +100,14 @@ pub fn gen_kernel(
         .iter()
         .enumerate()
         .map(|(i, ty)| match args.get(i) {
-            Some(KernelArg::Buffer { name, .. }) if name == "params" => format!("{ty} %params"),
-            Some(KernelArg::Buffer { name, .. }) if name == "err" => format!("{ty} %err"),
+            Some(KernelArg::Buffer {
+                role: KernelBufferRole::LaunchParams,
+                ..
+            }) => format!("{ty} %params"),
+            Some(KernelArg::Buffer {
+                role: KernelBufferRole::Error,
+                ..
+            }) => format!("{ty} %err"),
             Some(KernelArg::ThreadId) => format!("{ty} %tid"),
             _ => format!("{ty} %buf{i}"),
         })

@@ -107,6 +107,7 @@ fn write_ir(output: &Path, compiled: &roop_llvm::Compiled) -> Result<(), CliErro
                     "induction": contract.induction,
                     "buffers": contract.buffers.iter().map(|buffer| json!({
                         "name": buffer.name,
+                        "role": buffer.role,
                         "bytes": buffer.bytes,
                         "align": buffer.align,
                         "writable": buffer.writable,
