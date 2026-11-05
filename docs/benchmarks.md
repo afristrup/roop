@@ -376,6 +376,12 @@ and 2.33 GB RSS, but the width-16 check took 19.89 s at 2.94 GB RSS. Its
 1.63 MB generated file was smaller than the 1.64 MB baseline, but slower, so
 it was not adopted.
 
+Marking lifted loop body and step definitions irreducible after their local
+certificates were established made the two-layer width-16 Weave proof check in
+15.13 to 15.32 s, but it broke three parallel-loop proof fixtures, including
+commutativity. Those proofs need the lifted definitions reducible. The boundary
+was reverted and not adopted.
+
 ```sh
 lean --profile prog.lean
 ```
