@@ -9,6 +9,27 @@ pub fn chan_stmt<'a, I: TokenInput<'a>>(
         .ignore_then(ident())
         .then_ignore(just(Token::Colon))
         .then(ty())
+        .then(
+            ident()
+                .try_map(|name, span| {
+                    if name == "session" {
+                        Ok(())
+                    } else {
+                        Err(Rich::custom(span, "expected `session`"))
+                    }
+                })
+                .ignore_then(ident())
+                .or_not(),
+        )
         .then(blk)
-        .map(|((name, ty), body): ((String, Type), Block)| StmtKind::Chan { name, ty, body })
+        .map(
+            |(((name, ty), session), body): (((String, Type), Option<String>), Block)| {
+                StmtKind::Chan {
+                    name,
+                    ty,
+                    session,
+                    body,
+                }
+            },
+        )
 }

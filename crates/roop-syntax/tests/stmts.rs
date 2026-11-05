@@ -113,6 +113,19 @@ fn parses_channels_sends_receives_and_concurrent_blocks() {
 }
 
 #[test]
+fn parses_a_session_bound_channel() {
+    let src = "fn f(x: &mut i64) { chan c: i64 session Feed { #[concurrent] { send c <- x; } } }";
+    let program = parse(src).unwrap();
+    let Item::Fn(f) = &program.items[0] else {
+        panic!("expected fn")
+    };
+    let StmtKind::Chan { session, .. } = &f.body.stmts[0].kind else {
+        panic!("expected chan")
+    };
+    assert_eq!(session.as_deref(), Some("Feed"));
+}
+
+#[test]
 fn a_bare_block_is_a_statement() {
     assert!(matches!(first_stmt("{ x += 1; }"), StmtKind::Block(_)));
 }

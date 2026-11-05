@@ -191,6 +191,13 @@ fn sessions_enums_and_structs_are_laid_out() {
 }
 
 #[test]
+fn channel_session_annotations_are_formatted() {
+    let out =
+        fmt("fn f(x: &mut i64) { chan c:i64 session Feed { #[concurrent] { send c <- x; } } }");
+    assert!(out.contains("chan c: i64 session Feed {"), "{out}");
+}
+
+#[test]
 fn every_statement_form_survives() {
     let src = "
 fn f(a: &mut i64, s: &mut Stack<i64, 4>, v: &mut [i64; N]) {

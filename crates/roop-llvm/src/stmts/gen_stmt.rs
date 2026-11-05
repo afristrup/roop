@@ -80,7 +80,7 @@ pub fn gen_stmt(g: &mut FnGen, stmt: &Stmt, dir: Dir) -> Result<(), CodegenError
             Dir::Backward => Err(CodegenError::Unsupported("running an irrev block backward")),
         },
         StmtKind::Overwrite { target, op, value } => gen_overwrite(g, target, *op, value, dir),
-        StmtKind::Chan { name, ty, body } => gen_chan(g, name, ty, body, dir),
+        StmtKind::Chan { name, ty, body, .. } => gen_chan(g, name, ty, body, dir),
         StmtKind::Send { chan, source } => gen_send(g, chan, source, dir),
         StmtKind::Recv { chan, target } => gen_recv(g, chan, target, dir),
     }

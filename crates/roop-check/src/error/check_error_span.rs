@@ -39,7 +39,8 @@ impl CheckError {
             | Self::UnpairedBuild { span, .. }
             | Self::UnbuildNotInverse { span, .. }
             | Self::SessionMalformed { span, .. }
-            | Self::SessionNotCompliant { span, .. } => *span,
+            | Self::SessionNotCompliant { span, .. }
+            | Self::SessionTaskBinding { span, .. } => *span,
         }
     }
 }

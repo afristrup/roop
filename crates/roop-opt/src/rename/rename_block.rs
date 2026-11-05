@@ -103,9 +103,15 @@ fn rename_stmt(stmt: &Stmt, from: &str, to: &str) -> Stmt {
             op: *op,
             value: e(value),
         },
-        StmtKind::Chan { name, ty, body } => StmtKind::Chan {
+        StmtKind::Chan {
+            name,
+            ty,
+            session,
+            body,
+        } => StmtKind::Chan {
             name: name.clone(),
             ty: ty.clone(),
+            session: session.clone(),
             body: b(body),
         },
         StmtKind::Send { chan, source } => StmtKind::Send {

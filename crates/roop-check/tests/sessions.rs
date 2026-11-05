@@ -126,6 +126,69 @@ fn a_rollback_that_leads_into_a_mismatch_is_rejected() {
 }
 
 #[test]
+fn a_linear_session_binds_to_two_channel_tasks() {
+    let src = "session Ping { client: select { ping: select { pong: end } }; }
+        fn f(a: &mut i64, b: &mut i64) {
+            chan c: i64 session Ping {
+                #[concurrent] { send c <- a; send c <- a; }
+                #[concurrent] { recv c -> b; recv c -> b; }
+            }
+        }";
+    assert_eq!(run(src), Ok(()));
+}
+
+#[test]
+fn a_linear_session_rejects_a_different_task_trace() {
+    let src = "session Chain { client: select { first: select { second: end } }; }
+        fn f(a: &mut i64, b: &mut i64) {
+            chan c: i64 session Chain {
+                #[concurrent] { send c <- a; }
+                #[concurrent] { recv c -> b; }
+            }
+        }";
+    match run(src) {
+        Err(CheckError::SessionTaskBinding { reason, .. }) => {
+            assert!(reason.contains("task directions"), "{reason}");
+        }
+        other => panic!("expected a task-binding failure, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_session_bound_channel_rejects_dynamic_choices() {
+    let src = "session Choice { client: select { left: end, right: end }; }
+        fn f(a: &mut i64, b: &mut i64) {
+            chan c: i64 session Choice {
+                #[concurrent] { send c <- a; }
+                #[concurrent] { recv c -> b; }
+            }
+        }";
+    match run(src) {
+        Err(CheckError::SessionTaskBinding { reason, .. }) => {
+            assert!(reason.contains("exactly one branch"), "{reason}");
+        }
+        other => panic!("expected a task-binding failure, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_session_bound_channel_rejects_checkpoints() {
+    let src = "session Checkpoint { client: checkpoint select { item: end }; }
+        fn f(a: &mut i64, b: &mut i64) {
+            chan c: i64 session Checkpoint {
+                #[concurrent] { send c <- a; }
+                #[concurrent] { recv c -> b; }
+            }
+        }";
+    match run(src) {
+        Err(CheckError::SessionTaskBinding { reason, .. }) => {
+            assert!(reason.contains("checkpoints"), "{reason}");
+        }
+        other => panic!("expected a task-binding failure, got {other:?}"),
+    }
+}
+
+#[test]
 fn malformed_behaviours_are_reported() {
     let cases = [
         ("session S { client: x; }", "not bound"),

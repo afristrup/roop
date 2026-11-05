@@ -90,8 +90,10 @@ in `editors/`.
   emits a compositional Lean plan for arbitrary finite coupling networks. The
   repository checks a 1,024-layer, width-64 plan without unfolding its updates. That
   certificate does not yet prove that generated Weave code refines the plan.
-- `try` gets only `f_inv_f`, not the reverse. Sessions are checked as
-  specifications, not matched against the task code. Floating point carries no
+- `try` gets only `f_inv_f`, not the reverse. A `chan ... session S` binding
+  checks finite, one-way session traces against two concurrent tasks. Sessions
+  with recursion, checkpoints, multiple branches, or alternating directions remain
+  specifications only. Floating point carries no
   round-trip claim, and GPU floating point can differ between runtimes.
 - On an NVIDIA GeForce RTX 4090 with driver 595.99.02, the CUDA regressions launch PTX, copy writable buffers back, check a hand-written modular add/subtract kernel, and run a compiler-emitted 4,096-word loop forward and backward. They are hardware regressions, not a general CUDA refinement theorem.
 - `keep` moves information into a history that lives until the process ends, so

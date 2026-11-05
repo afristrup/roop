@@ -47,10 +47,20 @@ pub fn print_stmt(ctx: &Ctx, stmt: &Stmt) -> Doc {
             ])
         }
         StmtKind::Block(body) => print_block(ctx, body, false),
-        StmtKind::Chan { name, ty, body } => Doc::concat(vec![
-            Doc::text(format!("chan {name}: {} ", print_type(ty))),
-            print_block(ctx, body, false),
-        ]),
+        StmtKind::Chan {
+            name,
+            ty,
+            session,
+            body,
+        } => {
+            let session = session
+                .as_ref()
+                .map_or_else(String::new, |session| format!(" session {session}"));
+            Doc::concat(vec![
+                Doc::text(format!("chan {name}: {}{session} ", print_type(ty))),
+                print_block(ctx, body, false),
+            ])
+        }
         StmtKind::Send { chan, source } => Doc::concat(vec![
             Doc::text(format!("send {chan} <- ")),
             print_place(source),

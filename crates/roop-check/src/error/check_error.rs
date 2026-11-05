@@ -143,6 +143,12 @@ pub enum CheckError {
         reason: String,
         span: Span,
     },
+    SessionTaskBinding {
+        session: String,
+        chan: String,
+        reason: String,
+        span: Span,
+    },
 }
 
 impl fmt::Display for CheckError {
@@ -343,6 +349,16 @@ impl fmt::Display for CheckError {
                 },
                 span.start,
                 span.end
+            ),
+            Self::SessionTaskBinding {
+                session,
+                chan,
+                reason,
+                span,
+            } => write!(
+                f,
+                "channel `{chan}` does not implement linear session `{session}`: {reason} at {}..{}",
+                span.start, span.end
             ),
         }
     }

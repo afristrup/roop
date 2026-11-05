@@ -81,9 +81,15 @@ pub fn infer_stmt(scope: &mut Scope, stmt: &Stmt) -> Stmt {
             source: source.clone(),
             body: within(scope, name, place_type(scope, source), body),
         },
-        StmtKind::Chan { name, ty, body } => StmtKind::Chan {
+        StmtKind::Chan {
+            name,
+            ty,
+            session,
+            body,
+        } => StmtKind::Chan {
             name: name.clone(),
             ty: ty.clone(),
+            session: session.clone(),
             body: infer_block(scope, body),
         },
         StmtKind::Block(body) => StmtKind::Block(infer_block(scope, body)),

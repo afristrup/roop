@@ -731,8 +731,26 @@ side can roll back and the other cannot.
 Lean proves the same independently, for the declared pair and for each role with
 its own dual (the paper's proposition that every behaviour is compliant with its
 dual). A test checks that proposition on thousands of random behaviours as well.
-Sessions describe a protocol and are verified as a specification. They are not
-yet matched against the code of the tasks that talk over a channel.
+A finite one-way session can also bind to one channel:
+
+```rust
+session Feed { client: select { item: select { done: end } }; }
+
+fn f(a: &mut i64, b: &mut i64) {
+    chan c: i64 session Feed {
+        #[concurrent] { send c <- a; send c <- a; }
+        #[concurrent] { recv c -> b; recv c -> b; }
+    }
+}
+```
+
+The checker matches the two tasks to the client and server in either order and
+checks their send/receive traces against the declared roles. This fragment needs
+one branch at every choice, no recursion, and no checkpoints. It also needs one
+direction per role, because a Roop channel has one sender and one receiver for its
+whole lifetime.
+Alternating or dynamic sessions still describe specifications only; binding them
+needs a pair of directed channels and explicit labels.
 
 ## Verification in Lean
 

@@ -38,6 +38,7 @@ pub enum StmtKind {
     Chan {
         name: String,
         ty: Type,
+        session: Option<String>,
         body: Block,
     },
     /// Moves the value of `source` into the channel, leaving it zero.

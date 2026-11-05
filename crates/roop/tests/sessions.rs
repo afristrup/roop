@@ -33,6 +33,26 @@ fn every_standard_session_is_checkpoint_compliant_and_proved_in_lean() {
 }
 
 #[test]
+fn a_linear_session_channel_is_checked_during_a_build() {
+    let dir = project(
+        "session-channel",
+        "",
+        "session Feed { client: select { item: select { done: end } }; }
+         fn f(a: &mut i64, b: &mut i64) {
+             chan c: i64 session Feed {
+                 #[concurrent] { send c <- a; send c <- a; }
+                 #[concurrent] { recv c -> b; recv c -> b; }
+             }
+         }",
+    );
+    assert!(
+        roop(&dir, &["build", "prog.roop", "--emit", "ir"])
+            .status
+            .success()
+    );
+}
+
+#[test]
 fn importing_a_session_checks_it_and_a_broken_one_stops_the_build() {
     let good = project(
         "session-import",
