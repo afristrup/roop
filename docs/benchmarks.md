@@ -358,7 +358,10 @@ but a width-16 check took 23.18 s at 2.53 GB RSS. It reduced peak memory from
 structural call-dispatch certificate was also accepted for both activation
 directions and every branch. It checked width 16 in 18.23 s at 2.94 GB RSS,
 which reduced memory but did not beat the 18.01 s wall-clock baseline, so it
-was not adopted. The next optimization should preserve the lower-memory
+was not adopted. Limiting every generic proof to one tactic round also reduced
+the width-16 file from 1.64 MB to 1.20 MB and peak memory to 2.95 GB, but took
+18.54 s and still exceeded the width-64 55-second budget at 2.65 GB. It was
+therefore not adopted. The next optimization should preserve the lower-memory
 representation while reducing generated proof elaboration cost.
 
 ```sh
