@@ -3,21 +3,26 @@
 \RequirePackage[numbers]{natbib}
 
 \startlocaldefs
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newcommand{\Sem}[1]{\operatorname{Sem}(#1)}
 \newcommand{\PTX}{\mathrm{PTX}}
 \endlocaldefs
 
 \begin{document}
 
 \begin{frontmatter}
-\title{The proof boundary for NVIDIA execution}
-\runtitle{The proof boundary for NVIDIA execution}
+\title{A refinement boundary for reversible NVIDIA execution}
+\runtitle{A refinement boundary for NVIDIA execution}
 
 \begin{aug}
 \author{\fnms{Anonymous}~\snm{Author}}
 \end{aug}
 
 \begin{abstract}
-Roop can generate and launch PTX on NVIDIA hardware. A runtime test passed on an NVIDIA GeForce RTX 4090 with driver 595.91.07, covering kernel launch and writable-buffer copyback. This is execution evidence, not a proof that CUDA execution refines Roop Lean semantics. We state the missing source, compiler, and backend claims, then give a narrow route from an integer additive kernel to a refinement theorem. The separation prevents a hardware regression test from being overstated as compiler verification.
+Roop emits PTX and can execute generated kernels on NVIDIA hardware. A passing hardware test establishes a useful regression fact, but it does not prove that a GPU execution implements the Lean source semantics. We formulate the source, compiler, and backend relations needed for such a result. A conditional composition theorem shows exactly how the relations imply executable reversibility. The current repository establishes a source-level certificate calculus for a restricted class of transformations and records a PTX launch and copyback test on an RTX 4090. The compiler correspondence and PTX refinement hypotheses remain open.
 \end{abstract}
 
 \begin{keyword}[class=MSC]
@@ -32,39 +37,91 @@ Roop can generate and launch PTX on NVIDIA hardware. A runtime test passed on an
 
 \end{frontmatter}
 
-\section{Three claims}
+\section{The question}
 
-Let $P$ be a well-formed Roop program, $\operatorname{Sem}(P)$ its Lean state transition, and $K(P)$ the emitted kernel. The source theorem has the form
-\begin{equation}
-\operatorname{Sem}(\operatorname{inv}(P))(\operatorname{Sem}(P)(s))=s,
-\end{equation}
-with the language guards, stack state, and supported effects included in the model.
+PTX is a virtual instruction set used in CUDA compilation \cite{nvidia2025cuda}. A source-level Lean theorem and a successful PTX launch answer different questions. The former concerns a mathematical transition system. The latter checks one concrete executable and environment. This paper states the relation required to carry a reversible source theorem to a running GPU program.
 
-A compiler theorem requires a correspondence relation
-\begin{equation}
-K(P)\sqsubseteq\operatorname{Sem}(P).
-\end{equation}
-A backend theorem relates a PTX launch and device memory to the kernel semantics:
-\begin{equation}
-\operatorname{launch}_{\PTX}(K(P),m)=m'
-\implies m'\sim\operatorname{Sem}(P)(m).
-\end{equation}
-Only the conjunction of these statements justifies a claim about the running GPU program.
+Let $S$ be a source state, $M$ a device-memory state, and $P$ a well-formed source program. Write $\Sem{P}:S\to S$ for the source transition of a terminating reversible fragment. Let $\operatorname{inv}(P)$ be its generated inverse, $K(P)$ its emitted kernel, and $\operatorname{run}(K(P),m)$ the observed device transition.
+
+\begin{definition}
+A relation $R\subseteq M\times S$ is a representation relation when $R(m,s)$ states that device memory $m$ represents source state $s$. A kernel $K$ refines a source transition $F$ through $R$, written $K\sqsubseteq_R F$, when
+\[
+ R(m,s)\ \Longrightarrow\ R(\operatorname{run}(K,m),F(s)).
+\]
+\end{definition}
+
+The definition hides the details of allocation, transfers, thread geometry, and synchronization in the device transition and in $R$. A useful proof must state those details for its chosen kernel class.
+
+\section{A conditional end-to-end theorem}
+
+\begin{theorem}[executable round trip]
+Assume the following for a program $P$.
+\begin{enumerate}
+\item Source reversal: $\Sem{\operatorname{inv}(P)}(\Sem{P}(s))=s$ for every source state $s$.
+\item Forward refinement: $K(P)\sqsubseteq_R\Sem{P}$.
+\item Inverse refinement: $K(\operatorname{inv}(P))\sqsubseteq_R\Sem{\operatorname{inv}(P)}$.
+\item Observability: $R(m,s)$ and $R(m',s')$ determine equality of the host-visible values under comparison.
+\end{enumerate}
+Then, for every $m,s$ with $R(m,s)$, executing $K(P)$ followed by $K(\operatorname{inv}(P))$ produces a device state representing $s$. The host-visible state equals its initial observed value.
+\end{theorem}
+
+\begin{proof}
+Forward refinement yields
+\[
+ R(\operatorname{run}(K(P),m),\Sem{P}(s)).
+\]
+Apply inverse refinement to obtain a state $m'$ satisfying
+\[
+ R(m',\Sem{\operatorname{inv}(P)}(\Sem{P}(s))).
+\]
+Source reversal reduces the right side to $s$. Observability gives equality of the compared host-visible values. \qed
+\end{proof}
+
+The theorem is deliberately conditional. A source theorem cannot establish either refinement statement by itself. Likewise, a regression test cannot quantify over all represented states.
 
 \section{Current evidence}
 
-The CUDA regression test passed on the RTX 4090 configuration recorded in the repository benchmark record. It tests PTX launch and host-visible writable-buffer copyback. It does not cover arbitrary kernels, block shapes, alias patterns, memory ordering, launch failures, or floating-point behavior.
+The repository records a passing CUDA runtime test on an NVIDIA GeForce RTX 4090 with driver 595.91.07. The test launches generated PTX and checks writable-buffer copyback. This gives evidence that one runtime path works on that device and driver. It does not establish a representation relation, a compiler refinement, absence of races, numerical equivalence, or behavior for arbitrary kernel launches.
 
-The repository contains no CUDA throughput comparison. It would therefore be inaccurate to call the backend competitive. A performance report must name the device, driver, CUDA toolchain, tensor shape, element type, operation count, launch configuration, warm-up policy, repetitions, variance, data-residency model, and baseline.
+The source side is stronger for the additive coupling calculus. The checked Lean module proves exact modular round trips for fixed-width tensors and arbitrary finite lists of certified transformations. The theorem in this paper would apply to that fragment once the two refinement hypotheses are proved.
 
-\section{A narrow theorem}
+\section{A first refinement target}
 
-Begin with an integer additive kernel over `BitVec 64` buffers. Give it the functional specification
-\begin{equation}
-p\leftarrow p+f(q),
-\end{equation}
-where $q$ remains unchanged. Prove that the compiler emits the kernel only when its index and alias conditions hold. Then validate or prove a PTX refinement for that restricted launch form. The inverse kernel must compute $p\leftarrow p-f(q)$ from the same preserved $q$.
+A narrow first target is the integer update
+\[
+ p_i\leftarrow p_i+f(q)_i\pmod {2^{64}},
+\]
+where the kernel does not write $q$. Its source inverse is
+\[
+ p_i\leftarrow p_i-f(q)_i\pmod {2^{64}}.
+\]
+The required representation relation maps each source tensor coordinate to the corresponding device buffer word. The compiler theorem must show that the emitted index expression covers each intended coordinate once and that the alias conditions keep the read-only $q$ buffer distinct from the updated $p$ buffer. The backend theorem must then cover the declared grid, block size, memory accesses, and synchronization policy.
 
-The certificate calculus provides the matching source-level theorem. It proves exact modular round trips but does not identify a generated kernel with its specification. Hardware tests remain useful regression tests. They do not close the compiler or backend proof boundary.
+This target does not prove a general CUDA memory model theorem. It produces one auditable refinement result whose source contract already has a Lean certificate. Further kernels can reuse its memory representation and proof structure only after their own indexing and alias obligations are discharged.
+
+\section{Development status}
+
+The present development has four distinct claims.
+\begin{enumerate}
+\item The generic source certificate calculus is checked in Lean.
+\item Generated PTX launches and copies writable buffers in a recorded RTX 4090 test.
+\item No theorem currently relates emitted Roop GPU code to the source certificate calculus.
+\item No benchmark in the repository establishes CUDA throughput or competitiveness.
+\end{enumerate}
+
+The next implementation milestone is therefore not a larger performance claim. It is a generated, machine-checkable contract for one additive kernel together with a proof that the compiler chooses that kernel only when its contract applies.
+
+\begin{thebibliography}{9}
+
+\bibitem{demoura2021lean4}
+L. de Moura and S. Ullrich (2021).
+The Lean 4 theorem prover and programming language.
+In \textit{Automated Deduction -- CADE 28}, 625--635.
+
+\bibitem{nvidia2025cuda}
+NVIDIA Corporation (2025).
+\textit{CUDA C++ Programming Guide}, Release 13.2.
+
+\end{thebibliography}
 
 \end{document}

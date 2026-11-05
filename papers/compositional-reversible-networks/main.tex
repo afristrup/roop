@@ -3,7 +3,15 @@
 \RequirePackage[numbers]{natbib}
 
 \startlocaldefs
-\newcommand{\BitVec}{\operatorname{BitVec}}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newcommand{\Bv}{\operatorname{BitVec}}
+\newcommand{\Rev}{\operatorname{Rev}}
+\newcommand{\Exec}{\operatorname{exec}}
+\newcommand{\Undo}{\operatorname{undo}}
 \endlocaldefs
 
 \begin{document}
@@ -17,7 +25,7 @@
 \end{aug}
 
 \begin{abstract}
-Roop generates inverse programs over fixed-width machine integers. We give a Lean certificate calculus for networks assembled from additive coupling layers. A layer preserves one tensor and adds an arbitrary function of it into the other. The update function remains opaque. For every tensor width, element width, and finite list of layers, Lean proves that forward execution followed by reverse execution restores the initial state, and conversely. The theorem removes whole-network arithmetic expansion from the reversibility argument. It does not yet connect generated Weave code or emitted CUDA kernels to the certificate calculus.
+We give a checked certificate calculus for finite reversible networks over fixed-width tensors. A coupling layer preserves one tensor and adds an arbitrary function of it into the other. Its inverse replaces addition by subtraction. The update function is opaque to the reversibility argument. We prove local cancellation, composition, and a linear-size certificate bound. The Roop Lean development checks the generic theorems for every tensor width, element width, layer direction, and finite layer list. The result removes expanded tensor arithmetic from the network round-trip proof. It does not yet prove that generated Weave code implements the certificate representation.
 \end{abstract}
 
 \begin{keyword}[class=MSC]
@@ -32,38 +40,109 @@ Roop generates inverse programs over fixed-width machine integers. We give a Lea
 
 \end{frontmatter}
 
-\section{Machine arithmetic}
+\section{Introduction}
 
-Let $B_n=\BitVec(n)$. Addition and subtraction in $B_n$ are modulo $2^n$. Hence, for every $a,b\in B_n$,
-\begin{equation}
-(a+b)-b=a,\qquad (a-b)+b=a.
-\end{equation}
-Let $T_{d,n}=\operatorname{Fin}(d)\to B_n$. These identities extend pointwise to $T_{d,n}$. The Lean proof uses function extensionality and does not enumerate the $d$ coordinates.
+Coupling transformations make an inverse available without inverting the function used in the update. This idea appears in NICE \cite{dinh2015nice} and reversible residual networks \cite{gomez2017revnet}. Roop uses the same algebra over machine integers and generates inverse programs. The verification problem differs from a numerical reversibility argument. It must establish exact recovery of bit patterns and avoid expanding a large generated tensor computation merely to prove cancellation.
 
-\section{Coupling layers}
+This paper gives a small certificate language for that purpose. Its central theorem is generic in network depth. The proof term records the composition of layer certificates, not the internal arithmetic of the update functions. Lean checks the implementation \cite{demoura2021lean4}.
 
-For $f:T_{d,n}\to T_{d,n}$, define
-\begin{equation}
-U_f(q,p)=(q,p+f(q)),\qquad V_f(q,p)=(q+f(p),p).
-\end{equation}
-Their inverses replace addition by subtraction. No condition on the internal computation of $f$ is needed. In particular, $f$ need not be linear, injective, differentiable, or reversible. The preserved component supplies the argument used to recompute $f$ during reverse execution.
+\section{Certified transformations}
 
-The Lean development represents each layer as `CouplingLayer`. Its method `certificate` chooses $U_f$ or $V_f$. The implementation resides in RoopLean's certificate library.
+\begin{definition}
+For types $A$ and $B$, a reversible transformation $r\in\Rev(A,B)$ consists of functions
+\[
+ r.\operatorname{run}:A\to B,\qquad r.\operatorname{undo}:B\to A
+\]
+such that, for every $a\in A$ and $b\in B$,
+\[
+ r.\operatorname{undo}(r.\operatorname{run}(a))=a,
+ \qquad
+ r.\operatorname{run}(r.\operatorname{undo}(b))=b.
+\]
+\end{definition}
 
-\section{Arbitrary finite networks}
+Let $B_n=\Bv(n)$ and $T_{d,n}=\operatorname{Fin}(d)\to B_n$. Addition and subtraction on $B_n$ are modulo $2^n$. Thus overflow is part of the model rather than an exceptional case.
 
-For $L=[\ell_1,\ldots,\ell_k]$, `couplingNetwork L` constructs a `Program` from the individual certificates. Its generic certificate yields
-\begin{equation}
-\operatorname{undo}_L(\operatorname{exec}_L(s))=s,
-\qquad
-\operatorname{exec}_L(\operatorname{undo}_L(s))=s.
-\end{equation}
-The theorem quantifies over $d$, $n$, $k$, all layer directions, and all update functions. Its proof checks the program structure and invokes the certificate of each layer. It does not normalize an Einsum, matrix product, activation, or tensor element inside $f$.
+\begin{definition}
+For $f:T_{d,n}\to T_{d,n}$, define two coupling updates:
+\[
+ U_f(q,p)=(q,p+f(q)),\qquad V_f(q,p)=(q+f(p),p),
+\]
+where addition is pointwise. Their proposed inverse maps replace $+$ by $-$.
+\end{definition}
 
-A Rust regression checks the Lean module. The theorem is therefore checked in the repository.
+\begin{lemma}[local cancellation]\label{lem:local}
+For every $d$, $n$, and $f:T_{d,n}\to T_{d,n}$, both $U_f$ and $V_f$ are elements of $\Rev(T_{d,n}\times T_{d,n},T_{d,n}\times T_{d,n})$.
+\end{lemma}
 
-\section{Proof boundary}
+\begin{proof}
+Consider $U_f$. Its inverse receives $(q,p+f(q))$, preserves $q$, and returns
+\[
+ (p+f(q))-f(q)=p
+\]
+at each tensor index. The other round trip uses $(p-f(q))+f(q)=p$. Both equations hold in $B_n$. Function extensionality lifts the scalar equations to tensors. The proof for $V_f$ swaps the two components. \qed
+\end{proof}
 
-The theorem covers additive coupling programs over modular bitvectors. It does not establish numerical accuracy, gradient correctness, alias safety in generated source, resource bounds, or a correspondence between the Roop compiler and this representation. The next theorem must show that a generated Weave layer preserves one tensor and performs the pointwise modular update named by its `CouplingLayer` certificate. After that correspondence is established, increasing network depth adds checked transformations rather than expanded arithmetic proofs.
+The lemma makes no assumption about $f$. It may compute a matrix product, activation, convolution, attention block, or another network. The preserved component makes $f$ available again during reversal.
+
+\section{Networks as programs}
+
+A program is either empty or a certified transformation followed by a program. Define execution by applying transformations from head to tail and reverse execution by applying their inverses from tail to head.
+
+\begin{theorem}[compositional round trip]\label{thm:roundtrip}
+For every finite program $P$ of transformations in $\Rev(A,A)$ and every $s\in A$,
+\[
+ \Undo_P(\Exec_P(s))=s,
+ \qquad
+ \Exec_P(\Undo_P(s))=s.
+\]
+\end{theorem}
+
+\begin{proof}
+Induct on $P$. The empty program has identity execution. For $P=r::Q$, reverse execution first applies the induction hypothesis to $Q$, then applies $r.\operatorname{undo}$ to $r.\operatorname{run}(s)$. Local cancellation gives the first equality. The other equality is symmetric. \qed
+\end{proof}
+
+\begin{corollary}[arbitrary finite coupling networks]
+For every finite list of functions and directions, the network obtained by choosing $U_f$ or $V_f$ at each position has both round trips.
+\end{corollary}
+
+\begin{proof}
+Apply Lemma~\ref{lem:local} to each list element and then Theorem~\ref{thm:roundtrip}. \qed
+\end{proof}
+
+\begin{theorem}[certificate representation bound]
+Suppose each layer certificate is supplied by name. A certificate for a network of $k$ layers contains $O(k)$ composition nodes and no subterm representing the body of an update function.
+\end{theorem}
+
+\begin{proof}
+The program constructor adds one node and one reference to a supplied layer certificate per layer. The proof of Theorem~\ref{thm:roundtrip} follows the same list structure. It invokes, but does not unfold, the two equations stored in each certificate. \qed
+\end{proof}
+
+This is a statement about the certificate representation. It does not claim a bound on every Lean elaboration strategy or on the cost of validating a concrete update contract.
+
+\section{Checked development and boundary}
+
+The Lean module \texttt{TensorNetwork.lean} defines the layer representation and both round-trip theorems. A Rust regression invokes Lean on the module. These checks establish the generic certificate calculus.
+
+Generated Weave source is not yet translated into this representation. The missing correspondence theorem must show that a generated layer leaves its stated source tensor unchanged and performs the modular pointwise update named by the certificate. In particular, it must connect the opaque update symbol to generated Einsum code, temporary cleanup, and alias conditions. Until then, the development proves the calculus, not a refinement theorem for the emitted compiler output.
+
+\begin{thebibliography}{9}
+
+\bibitem{demoura2021lean4}
+L. de Moura and S. Ullrich (2021).
+The Lean 4 theorem prover and programming language.
+In \textit{Automated Deduction -- CADE 28}, 625--635.
+
+\bibitem{dinh2015nice}
+L. Dinh, D. Krueger and Y. Bengio (2015).
+NICE: Non-linear independent components estimation.
+\textit{International Conference on Learning Representations}.
+
+\bibitem{gomez2017revnet}
+A. N. Gomez, M. Ren, R. Urtasun and R. B. Grosse (2017).
+The reversible residual network: Backpropagation without storing activations.
+In \textit{Advances in Neural Information Processing Systems 30}.
+
+\end{thebibliography}
 
 \end{document}
