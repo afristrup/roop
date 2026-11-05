@@ -11,10 +11,10 @@ pub fn no_ancilla_lemma(
     let a = "\u{ab}__a\u{bb}";
     let piece = esc_fn(&format!("{}_{part}", shape.id));
     let mut unfold = vec![piece.clone()];
-    if matches!(part, "body" | "body_inv") {
-        if let Some(update) = &info.additive_update {
-            unfold.push(update.delta.clone());
-        }
+    if matches!(part, "body" | "body_inv")
+        && let Some(update) = &info.additive_update
+    {
+        unfold.push(update.delta.clone());
     }
     unfold.extend(deps.iter().cloned());
     let simple = format!(

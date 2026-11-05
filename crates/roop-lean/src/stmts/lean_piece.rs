@@ -1,6 +1,6 @@
 use crate::{
-    AdditiveUpdate, Ctx, Dir, Env, LeanError, Lifted, Out, esc, esc_fn, lean_block, lean_expr,
-    lean_type, place_type, tuple_expr, tuple_type, unpack_state, unref,
+    AdditiveUpdate, Ctx, Dir, Env, LeanError, Lifted, Out, esc, esc_fn, esc_thm, lean_block,
+    lean_expr, lean_type, place_type, tuple_expr, tuple_type, unpack_state, unref,
 };
 use roop_syntax::{Block, Expr, Place, StmtKind, Type, UpdateOp};
 
@@ -18,10 +18,10 @@ pub fn lean_piece(
     piece: Piece,
     dir: Dir,
 ) -> Result<(), LeanError> {
-    if let Piece::Block(block) = piece {
-        if let Some((target, index, value)) = additive_update(cx, env, info, block)? {
-            return lean_additive_piece(cx, env, out, info, name, target, index, value, dir);
-        }
+    if let Piece::Block(block) = piece
+        && let Some((target, index, value)) = additive_update(cx, env, info, block)?
+    {
+        return lean_additive_piece(cx, env, out, info, name, target, index, value, dir);
     }
     let mut inner_env = Env {
         vars: info.captures.iter().chain(&info.state).cloned().collect(),
@@ -110,6 +110,31 @@ fn additive_update<'a>(
     Ok(Some((root, index_name, value)))
 }
 
+fn args_with(captures: &[(String, Type)]) -> String {
+    captures
+        .iter()
+        .map(|(name, _)| esc(name))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn read_count(expr: &Expr) -> usize {
+    match expr {
+        Expr::Place(place) => place_reads(place),
+        Expr::Unary(_, expr) | Expr::Cast(expr, _) => read_count(expr),
+        Expr::Binary(left, _, right) => read_count(left) + read_count(right),
+        _ => 0,
+    }
+}
+
+fn place_reads(place: &Place) -> usize {
+    match place {
+        Place::Var(_) => 0,
+        Place::Field(base, _) => place_reads(base),
+        Place::Index(base, index) => place_reads(base) + read_count(index) + 1,
+    }
+}
+
 fn expr_uses(expr: &Expr, root: &str) -> bool {
     match expr {
         Expr::Place(place) => place_uses(place, root),
@@ -141,6 +166,7 @@ fn lean_additive_piece(
 ) -> Result<(), LeanError> {
     let (_, preserved_ty) = &info.state[1];
     let delta = esc_fn(&format!("{}_body_delta", info.id));
+    let delta_no_ancilla = esc_thm(&format!("{}_body_delta_no_ancilla", info.id));
     if dir == Dir::Forward {
         let delta_env = Env {
             vars: info
@@ -164,6 +190,15 @@ fn lean_additive_piece(
             esc(&info.state[1].0),
             lean_type(preserved_ty),
             lean_expr(cx, &delta_env, value)?,
+        ));
+        out.lifted.push_str(&format!(
+            "theorem {delta_no_ancilla} {} ({} : {}) : {delta} {} {} ≠ Except.error Roop.Fail.ancilla := by\n  simp only [{delta}]\n{}  all_goals simp [pure, Except.pure]\n",
+            captures.join(" "),
+            esc(&info.state[1].0),
+            lean_type(preserved_ty),
+            args_with(&info.captures),
+            esc(&info.state[1].0),
+            "  all_goals first | (apply Roop.bind_ne_ancilla (by apply Roop.aget_ne_ancilla); intro _) | apply Roop.aget_ne_ancilla\n".repeat(read_count(value)),
         ));
         info.additive_update = Some(AdditiveUpdate {
             delta: delta.clone(),
