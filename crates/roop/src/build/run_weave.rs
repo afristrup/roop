@@ -13,11 +13,11 @@ pub fn run_weave(args: &WeaveArgs) -> Result<(), CliError> {
         std::fs::write(path, emit_driver(&model, batch))
             .map_err(|e| CliError::Io(path.display().to_string(), e))?;
     }
+    let code = emit_model(&model, args.tests, args.batch, args.main);
     if let Some(path) = &args.certificate {
-        std::fs::write(path, emit_certificate(&model))
+        std::fs::write(path, emit_certificate(&model, &code))
             .map_err(|e| CliError::Io(path.display().to_string(), e))?;
     }
-    let code = emit_model(&model, args.tests, args.batch, args.main);
     match &args.output {
         Some(path) => {
             std::fs::write(path, code).map_err(|e| CliError::Io(path.display().to_string(), e))

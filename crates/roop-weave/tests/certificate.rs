@@ -1,6 +1,6 @@
 mod support;
 
-use roop_weave::{emit_certificate, parse_model};
+use roop_weave::{emit_certificate, emit_model, parse_model, source_fingerprint};
 use std::process::Command;
 use support::{attention, leapfrog, mlp, model, project, roop, text};
 
@@ -20,7 +20,12 @@ fn a_generated_certificate_checks_an_arbitrary_coupling_plan() {
         .to_string(),
     )
     .unwrap();
-    let text = emit_certificate(&model);
+    let source = emit_model(&model, false, None, false);
+    let text = emit_certificate(&model, &source);
+    assert!(
+        text.contains(&format!("{:016x}", source_fingerprint(&source))),
+        "{text}"
+    );
     assert!(text.contains("net_update_4"), "{text}");
     assert!(text.contains("intoFirst := true"), "{text}");
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../roop-lean/lean");
@@ -58,6 +63,12 @@ fn the_cli_writes_a_checked_certificate() {
         &["weave", "model.json", "--certificate", "model.lean"],
     );
     assert!(output.status.success(), "{}", text(&output));
+    let source = String::from_utf8(output.stdout).unwrap();
+    let certificate = std::fs::read_to_string(dir.join("model.lean")).unwrap();
+    assert!(
+        certificate.contains(&format!("{:016x}", source_fingerprint(&source))),
+        "{certificate}"
+    );
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../roop-lean/lean");
     let lake = std::env::var("HOME")
         .ok()
