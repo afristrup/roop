@@ -44,7 +44,7 @@ We give a checked certificate calculus for finite reversible networks over fixed
 
 Coupling transformations make an inverse available without inverting the function used in the update. This idea appears in NICE \cite{dinh2015nice} and reversible residual networks \cite{gomez2017revnet}. Roop uses the same algebra over machine integers and generates inverse programs. The verification problem differs from a numerical reversibility argument. It must establish exact recovery of bit patterns and avoid expanding a large generated tensor computation merely to prove cancellation.
 
-This paper gives a small certificate language for that purpose. Its central theorem is generic in network depth. The proof term records the composition of layer certificates, not the internal arithmetic of the update functions. Lean checks the implementation \cite{demoura2021lean4}.
+This paper gives a small certificate language for that purpose. Its central theorem is generic in network depth. The proof term records the composition of layer certificates, not the internal arithmetic of the update functions. Lean checks the implementation through CSLib's labelled-transition-system interface \cite{demoura2021lean4,henson2026cslib}.
 
 \section{Certified transformations}
 
@@ -144,6 +144,11 @@ The \texttt{roop weave --certificate} command first parses the emitted forward f
 L. de Moura and S. Ullrich (2021).
 The Lean 4 theorem prover and programming language.
 In \textit{Automated Deduction -- CADE 28}, 625--635.
+
+\bibitem{henson2026cslib}
+C. Henson and F. Montesi (2026).
+Computer science as infrastructure: the spine of the Lean Computer Science Library (CSLib).
+\textit{Electronic Proceedings in Theoretical Computer Science} 449, 141--148.
 
 \bibitem{dinh2015nice}
 L. Dinh, D. Krueger and Y. Bengio (2015).
