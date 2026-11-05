@@ -167,7 +167,7 @@ code at 1M elements and up is identical with `auto` on or off, and the differenc
 in the first table was run-to-run noise. The cost model's GPU side, calibrated for
 64-bit integer loops, has not been re-checked.
 
-CUDA runtime verification: `cargo test -p roop-rt --test cuda -- --nocapture` passed on an NVIDIA GeForce RTX 4090 with driver 595.91.07, verifying PTX launch and writable-buffer copyback. CUDA performance benchmarks are not included yet.
+CUDA runtime verification passed on an NVIDIA GeForce RTX 4090 with driver 595.99.02. The tests launch PTX, copy writable buffers back, and check modular 64-bit addition and generated-inverse restoration for a compiler-emitted CUDA loop. CUDA throughput benchmarks are not included yet.
 
 ## weave's training step
 
