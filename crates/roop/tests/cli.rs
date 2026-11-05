@@ -248,6 +248,12 @@ fn emitted_cuda_contract_records_kernel_buffers() {
     assert_eq!(manifest["schema"], "roop.cuda-contract.v1");
     let kernels = manifest["kernels"].as_array().unwrap();
     assert_eq!(kernels.len(), 2);
+    let ptx = std::fs::read_to_string(dir.join("prog.ptx.ll")).unwrap();
+    for kernel in kernels {
+        let name = kernel["kernel"].as_str().unwrap();
+        let header = format!("define ptx_kernel void @{}", name);
+        assert!(ptx.contains(&header), "{ptx}");
+    }
     let forward = kernels
         .iter()
         .find(|kernel| kernel["direction"] == "forward")
