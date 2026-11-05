@@ -244,7 +244,7 @@ fn emitted_cuda_contract_records_kernel_buffers() {
     let output = roop(&dir, &["build", "prog.roop", "--emit", "ir"]);
     assert!(output.status.success(), "{}", stderr(&output));
     let text = std::fs::read_to_string(dir.join("prog.cuda-contract.json")).unwrap();
-    let manifest: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let mut manifest: serde_json::Value = serde_json::from_str(&text).unwrap();
     assert_eq!(manifest["schema"], "roop.cuda-contract.v2");
     let kernels = manifest["kernels"].as_array().unwrap();
     assert_eq!(kernels.len(), 2);
@@ -310,6 +310,22 @@ fn emitted_cuda_contract_records_kernel_buffers() {
         "{}",
         stderr(&verified)
     );
+    manifest["kernels"][0]["buffers"][0]["address_space"] = serde_json::json!(2);
+    std::fs::write(
+        dir.join("bad.cuda-contract.json"),
+        serde_json::to_string(&manifest).unwrap(),
+    )
+    .unwrap();
+    let rejected = roop(
+        &dir,
+        &[
+            "verify-cuda-contract",
+            "prog.ptx.ll",
+            "bad.cuda-contract.json",
+        ],
+    );
+    assert!(!rejected.status.success());
+    assert!(stderr(&rejected).contains("missing `ptr addrspace(2) %buf0`"));
 }
 
 #[test]
