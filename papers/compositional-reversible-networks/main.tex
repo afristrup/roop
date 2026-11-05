@@ -122,7 +122,7 @@ This is a statement about the certificate representation. It does not claim a bo
 
 \section{Checked development and boundary}
 
-The Lean module \texttt{TensorNetwork.lean} defines the layer representation and both round-trip theorems. Rust regressions invoke Lean on the module, on a mixed coupling plan, and on a generated 256-layer plan. These checks establish the generic certificate calculus and exercise a deep concrete certificate without unfolding its updates.
+The Lean module \texttt{TensorNetwork.lean} defines the layer representation and both round-trip theorems. Rust regressions invoke Lean on the module, on a mixed coupling plan, and on a generated 1,024-layer plan. These checks establish the generic certificate calculus and exercise a deep concrete certificate without unfolding its updates.
 
 The \texttt{roop weave --certificate} command emits a Lean file containing the transformation directions for a model and one opaque update symbol for each transformation. Lean checks its round-trip theorems. The certificate records an FNV-1a fingerprint of the emitted Roop source, so an auditor can compare the two artifacts. It is not collision-resistant and does not prove refinement. The missing correspondence theorem must show that a generated layer leaves its stated source tensor unchanged and performs the modular pointwise update named by the certificate. In particular, it must connect each opaque update symbol to generated Einsum code, temporary cleanup, and alias conditions. Until then, the development proves the calculus and checks a model plan, not a refinement theorem for the emitted compiler output.
 

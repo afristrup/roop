@@ -90,11 +90,11 @@ fn the_cli_writes_a_checked_certificate() {
 
 #[test]
 fn a_deep_certificate_checks_without_expanding_updates() {
-    let layers = (0..256).map(|seed| mlp("relu", 2, 4, seed + 1)).collect();
+    let layers = (0..1024).map(|seed| mlp("relu", 2, 4, seed + 1)).collect();
     let model = parse_model(&model("deep", 4, 1, layers).to_string()).unwrap();
     let source = emit_model(&model, false, None, false);
     let text = emit_certificate(&model, &source);
-    assert_eq!(text.matches("opaque deep_update_").count(), 256);
+    assert_eq!(text.matches("opaque deep_update_").count(), 1024);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../roop-lean/lean");
     let file = std::env::temp_dir().join(format!(
         "roop-weave-deep-certificate-{}.lean",
