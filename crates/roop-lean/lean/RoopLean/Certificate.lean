@@ -2,6 +2,7 @@ import RoopLean.Certificate.Identity
 import RoopLean.Certificate.AddUpdate
 import RoopLean.Certificate.AddUpdateAt
 import RoopLean.Certificate.TensorAddUpdate
+import RoopLean.Certificate.TensorNetwork
 import RoopLean.Certificate.Then
 import RoopLean.Certificate.Inverse
 import RoopLean.Certificate.ProgramInverseExecution
