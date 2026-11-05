@@ -1,5 +1,6 @@
 mod support;
 
+use roop_weave::{emit_model, parse_model};
 use support::{attention, compile, conv, leapfrog, mlp, mlp_norm, model, project, roop, text};
 
 fn check(name: &str, layers: Vec<serde_json::Value>, width: usize, outputs: usize) {
@@ -74,6 +75,26 @@ fn attention_mixed_with_perceptrons_and_leapfrog_agrees_with_the_reference() {
         mlp("softsign", 2, 4, 5),
     ];
     check("attn_mixed", layers, 4, 2);
+}
+
+#[test]
+fn generated_models_do_not_use_world_history() {
+    let spec = model(
+        "history_free",
+        6,
+        3,
+        vec![
+            leapfrog("tanh", 4, 6, 1),
+            mlp_norm("relu", 4, 6, 2),
+            conv(2, 3, 3),
+            attention(3, 2, 4),
+        ],
+    );
+    let model = parse_model(&spec.to_string()).unwrap();
+    let source = emit_model(&model, false, None, false);
+    for effect in ["keep ", "logged ", "Stack<", "forget"] {
+        assert!(!source.contains(effect), "{effect} in {source}");
+    }
 }
 
 #[test]

@@ -23,6 +23,12 @@ the difference being measured. The gradients agree exactly, to the last bit, in
 every row. The table gives each process's peak resident memory, and what the
 activations alone took in the two baselines:
 
+The measured `weave::grad` path contains no `keep`, `logged`, stack, or `forget`
+operation, so this comparison does not measure world-history retention. `roop test`
+reports the peak bytes held by `keep`; that counter excludes local `Stack` values,
+whose storage is already part of a process's resident memory. These are separate
+resources and need separate measurements.
+
 | layers L | weights + gradients | roop: peak | stored: peak | stored: activations | checkpointed: peak | checkpointed: activations | same gradients |
 |---:|---:|---:|---:|---:|---:|---:|:---|
 | 8 | 0.5 MB | 6.5 MB | 5.8 MB | 2.1 MB | 4.9 MB | 1.6 MB | yes |
