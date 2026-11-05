@@ -364,6 +364,13 @@ the width-16 file from 1.64 MB to 1.20 MB and peak memory to 2.95 GB, but took
 therefore not adopted. The next optimization should preserve the lower-memory
 representation while reducing generated proof elaboration cost.
 
+A precompiled generic four-way dispatch theorem was also instantiated for both
+activation directions. It reduced the regenerated width-16 source from 1.64 MB
+to 1.57 MB and used 2.90 to 2.94 GB RSS, but accepted checks took 18.13 s,
+18.26 s, and 18.29 s. The width-2 check took 5.57 s and 2.27 GB RSS. Because
+the representative width-16 checks did not improve on the 18.01 s baseline,
+the candidate was not adopted.
+
 ```sh
 lean --profile prog.lean
 ```
