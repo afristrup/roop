@@ -341,6 +341,11 @@ right-hand side does not read that component. A subsequent accepted width-16
 check took 18.51 s and 3.03 GB RSS. This single run is a 1.7% directional
 improvement over 18.83 s; it is not a multi-run comparison. The current width-64 generated proof did not finish within a 55-second Lean check budget.
 
+A regenerated width-16 check with Lean’s default declaration parallelism took
+18.01 s at 3.00 GB RSS. The same file with `lean -j 1` took 48.48 s at 2.83
+GB RSS. Parallel elaboration is therefore necessary for current wall-clock
+performance, although it adds roughly 160 MB of peak resident memory.
+
 A width-16 trace with `set_option trace.profiler true` and a 10 ms threshold
 attributes the largest individual declarations to the four scalar activation
 branch roundtrips (0.97 to 1.10 s each). The width-sensitive Drift roundtrips
