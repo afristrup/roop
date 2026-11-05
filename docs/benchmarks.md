@@ -329,6 +329,13 @@ resident memory and was intentionally stopped. This is a bounded baseline, not
 a timeout or a kernel-only measurement. It identifies proof normalization and
 tactics for monomorphized Einsum loops as the next optimization target.
 
+The separate compositional certificate regression generated a 1,024-layer,
+width-64 coupling plan with opaque updates and asked Lean to check both round
+trips. A single dev-profile run completed the three certificate tests in 2.86 s
+with 1,749,288 KB peak RSS. This checks the plan, not the generated tensor
+updates or a compiler refinement theorem, and is a regression measurement rather
+than a performance benchmark.
+
 An additive-loop certificate now lifts a recognized `out[i] += delta` body into
 one shared delta computation and applies a fixed array-update inverse theorem.
 With the same two-layer forward template, accepted checks took 6.09 s median at
