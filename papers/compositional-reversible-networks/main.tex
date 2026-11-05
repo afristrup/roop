@@ -110,6 +110,16 @@ For every finite list of functions and directions, the network obtained by choos
 Apply Lemma~\ref{lem:local} to each list element and then Theorem~\ref{thm:roundtrip}.
 \end{proof}
 
+For a program $P$, let $\mathcal{L}_P$ have one unit-labelled transition from $s$ to $\Exec_P(s)$. Its inverse system uses $\Undo_P$ instead.
+
+\begin{theorem}[trace reversal]\label{thm:trace}
+Every finite execution of $\mathcal{L}_P$ from $s$ to $t$ reverses to an execution of the inverse system from $t$ to $s$. The state sequence and the unit-label sequence are both reversed.
+\end{theorem}
+
+\begin{proof}
+Theorem~\ref{thm:roundtrip} gives both inverse laws for $\Exec_P$ and $\Undo_P$. Reverse each transition in the execution. The reverse transition has the form $\Undo_P(\Exec_P(s))=s$. This is an inverse-system transition. CSLib checks this argument for the certificate program representation.
+\end{proof}
+
 \begin{theorem}[certificate representation bound]
 Suppose each layer certificate is supplied by name. A certificate for a network of $k$ layers contains $O(k)$ composition nodes and no subterm representing the body of an update function.
 \end{theorem}
