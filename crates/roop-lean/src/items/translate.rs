@@ -187,12 +187,6 @@ fn translate_fn(
                     Construct::Try => lean_try_lemmas(info, deps, &known),
                 };
                 text.push_str(&lemma_text);
-                if info.construct == Construct::Loop {
-                    let pieces: Vec<String> = ["body", "step", "body_inv", "step_inv"]
-                        .map(|part| esc_fn(&format!("{}_{}", info.id, part)))
-                        .into();
-                    text.push_str(&format!("attribute [irreducible] {}\n", pieces.join(" ")));
-                }
                 if let Some(commute) = lean_commute(info, deps, &forward.lifted) {
                     text.push_str(&commute);
                     parallel = true;
