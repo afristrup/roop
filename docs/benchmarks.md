@@ -268,13 +268,17 @@ record per source function and time parsing for every PLA and SyReC source, plus
 
 ```sh
 cargo run --release -p roop-revlib --example corpus -- /path/to/revlib --benchmark
+
+# Optional: evaluate every witness with the linear reference evaluator
+cargo run --release -p roop-revlib --example corpus -- /path/to/revlib --full-evaluate
 ```
 
 `--benchmark` implies `--report` and takes the best of three runs for each
 per-source parse, validation, one reference evaluation per table,
 index-construction, and full-row-witness lookup measurement. Its CSV has dimensions, row and node counts, and nanosecond phase
-measurements. The
-stand-alone validation and evaluator measurements are separate; index construction also
+measurements. `--full-evaluate` is opt-in because it evaluates every witness
+with the linear reference evaluator, while the default keeps one representative
+evaluation per table. The stand-alone validation and evaluator measurements are separate; index construction also
 validates its input by contract.
 
 On the local RevLib archive, all 139 available source functions, comprising 133
@@ -283,7 +287,9 @@ ms, per-source PLA parsing in 10.17 ms, SyReC parsing in 6.49 microseconds,
 stand-alone validation in 1.95 ms, 133 representative reference evaluations in
 2.33 ms, index construction in 19.34 ms, and 173,529 indexed witness lookups
 in 120.13 ms. This validates the corpus interface, reference evaluator, and index, not a compilation of every PLA table to reversible Roop
-code.
+code. With `--full-evaluate`, the same corpus completed all 173,529 linear
+reference evaluations in 39.41 s, compared with 118.40 ms for all indexed
+lookups.
 
 ## Lean proof profile
 
