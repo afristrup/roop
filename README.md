@@ -88,7 +88,8 @@ in `editors/`.
   and `#[parallel]` loops commute. The older expanded Weave translation passes
   small models but remains too costly at width 64. Separately, `weave --certificate`
   emits a compositional Lean plan for arbitrary finite coupling networks. The
-  repository checks a 1,024-layer, width-64 plan without unfolding its updates. A
+  repository checks a 1,024-layer, width-64 plan without unfolding its updates. Each
+  plan also proves its CSLib execution trace reverses under its structural inverse. A
   parser regression also compares a mixed model's emitted forward-call directions,
   target tensors, and preserved tensors with its plan. Neither check proves that
   generated Weave code refines the plan.

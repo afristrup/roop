@@ -29,6 +29,7 @@ fn a_generated_certificate_checks_an_arbitrary_coupling_plan() {
     );
     assert!(text.contains("net_update_4"), "{text}");
     assert!(text.contains("intoFirst := true"), "{text}");
+    assert!(text.contains("net_inverse_execution"), "{text}");
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../roop-lean/lean");
     let file = std::env::temp_dir().join(format!(
         "roop-weave-certificate-{}.lean",

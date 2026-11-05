@@ -27,9 +27,13 @@ pub fn emit_certificate(model: &Model, source: &str) -> String {
     let state = format!("Tensor {} 64 × Tensor {} 64", model.width, model.width);
     let fingerprint = source_fingerprint(source);
     format!(
-        "-- Roop source FNV-1a fingerprint: {fingerprint:016x}\nimport RoopLean.Certificate\n\nnamespace WeaveCertificate\n\nopen RoopLean\nopen RoopLean.Rev\n\n{updates}\ndef {}_layers : List (CouplingLayer {} 64) := [\n{layers}]\n\ntheorem {}_undo_run (state : {state}) :\n    (couplingNetwork {}_layers).undo ((couplingNetwork {}_layers).exec state) = state :=\n  couplingNetwork_undo_run {}_layers state\n\ntheorem {}_run_undo (state : {state}) :\n    (couplingNetwork {}_layers).exec ((couplingNetwork {}_layers).undo state) = state :=\n  couplingNetwork_run_undo {}_layers state\n\nend WeaveCertificate\n",
+        "-- Roop source FNV-1a fingerprint: {fingerprint:016x}\nimport RoopLean.Certificate\n\nnamespace WeaveCertificate\n\nopen RoopLean\nopen RoopLean.Rev\n\n{updates}\ndef {}_layers : List (CouplingLayer {} 64) := [\n{layers}]\n\ntheorem {}_undo_run (state : {state}) :\n    (couplingNetwork {}_layers).undo ((couplingNetwork {}_layers).exec state) = state :=\n  couplingNetwork_undo_run {}_layers state\n\ntheorem {}_run_undo (state : {state}) :\n    (couplingNetwork {}_layers).exec ((couplingNetwork {}_layers).undo state) = state :=\n  couplingNetwork_run_undo {}_layers state\n\ntheorem {}_inverse_execution\n    (run : (forwards (couplingNetwork {}_layers).exec).Execution s labels t states) :\n    (forwards (couplingNetwork {}_layers).undo).Execution t labels.reverse s states.reverse :=\n  couplingNetwork_inverse_execution {}_layers run\n\nend WeaveCertificate\n",
         model.name,
         model.width,
+        model.name,
+        model.name,
+        model.name,
+        model.name,
         model.name,
         model.name,
         model.name,
