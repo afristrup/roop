@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Times compiler-emitted i64 additions on CPU threads and CUDA.
 
-A warm-up call loads the PTX module. Timed CUDA calls include device allocation, transfers, launch, and copyback. Build first with `cargo build --release -p roop -p roop-rt`, then run
+A warm-up call loads the PTX module. Timed CUDA calls reuse a bounded allocation pool but still copy buffers, launch, and copy back.
+Build first with `cargo build --release -p roop -p roop-rt`, then run
 `python3 bench/calibrate_cuda.py` on a CUDA host.
 """
 import os

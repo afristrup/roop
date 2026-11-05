@@ -169,14 +169,14 @@ in the first table was run-to-run noise. The cost model's GPU side, calibrated f
 
 CUDA runtime verification passed on an NVIDIA GeForce RTX 4090 with driver 595.99.02. The tests launch PTX, copy writable buffers back, and check modular 64-bit addition and generated-inverse restoration for a compiler-emitted CUDA loop.
 
-Run `python3 bench/calibrate_cuda.py` after `cargo build --release -p roop -p roop-rt` to compare compiler-emitted CPU-thread and CUDA additions. A warm-up call loads the PTX module. Timed CUDA calls include device allocation, host-device copies, launch, and copyback. Two best-of-three benchmark invocations after module caching gave these per-call ranges in microseconds:
+Run `python3 bench/calibrate_cuda.py` after `cargo build --release -p roop -p roop-rt` to compare compiler-emitted CPU-thread and CUDA additions. A warm-up call loads the PTX module. Timed CUDA calls reuse a bounded allocation pool but still copy host and device buffers, launch, and copy back. Three best-of-three benchmark invocations after caching gave these per-call ranges in microseconds:
 
 | N | CPU threads | CUDA end to end |
 |---:|---:|---:|
-| 4 | 22.25 to 24.90 | 145.86 to 162.06 |
-| 4096 | 27.87 to 30.64 | 197.75 to 506.05 |
-| 65536 | 35.29 to 37.81 | 1050.07 to 1059.68 |
-| 1048576 | 127.20 to 133.97 | 15087.12 to 15321.65 |
+| 4 | 23.18 to 24.80 | 50.02 to 53.82 |
+| 4096 | 27.87 to 30.64 | 114.51 to 128.49 |
+| 65536 | 40.19 to 42.12 | 954.07 to 1037.97 |
+| 1048576 | 115.21 to 145.07 | 13165.79 to 14515.91 |
 
 CPU threads win at every measured size. This measures the present dispatch path, not steady-state kernel throughput with resident device buffers.
 
