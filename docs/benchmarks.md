@@ -371,6 +371,11 @@ to 1.57 MB and used 2.90 to 2.94 GB RSS, but accepted checks took 18.13 s,
 the representative width-16 checks did not improve on the 18.01 s baseline,
 the candidate was not adopted.
 
+The opaque scalar-update certificate also checked the width-2 model in 6.06 s
+and 2.33 GB RSS, but the width-16 check took 19.89 s at 2.94 GB RSS. Its
+1.63 MB generated file was smaller than the 1.64 MB baseline, but slower, so
+it was not adopted.
+
 ```sh
 lean --profile prog.lean
 ```
