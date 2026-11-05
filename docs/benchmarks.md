@@ -321,6 +321,14 @@ and 3.01 GB at width 16. The width-2 baseline was 6.19 s, so the small case
 improves modestly; the wider points show that the surrounding monomorphized
 program remains the next bottleneck.
 
+
+The delta computation now has a structural no-ancilla certificate: each array
+read uses the prelude proof that `aget` cannot produce an ancilla failure, while
+pure arithmetic remains opaque. Forward additive-body proofs reuse that
+certificate instead of the generic proof script. A single accepted width-16
+check took 18.97 s and 2.98 GB RSS. This is a directional measurement, not a
+replacement for the earlier multi-run table.
+
 ```sh
 lean --profile prog.lean
 ```
