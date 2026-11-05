@@ -382,6 +382,16 @@ certificates were established made the two-layer width-16 Weave proof check in
 commutativity. Those proofs need the lifted definitions reducible. The boundary
 was reverted and not adopted.
 
+A later compositional change was adopted instead: generated proofs now receive only
+certificates from their own lifted constructs and direct callees, rather than every
+earlier function in the source file. A callee exports both its loop certificates
+and its callable roundtrip/no-ancilla certificates; logged history is likewise
+exported as a stack safety contract. The eight-test parallel suite, including the
+previously timing-out mixed `shift`/field-swap program, passed in 6.60 s (the
+earlier failing run took 17.29 s and hit the two swap-body heartbeat limits). The
+direct loop-callee and repository-server regressions also passed. This removes a
+source-order-dependent proof expansion without making lifted definitions opaque.
+
 ```sh
 lean --profile prog.lean
 ```

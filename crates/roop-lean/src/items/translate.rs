@@ -59,28 +59,20 @@ fn translate_with(program: &Program, proofs: bool) -> Translation {
         .iter()
         .filter_map(|i| if let Item::Fn(f) = i { Some(f) } else { None })
         .collect();
-    let mut deps: Vec<String> = Vec::new();
-    let mut lemmas = LoopLemmas::default();
+    let mut available: HashMap<String, LoopLemmas> = HashMap::new();
     let mut modular: HashMap<String, LoopLemmas> = HashMap::new();
     while !pending.is_empty() {
         let mut waiting = Vec::new();
         let mut progressed = false;
         for def in pending {
-            match translate_fn(&cx, def, &deps, &lemmas, &modular, proofs) {
+            match translate_fn(&cx, def, &available, &modular, proofs) {
                 Ok(piece) => {
                     progressed = true;
                     lean.push_str(&piece.text);
                     cx.translated.insert(def.name.clone());
-                    if piece.modular.is_none() {
-                        deps.push(esc_fn(&def.name));
-                    }
                     if piece.reversible && piece.inexact {
-                        deps.push(esc_fn(&format!("{}_inv", def.name)));
                         result.inexact.push(def.name.clone());
                     } else if piece.reversible {
-                        if piece.modular.is_none() {
-                            deps.push(esc_fn(&format!("{}_inv", def.name)));
-                        }
                         result.reversible.push(def.name.clone());
                     } else {
                         result.forward_only.push(def.name.clone());
@@ -91,11 +83,13 @@ fn translate_with(program: &Program, proofs: bool) -> Translation {
                     if piece.parallel {
                         result.parallel.push(def.name.clone());
                     }
-                    match piece.modular {
-                        Some(call) => {
-                            modular.insert(def.name.clone(), call);
-                        }
-                        None => lemmas.extend(piece.lemmas),
+                    let mut call_context = piece.lemmas.clone();
+                    if let Some(call) = &piece.modular {
+                        call_context.extend(call.clone());
+                    }
+                    available.insert(def.name.clone(), call_context);
+                    if let Some(call) = piece.modular {
+                        modular.insert(def.name.clone(), call);
                     }
                 }
                 Err(LeanError::Unknown(what)) if what.starts_with("function") => {
@@ -140,8 +134,7 @@ struct Piece {
 fn translate_fn(
     cx: &Ctx,
     def: &FnDef,
-    deps: &[String],
-    lemmas: &LoopLemmas,
+    available: &HashMap<String, LoopLemmas>,
     modular: &HashMap<String, LoopLemmas>,
     proofs: bool,
 ) -> Result<Piece, LeanError> {
@@ -151,11 +144,12 @@ fn translate_fn(
         ));
     }
     let forward = lean_fn(cx, def, Dir::Forward)?;
+    let deps = call_dependencies(cx, def);
     let reversible = !is_irreversible_fn(def);
     let mut text = format!("{}{}", forward.lifted, forward.text);
-    let mut known = lemmas.clone();
+    let mut known = LoopLemmas::default();
     for (callee, _) in calls_in(&def.body, false) {
-        if let Some(call) = modular.get(&callee) {
+        if let Some(call) = available.get(&callee) {
             known.extend(call.clone());
         }
     }
@@ -177,17 +171,19 @@ fn translate_fn(
         inexact |= backward.lifted.contains("Float") || mentions_float_struct(cx, &backward.lifted);
         text.push_str(&backward.lifted);
         text.push_str(&backward.text);
-        let ancillas =
-            forward.ancillas > 0 || backward.ancillas > 0 || !calls_in(&def.body, false).is_empty();
+        let ancillas = forward.ancillas > 0
+            || backward.ancillas > 0
+            || text.contains("Roop.Stack")
+            || !calls_in(&def.body, false).is_empty();
         let simple_leaf = !ancillas && direct_leaf(def);
         if !inexact && proofs {
             for info in &forward.pieces {
                 let (lemma_text, names) = match info.construct {
-                    Construct::Loop => lean_loop_lemmas(info, deps, &known),
-                    Construct::Try => lean_try_lemmas(info, deps, &known),
+                    Construct::Loop => lean_loop_lemmas(info, &deps, &known),
+                    Construct::Try => lean_try_lemmas(info, &deps, &known),
                 };
                 text.push_str(&lemma_text);
-                if let Some(commute) = lean_commute(info, deps, &forward.lifted) {
+                if let Some(commute) = lean_commute(info, &deps, &forward.lifted) {
                     text.push_str(&commute);
                     parallel = true;
                 }
@@ -201,7 +197,7 @@ fn translate_fn(
             fn_one_way = one_way;
             if let Some(theorems) = lean_theorems(
                 def,
-                deps,
+                &deps,
                 &known,
                 modular,
                 ancillas,
@@ -214,8 +210,8 @@ fn translate_fn(
                 }
                 let (callable, names) = call_lemmas(def, ancillas || simple_leaf, one_way);
                 text.push_str(&callable);
+                call_names = Some(names);
                 if ancillas || simple_leaf {
-                    call_names = Some(names);
                     text.push_str(&format!(
                         "attribute [irreducible] {} {}\n\n",
                         esc_fn(&def.name),
@@ -234,6 +230,23 @@ fn translate_fn(
         lemmas: fresh,
         modular: call_names,
     })
+}
+
+fn call_dependencies(cx: &Ctx, def: &FnDef) -> Vec<String> {
+    calls_in(&def.body, false)
+        .into_iter()
+        .flat_map(|(callee, _)| {
+            let mut names = vec![esc_fn(&callee)];
+            if cx
+                .fns
+                .get(callee.as_str())
+                .is_some_and(|called| !called.irreversible)
+            {
+                names.push(esc_fn(&format!("{callee}_inv")));
+            }
+            names
+        })
+        .collect()
 }
 
 fn mentions_float_struct(cx: &Ctx, text: &str) -> bool {

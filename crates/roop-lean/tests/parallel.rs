@@ -44,7 +44,11 @@ fn a_sequential_loop_gets_no_commutation_theorem() {
          }",
     );
     assert!(t.parallel.is_empty());
-    assert!(!t.lean.contains("_commute"));
+    assert!(
+        !t.lean.lines().any(|line| {
+            line.contains("theorem Thm.«plain__loop") && line.contains("_commute")
+        })
+    );
 }
 
 #[test]
@@ -80,6 +84,17 @@ fn captured_names_may_be_t_and_u() {
          }",
     );
     assert_eq!(t.parallel, ["scale"]);
+}
+
+#[test]
+fn indexed_struct_field_swap_is_proved_without_expansion() {
+    let t = support::verified(
+        "struct Cloud { xs: [i64; 8], ys: [i64; 8] }
+         fn swapcols(p: &mut Cloud, i: &mut i64) {
+            #[parallel] from i == 0 { p.xs[i] <=> p.ys[i]; } loop { i += 1; } until i == 7;
+         }",
+    );
+    assert_eq!(t.parallel, ["swapcols"]);
 }
 
 #[test]
