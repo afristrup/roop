@@ -252,10 +252,13 @@ int main(void) {
     int64_t q[4] = {1, -1, INT64_MAX, INT64_MIN};
     int64_t p[4] = {INT64_MAX, INT64_MIN, 1, -1};
     int64_t initial[4] = {INT64_MAX, INT64_MIN, 1, -1};
+    uint64_t want[4];
+    for (int n = 0; n < 4; n++) want[n] = (uint64_t)p[n] + (uint64_t)q[n];
     int64_t i = 0;
     add(q, p, &i);
+    for (int n = 0; n < 4; n++) if ((uint64_t)p[n] != want[n]) return n + 1;
     add_inv(q, p, &i);
-    for (int n = 0; n < 4; n++) if (p[n] != initial[n]) return n + 1;
+    for (int n = 0; n < 4; n++) if (p[n] != initial[n]) return n + 5;
     return i != 0;
 }
 "#,
