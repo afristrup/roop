@@ -87,3 +87,35 @@ fn the_cli_writes_a_checked_certificate() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn a_deep_certificate_checks_without_expanding_updates() {
+    let layers = (0..256).map(|seed| mlp("relu", 2, 4, seed + 1)).collect();
+    let model = parse_model(&model("deep", 4, 1, layers).to_string()).unwrap();
+    let source = emit_model(&model, false, None, false);
+    let text = emit_certificate(&model, &source);
+    assert_eq!(text.matches("opaque deep_update_").count(), 256);
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../roop-lean/lean");
+    let file = std::env::temp_dir().join(format!(
+        "roop-weave-deep-certificate-{}.lean",
+        std::process::id()
+    ));
+    std::fs::write(&file, text).unwrap();
+    let lake = std::env::var("HOME")
+        .ok()
+        .map(|home| format!("{home}/.elan/bin/lake"))
+        .filter(|lake| std::path::Path::new(lake).is_file())
+        .unwrap_or_else(|| "lake".into());
+    let output = Command::new(lake)
+        .args(["env", "lean", file.to_str().unwrap()])
+        .current_dir(root)
+        .output();
+    let _ = std::fs::remove_file(&file);
+    let Ok(output) = output else { return };
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
