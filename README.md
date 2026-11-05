@@ -88,8 +88,9 @@ in `editors/`.
   and `#[parallel]` loops commute. The older expanded Weave translation passes
   small models but remains too costly at width 64. Separately, `weave --certificate`
   emits a compositional Lean plan for arbitrary finite coupling networks. The
-  repository checks a 1,024-layer, width-64 plan without unfolding its updates. That
-  certificate does not yet prove that generated Weave code refines the plan.
+  repository checks a 1,024-layer, width-64 plan without unfolding its updates. A
+  parser regression also compares a mixed model's emitted forward-call directions
+  with its plan. Neither check proves that generated Weave code refines the plan.
 - `try` gets only `f_inv_f`, not the reverse. A `chan ... session S` binding
   checks finite, one-way session traces against two concurrent tasks. Sessions
   with recursion, checkpoints, multiple branches, or alternating directions remain

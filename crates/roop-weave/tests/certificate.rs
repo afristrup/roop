@@ -1,8 +1,9 @@
 mod support;
 
+use roop_syntax::{Expr, Item, Place, StmtKind, parse};
 use roop_weave::{emit_certificate, emit_model, parse_model, source_fingerprint};
 use std::process::Command;
-use support::{attention, leapfrog, mlp, model, project, roop, text};
+use support::{attention, conv, leapfrog, mlp, model, project, roop, text};
 
 #[test]
 fn a_generated_certificate_checks_an_arbitrary_coupling_plan() {
@@ -118,4 +119,61 @@ fn a_deep_certificate_checks_without_expanding_updates() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+#[test]
+fn emitted_forward_calls_match_certificate_directions() {
+    let model = parse_model(
+        &model(
+            "plan",
+            4,
+            1,
+            vec![
+                leapfrog("tanh", 3, 4, 1),
+                mlp("relu", 2, 4, 2),
+                attention(2, 2, 3),
+                conv(1, 3, 4),
+            ],
+        )
+        .to_string(),
+    )
+    .unwrap();
+    assert_eq!(
+        forward_directions(&emit_model(&model, false, None, false), "plan_forward"),
+        model.certificate_directions()
+    );
+}
+
+fn forward_directions(source: &str, name: &str) -> Vec<bool> {
+    let program = parse(source).unwrap();
+    let forward = program
+        .items
+        .iter()
+        .find_map(|item| match item {
+            Item::Fn(function) if function.name == name => Some(function),
+            _ => None,
+        })
+        .unwrap();
+    forward
+        .body
+        .stmts
+        .iter()
+        .flat_map(|stmt| match &stmt.kind {
+            StmtKind::Call { callee, .. } if callee == "layer" => vec![false, true, false],
+            StmtKind::Call { callee, args, .. }
+                if matches!(callee.as_str(), "mlp" | "mlp_norm" | "attn" | "conv") =>
+            {
+                vec![writes_first(&args[0])]
+            }
+            _ => Vec::new(),
+        })
+        .collect()
+}
+
+fn writes_first(expr: &Expr) -> bool {
+    match expr {
+        Expr::Place(Place::Var(name)) if name == "q" => true,
+        Expr::Place(Place::Var(name)) if name == "p" => false,
+        _ => panic!("expected q or p as the coupling target"),
+    }
 }
