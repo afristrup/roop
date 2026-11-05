@@ -80,7 +80,7 @@ Consider $U_f$. Its inverse receives $(q,p+f(q))$, preserves $q$, and returns
 \[
  (p+f(q))-f(q)=p
 \]
-at each tensor index. The other round trip uses $(p-f(q))+f(q)=p$. Both equations hold in $B_n$. Function extensionality lifts the scalar equations to tensors. The proof for $V_f$ swaps the two components. \qed
+at each tensor index. The other round trip uses $(p-f(q))+f(q)=p$. Both equations hold in $B_n$. Function extensionality lifts the scalar equations to tensors. The proof for $V_f$ swaps the two components.
 \end{proof}
 
 The lemma makes no assumption about $f$. It may compute a matrix product, activation, convolution, attention block, or another network. The preserved component makes $f$ available again during reversal.
@@ -99,7 +99,7 @@ For every finite program $P$ of transformations in $\Rev(A,A)$ and every $s\in A
 \end{theorem}
 
 \begin{proof}
-Induct on $P$. The empty program has identity execution. For $P=r::Q$, reverse execution first applies the induction hypothesis to $Q$, then applies $r.\operatorname{undo}$ to $r.\operatorname{run}(s)$. Local cancellation gives the first equality. The other equality is symmetric. \qed
+Induct on $P$. The empty program has identity execution. For $P=r::Q$, reverse execution first applies the induction hypothesis to $Q$, then applies $r.\operatorname{undo}$ to $r.\operatorname{run}(s)$. Local cancellation gives the first equality. The other equality is symmetric.
 \end{proof}
 
 \begin{corollary}[arbitrary finite coupling networks]
@@ -107,7 +107,7 @@ For every finite list of functions and directions, the network obtained by choos
 \end{corollary}
 
 \begin{proof}
-Apply Lemma~\ref{lem:local} to each list element and then Theorem~\ref{thm:roundtrip}. \qed
+Apply Lemma~\ref{lem:local} to each list element and then Theorem~\ref{thm:roundtrip}.
 \end{proof}
 
 \begin{theorem}[certificate representation bound]
@@ -115,7 +115,7 @@ Suppose each layer certificate is supplied by name. A certificate for a network 
 \end{theorem}
 
 \begin{proof}
-The program constructor adds one node and one reference to a supplied layer certificate per layer. The proof of Theorem~\ref{thm:roundtrip} follows the same list structure. It invokes, but does not unfold, the two equations stored in each certificate. \qed
+The program constructor adds one node and one reference to a supplied layer certificate per layer. The proof of Theorem~\ref{thm:roundtrip} follows the same list structure. It invokes, but does not unfold, the two equations stored in each certificate.
 \end{proof}
 
 This is a statement about the certificate representation. It does not claim a bound on every Lean elaboration strategy or on the cost of validating a concrete update contract.
