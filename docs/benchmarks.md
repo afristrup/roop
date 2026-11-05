@@ -333,7 +333,7 @@ Counted-loop scalar steps that update the second lifted-state component, such as
 `i_j += 1`, now use a compact modular add/subtract certificate when the
 right-hand side does not read that component. A subsequent accepted width-16
 check took 18.51 s and 3.03 GB RSS. This single run is a 1.7% directional
-improvement over 18.83 s; it is not a multi-run comparison.
+improvement over 18.83 s; it is not a multi-run comparison. The current width-64 generated proof did not finish within a 55-second Lean check budget.
 
 ```sh
 lean --profile prog.lean
