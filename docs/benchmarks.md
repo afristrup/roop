@@ -324,9 +324,9 @@ program remains the next bottleneck.
 
 The delta computation now has a structural no-ancilla certificate: each array
 read uses the prelude proof that `aget` cannot produce an ancilla failure, while
-pure arithmetic remains opaque. Forward additive-body proofs reuse that
-certificate instead of the generic proof script. A single accepted width-16
-check took 18.97 s and 2.98 GB RSS. This is a directional measurement, not a
+pure arithmetic remains opaque. Forward and inverse additive-body proofs reuse that certificate instead of the
+generic proof script. A single accepted width-16 check took 18.83 s and 2.99
+GB RSS. This is a directional measurement, not a
 replacement for the earlier multi-run table.
 
 ```sh
