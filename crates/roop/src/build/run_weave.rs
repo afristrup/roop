@@ -1,4 +1,4 @@
-use crate::{CliError, WeaveArgs};
+use crate::{CliError, WeaveArgs, validate_weave_certificate};
 use roop_weave::{emit_certificate, emit_driver, emit_model, parse_model};
 
 /// `roop weave`: compiles a model of reversible layers, as JSON, to roop code.
@@ -15,6 +15,7 @@ pub fn run_weave(args: &WeaveArgs) -> Result<(), CliError> {
     }
     let code = emit_model(&model, args.tests, args.batch, args.main);
     if let Some(path) = &args.certificate {
+        validate_weave_certificate(&code, &model)?;
         std::fs::write(path, emit_certificate(&model, &code))
             .map_err(|e| CliError::Io(path.display().to_string(), e))?;
     }

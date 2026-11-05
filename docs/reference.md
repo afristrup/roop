@@ -659,7 +659,11 @@ roop test net.roop
 ```
 
 The output has `net_forward`, `net_backward`, `net_grad` (the loss of a sample and its gradients, with the input
-rebuilt at the end) and `net_step<B>`, which is the training step. With `--batch B`
+rebuilt at the end) and `net_step<B>`, which is the training step.
+
+With `--certificate net.lean`, the command parses the generated `net_forward` before it writes the Lean certificate. It rejects a program whose direct coupling calls differ from the model plan in order, target tensor, or preserved tensor. This binds the plan to the emitted call structure. It does not prove the implementations of `mlp`, `attn`, `conv`, or `layer` match the opaque Lean update symbols.
+
+With `--batch B`
 it also has `net_forward_batch<B>`, `net_backward_batch<B>`, `net_grad_batch<B>` and
 `net_step_batch<B>`, which run the samples through the network together as
 matrix products, and `net_train`, a step of B samples with the length filled in,

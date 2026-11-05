@@ -23,6 +23,9 @@ mod test_driver;
 mod test_files;
 mod trace_driver;
 mod trace_report;
+mod validate_weave_certificate;
+#[cfg(test)]
+mod validate_weave_certificate_test;
 
 pub use build_dir::*;
 pub use detect_cpu::*;
@@ -49,3 +52,4 @@ pub use test_driver::*;
 pub use test_files::*;
 pub use trace_driver::*;
 pub use trace_report::*;
+pub use validate_weave_certificate::*;
