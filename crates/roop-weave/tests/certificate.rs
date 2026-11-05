@@ -159,13 +159,27 @@ fn forward_directions(source: &str, name: &str) -> Vec<bool> {
         .stmts
         .iter()
         .flat_map(|stmt| match &stmt.kind {
-            StmtKind::Call { callee, .. } if callee == "layer" => vec![false, true, false],
+            StmtKind::Call { callee, args, .. } if callee == "layer" => {
+                assert!(writes_first(&args[0]));
+                assert!(!writes_first(&args[1]));
+                vec![false, true, false]
+            }
             StmtKind::Call { callee, args, .. }
                 if matches!(callee.as_str(), "mlp" | "mlp_norm" | "attn" | "conv") =>
             {
-                vec![writes_first(&args[0])]
+                let target = writes_first(&args[0]);
+                let source = match callee.as_str() {
+                    "mlp" => &args[5],
+                    "mlp_norm" => &args[6],
+                    "attn" => &args[4],
+                    "conv" => &args[3],
+                    _ => unreachable!(),
+                };
+                assert_ne!(target, writes_first(source));
+                vec![target]
             }
-            _ => Vec::new(),
+            StmtKind::Call { callee, .. } => panic!("unexpected forward call: {callee}"),
+            _ => panic!("expected a direct coupling call"),
         })
         .collect()
 }
