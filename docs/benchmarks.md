@@ -329,6 +329,12 @@ generic proof script. A single accepted width-16 check took 18.83 s and 2.99
 GB RSS. This is a directional measurement, not a
 replacement for the earlier multi-run table.
 
+Counted-loop scalar steps that update the second lifted-state component, such as
+`i_j += 1`, now use a compact modular add/subtract certificate when the
+right-hand side does not read that component. A subsequent accepted width-16
+check took 18.51 s and 3.03 GB RSS. This single run is a 1.7% directional
+improvement over 18.83 s; it is not a multi-run comparison.
+
 ```sh
 lean --profile prog.lean
 ```
