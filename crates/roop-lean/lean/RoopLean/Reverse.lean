@@ -3,7 +3,7 @@ import RoopLean.Lts
 
 namespace RoopLean
 
-theorem reverse_forwards (f g : State → State)
+theorem reverse_forwards {α : Type} (f g : α → α)
     (g_after_f : ∀ s, g (f s) = s) (f_after_g : ∀ s, f (g s) = s) :
     (forwards f).reverse = forwards g := by
   ext s _ t

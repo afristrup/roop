@@ -85,7 +85,7 @@ The repository records passing CUDA runtime tests on an NVIDIA GeForce RTX 4090 
 
 \texttt{roop build --emit ir} also writes a \texttt{cuda-contract.json} sidecar for every emitted NVPTX kernel. It records the kernel name, direction, induction variable, and each buffer's ABI slot, LLVM element type, address space, role, size, alignment, and writability for copyback. Compiler and CLI regressions check those fields for a simple coupling update and cross-check each manifest buffer's parameter name and address space against the emitted PTX LLVM signature. The manifest is a compiler witness. Lean does not check it, and it does not establish the representation relation.
 
-The source side is stronger for the additive coupling calculus. The checked Lean module proves exact modular round trips for fixed-width tensors and arbitrary finite lists of certified transformations. The \texttt{roop weave --certificate} command emits a checked plan with opaque update symbols and an FNV-1a fingerprint of the emitted Roop source. The theorem in this paper would apply to that fragment once the two refinement hypotheses are proved.
+The source side is stronger for the additive coupling calculus. The checked Lean module proves exact modular round trips for fixed-width tensors and arbitrary finite lists of certified transformations. It also proves that every CSLib execution trace of such a list reverses under the structural inverse. The \texttt{roop weave --certificate} command emits a checked plan with opaque update symbols and an FNV-1a fingerprint of the emitted Roop source. The theorem in this paper would apply to that fragment once the two refinement hypotheses are proved.
 
 \section{A first refinement target}
 

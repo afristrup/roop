@@ -774,9 +774,10 @@ then the inverse cannot tell which arm ran, which the checker cannot decide. (An
 `if` needs no such check, because its exit assertion is enforced at run time.)
 
 `crates/roop-lean/lean` is a separate, pinned Lean project for reusable CSLib
-semantics. `lake build` in that directory checks a bridge from a total Roop
-state transform and its inverse to CSLib's labelled-transition-system execution
-reversal theorem. It is not used by `roop lean --check`, and does not yet prove
+semantics. `lake build` in that directory checks a bridge from a total state transform
+and its inverse to CSLib's labelled-transition-system execution reversal theorem.
+Coupling-network certificates also expose the resulting reversed execution trace. This
+bridge is not used by `roop lean --check`, and does not yet prove
 that the Rust inverse generator, CPU backend, or CUDA backend refines that
 semantics.
 

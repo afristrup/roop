@@ -1,4 +1,4 @@
-import RoopLean.Certificate.ProgramInverseExec
+import RoopLean.Certificate.ProgramInverseExecution
 import RoopLean.Certificate.TensorAddUpdate
 
 namespace RoopLean.Rev
@@ -42,5 +42,12 @@ theorem couplingNetwork_undo_run (layers : List (CouplingLayer d n)) (state : Te
 theorem couplingNetwork_run_undo (layers : List (CouplingLayer d n)) (state : Tensor d n × Tensor d n) :
     (couplingNetwork layers).exec ((couplingNetwork layers).undo state) = state :=
   (couplingNetwork layers).certificate.run_undo state
+
+theorem couplingNetwork_inverse_execution (layers : List (CouplingLayer d n))
+    {s t : Tensor d n × Tensor d n}
+    {labels : List Unit} {states : List (Tensor d n × Tensor d n)}
+    (run : (forwards (couplingNetwork layers).exec).Execution s labels t states) :
+    (forwards (couplingNetwork layers).undo).Execution t labels.reverse s states.reverse :=
+  (couplingNetwork layers).inverse_execution run
 
 end RoopLean.Rev

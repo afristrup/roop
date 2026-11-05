@@ -122,7 +122,7 @@ This is a statement about the certificate representation. It does not claim a bo
 
 \section{Checked development and boundary}
 
-The Lean module \texttt{TensorNetwork.lean} defines the layer representation and both round-trip theorems. Rust regressions invoke Lean on the module, on a mixed coupling plan, and on a generated 1,024-layer, width-64 plan. These checks establish the generic certificate calculus and exercise a deep concrete certificate without unfolding its updates.
+The Lean module \texttt{TensorNetwork.lean} defines the layer representation and both round-trip theorems. Rust regressions invoke Lean on the module, on a mixed coupling plan, and on a generated 1,024-layer, width-64 plan. These checks establish the generic certificate calculus and exercise a deep concrete certificate without unfolding its updates. The module also proves that an execution trace of a finite coupling network in CSLib reverses to a trace of its structural inverse.
 
 Generated Roop test functions also call a generated forward function and then \texttt{uncall} it at representative states. Current integration regressions cover mixed MLP, Leapfrog, attention, convolution, and normalized MLP models, and compare forward outputs with a double reference. These finite executions are regression evidence, not a universal source theorem.
 
