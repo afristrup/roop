@@ -1,4 +1,4 @@
-use crate::{BuildArgs, FmtArgs, LeanArgs, RunArgs, TestArgs, WeaveArgs};
+use crate::{BuildArgs, FmtArgs, LeanArgs, RunArgs, TestArgs, VerifyCudaContractArgs, WeaveArgs};
 
 pub enum Command {
     Build(BuildArgs),
@@ -7,5 +7,6 @@ pub enum Command {
     Test(TestArgs),
     Run(RunArgs),
     Weave(WeaveArgs),
+    VerifyCudaContract(VerifyCudaContractArgs),
     Lsp,
 }

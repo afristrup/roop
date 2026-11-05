@@ -12,6 +12,7 @@ mod parse_weave_args;
 mod run_args;
 mod test_args;
 mod usage;
+mod verify_cuda_contract_args;
 mod weave_args;
 
 pub use build_args::*;
@@ -28,4 +29,5 @@ pub use parse_weave_args::*;
 pub use run_args::*;
 pub use test_args::*;
 pub use usage::*;
+pub use verify_cuda_contract_args::*;
 pub use weave_args::*;

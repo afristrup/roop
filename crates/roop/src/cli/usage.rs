@@ -6,6 +6,7 @@ pub const USAGE: &str =
        roop fmt [<path>...] [--check] [--width <columns>] [--stdin]
        roop weave <model.json> [-o <output.roop>] [--tests] [--main] [--batch <samples>]
                   [--driver <main.c>] [--certificate <model.lean>]
+       roop verify-cuda-contract <module.ptx.ll> <module.cuda-contract.json>
        roop lsp
 
   build        compile to LLVM IR, an object, or an executable
@@ -42,6 +43,9 @@ pub const USAGE: &str =
     --driver F   write a C program that trains the model on data files (needs --batch)
     --certificate F
                  write a Lean certificate for the model's coupling structure
+
+  verify-cuda-contract
+               check a v2 CUDA contract against NVPTX LLVM kernel signatures
 
   lsp          language server on stdin and stdout: syntax and check errors as
                diagnostics, formatting, and an outline of the file

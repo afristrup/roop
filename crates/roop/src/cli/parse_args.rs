@@ -1,6 +1,6 @@
 use crate::{
-    BuildArgs, CliError, Command, Emit, USAGE, parse_fmt_args, parse_lean_args, parse_run_args,
-    parse_test_args, parse_weave_args,
+    BuildArgs, CliError, Command, Emit, USAGE, VerifyCudaContractArgs, parse_fmt_args,
+    parse_lean_args, parse_run_args, parse_test_args, parse_weave_args,
 };
 use std::path::PathBuf;
 
@@ -14,6 +14,17 @@ pub fn parse_args(args: impl Iterator<Item = String>) -> Result<Command, CliErro
         Some("test") => return parse_test_args(args).map(Command::Test),
         Some("run") => return parse_run_args(args).map(Command::Run),
         Some("weave") => return parse_weave_args(args).map(Command::Weave),
+        Some("verify-cuda-contract") => {
+            let ptx = args.next().map(PathBuf::from).ok_or_else(usage)?;
+            let contract = args.next().map(PathBuf::from).ok_or_else(usage)?;
+            if args.next().is_some() {
+                return Err(usage());
+            }
+            return Ok(Command::VerifyCudaContract(VerifyCudaContractArgs {
+                ptx,
+                contract,
+            }));
+        }
         Some("lsp") => return Ok(Command::Lsp),
         _ => return Err(usage()),
     }

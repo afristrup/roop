@@ -296,6 +296,20 @@ fn emitted_cuda_contract_records_kernel_buffers() {
             .any(|buffer| buffer["role"] == "launch_params")
     );
     assert!(buffers.iter().any(|buffer| buffer["role"] == "error"));
+    let verified = roop(
+        &dir,
+        &[
+            "verify-cuda-contract",
+            "prog.ptx.ll",
+            "prog.cuda-contract.json",
+        ],
+    );
+    assert!(verified.status.success(), "{}", stderr(&verified));
+    assert!(
+        String::from_utf8_lossy(&verified.stdout).contains("CUDA contract matches"),
+        "{}",
+        stderr(&verified)
+    );
 }
 
 #[test]
