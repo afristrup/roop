@@ -1011,10 +1011,17 @@ regressions, not a backend refinement theorem. With `--emit ir`, the compiler al
 writes `prog.cuda-contract.json`, recording each NVPTX kernel's direction, induction
 variable, and device-buffer ABI slots, types, address spaces, roles, and layout. A
 CLI regression checks the recorded parameter names and address spaces against the
-emitted NVPTX LLVM signature. `roop verify-cuda-contract prog.ptx.ll
-prog.cuda-contract.json` performs the same read-only check on saved artifacts. It is a compiler witness, not a Lean-checked refinement
-certificate. `docs/benchmarks.md` records the end-to-end CUDA dispatch
-measurements.
+emitted NVPTX LLVM signature. To check saved artifacts, run:
+
+```sh
+roop build prog.roop --emit ir
+roop verify-cuda-contract prog.ptx.ll prog.cuda-contract.json
+```
+
+The verifier checks kernel names, parameter slots, roles, and address spaces.
+It does not prove the recorded LLVM element types or PTX behavior. The manifest
+is a compiler witness, not a Lean-checked refinement certificate.
+`docs/benchmarks.md` records the end-to-end CUDA dispatch measurements.
 
 ## Formatting
 
