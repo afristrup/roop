@@ -8,7 +8,7 @@ pub fn no_ancilla_lemma(
     deps: &[String],
     earlier: &LoopLemmas,
 ) -> String {
-    if part == "body"
+    if matches!(part, "body" | "body_inv")
         && let Some(update) = &info.additive_update
     {
         let a = "«__a»";
@@ -20,9 +20,14 @@ pub fn no_ancilla_lemma(
         };
         let delta = format!("({} {})", update.delta, shape.args);
         let delta_no_ancilla = esc_thm(&format!("{}_body_delta_no_ancilla", info.id));
+        let theorem = if part == "body" {
+            "aget_aset_add_no_ancilla"
+        } else {
+            "aget_aset_sub_no_ancilla"
+        };
         let certificate = format!("({delta_no_ancilla} {} a2)", shape.args);
         return format!(
-            "theorem {} {} ({a} : {}) ({HYP} : {piece} {} {a} = Except.error Roop.Fail.ancilla) : False := by\n  obtain ⟨a1, a2⟩ := {a}\n  have h := Roop.aget_aset_add_no_ancilla a1 {index} {delta} a2 {certificate}\n  apply h\n  simpa only [{piece}] using {HYP}\n",
+            "theorem {} {} ({a} : {}) ({HYP} : {piece} {} {a} = Except.error Roop.Fail.ancilla) : False := by\n  obtain ⟨a1, a2⟩ := {a}\n  have h := Roop.{theorem} a1 {index} {delta} a2 {certificate}\n  apply h\n  simpa only [{piece}] using {HYP}\n",
             shape.theorem(&format!("{part}_no_ancilla")),
             shape.explicit,
             shape.state,

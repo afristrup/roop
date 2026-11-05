@@ -1143,6 +1143,21 @@ theorem aget_aset_add_no_ancilla {n : Nat} {β : Type} (v : Vector I64 n)
   intro out
   simp [pure, Except.pure]
 
+theorem aget_aset_sub_no_ancilla {n : Nat} {β : Type} (v : Vector I64 n)
+    (i : β → I64) (e : β → Res I64) (z : β) (he : e z ≠ Except.error Fail.ancilla) :
+    (do
+      let x ← aget v (i z)
+      let d ← e z
+      let out ← aset v (i z) (x - d)
+      pure (out, z)) ≠ Except.error Fail.ancilla := by
+  apply bind_ne_ancilla (aget_ne_ancilla v (i z))
+  intro x
+  apply bind_ne_ancilla he
+  intro d
+  apply bind_ne_ancilla (aset_ne_ancilla v (i z) (x - d))
+  intro out
+  simp [pure, Except.pure]
+
 /-- A bind that succeeded: its first part did, and the rest did on its result. -/
 theorem bind_ok {α β : Type} {x : Res α} {f : α → Res β} {b : β}
     (h : (x >>= f) = Except.ok b) : ∃ a, x = Except.ok a ∧ f a = Except.ok b := by
