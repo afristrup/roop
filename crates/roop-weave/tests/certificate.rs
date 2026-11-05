@@ -90,8 +90,8 @@ fn the_cli_writes_a_checked_certificate() {
 
 #[test]
 fn a_deep_certificate_checks_without_expanding_updates() {
-    let layers = (0..1024).map(|seed| mlp("relu", 2, 4, seed + 1)).collect();
-    let model = parse_model(&model("deep", 4, 1, layers).to_string()).unwrap();
+    let layers = (0..1024).map(|seed| mlp("relu", 2, 64, seed + 1)).collect();
+    let model = parse_model(&model("deep", 64, 1, layers).to_string()).unwrap();
     let source = emit_model(&model, false, None, false);
     let text = emit_certificate(&model, &source);
     assert_eq!(text.matches("opaque deep_update_").count(), 1024);
