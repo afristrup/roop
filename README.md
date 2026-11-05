@@ -85,14 +85,15 @@ in `editors/`.
 
 - Lean checks, for every reversible function, that it never fails on an
   unrestored ancilla and that `f_inv` undoes `f`. It also proves loops terminate
-  and `#[parallel]` loops commute. `weave`'s forward and backward passes are
-  proved this way, for a width of 4 and three layers; 8 also passes. At width
-  64 the kernel proofs time out in Lean (`subst_vars` over fully unrolled
-  64 by 64 state), so the proof does not yet scale with width.
+  and `#[parallel]` loops commute. The older expanded Weave translation passes
+  small models but remains too costly at width 64. Separately, `weave --certificate`
+  emits a compositional Lean plan for arbitrary finite coupling networks. The
+  repository checks a 256-layer plan without unfolding its updates. That
+  certificate does not yet prove that generated Weave code refines the plan.
 - `try` gets only `f_inv_f`, not the reverse. Sessions are checked as
   specifications, not matched against the task code. Floating point carries no
   round-trip claim, and GPU floating point can differ between runtimes.
-- **The CUDA launcher has been verified on an NVIDIA GeForce RTX 4090 (driver 595.91.07).** Metal and CPU threads have too. The runtime test verifies PTX launch and writable-buffer copyback.
+- On an NVIDIA GeForce RTX 4090 with driver 595.99.02, the CUDA regressions launch PTX, copy writable buffers back, check a hand-written modular add/subtract kernel, and run a compiler-emitted four-word loop forward and backward. They are hardware regressions, not a general CUDA refinement theorem.
 - `keep` moves information into a history that lives until the process ends, so
   the energy cost of erasing is deferred, not removed. `history_limit` in
   `Roop.toml` bounds it and `std::process::forget` empties it; see

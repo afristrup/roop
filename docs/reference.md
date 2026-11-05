@@ -983,11 +983,13 @@ it and compares the weights. `clear_ancillas = false` turns it off.
 
 Metal kernels are emitted as AIR and built with Apple's `metal` tools; NVPTX
 kernels go through LLVM's PTX backend and need a CUDA driver at run time. The
-CUDA launcher has been verified on an NVIDIA GeForce RTX 4090 with driver 595.91.07
-by `cargo test -p roop-rt --test cuda -- --nocapture`, which verifies PTX launch
-and writable-buffer copyback. The compiler path is covered by
-`cargo test -p roop-llvm --test parallel_nvptx`. CUDA performance benchmarks are
-not included yet.
+CUDA regressions ran on an NVIDIA GeForce RTX 4090 with driver 595.99.02.
+`cargo test -p roop-rt --test cuda -- --nocapture` launches PTX, copies writable
+buffers back, and checks a hand-written modular add/subtract kernel. A CLI
+regression also builds a compiler-emitted four-word CUDA loop, checks its forward
+modular addition, and checks generated-inverse restoration. These are hardware
+regressions, not a backend refinement theorem. `docs/benchmarks.md` records the
+end-to-end CUDA dispatch measurements.
 
 ## Formatting
 
