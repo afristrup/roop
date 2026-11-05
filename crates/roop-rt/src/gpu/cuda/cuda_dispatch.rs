@@ -6,6 +6,7 @@ use std::sync::{Mutex, OnceLock};
 
 type Status = i32;
 type Ptr = *mut c_void;
+const MAX_POOLED_BUFFERS: usize = 4;
 
 struct Module {
     handle: usize,
@@ -37,6 +38,7 @@ struct Cuda {
     synchronize: unsafe extern "C" fn() -> Status,
     context: usize,
     modules: Mutex<HashMap<Vec<u8>, Module>>,
+    buffers: Mutex<HashMap<usize, Vec<u64>>>,
 }
 
 macro_rules! driver {
@@ -136,6 +138,7 @@ impl Cuda {
                 synchronize,
                 context: context as usize,
                 modules: Mutex::new(HashMap::new()),
+                buffers: Mutex::new(HashMap::new()),
             })
         }
     }
@@ -174,6 +177,58 @@ impl Cuda {
             }
         }
     }
+
+    fn borrow_buffer(&self, size: usize) -> Option<u64> {
+        if let Some(pointer) = self.buffers.lock().ok()?.entry(size).or_default().pop() {
+            return Some(pointer);
+        }
+        let mut pointer = 0u64;
+        unsafe {
+            ok((self.allocate)(&mut pointer, size))?;
+        }
+        Some(pointer)
+    }
+
+    fn recycle_buffer(&self, size: usize, pointer: u64) {
+        let pooled = self.buffers.lock().is_ok_and(|mut buffers| {
+            let pool = buffers.entry(size).or_default();
+            if pool.len() == MAX_POOLED_BUFFERS {
+                return false;
+            }
+            pool.push(pointer);
+            true
+        });
+        if !pooled {
+            unsafe {
+                let _ = (self.free)(pointer);
+            }
+        }
+    }
+}
+
+struct DeviceBuffers<'a> {
+    cuda: &'a Cuda,
+    pointers: Vec<(usize, u64)>,
+}
+
+impl DeviceBuffers<'_> {
+    fn copy(&mut self, host: *const c_void, size: usize) -> Option<u64> {
+        let pointer = self.cuda.borrow_buffer(size)?;
+        if unsafe { (self.cuda.copy_to_device)(pointer, host, size) } != 0 {
+            self.cuda.recycle_buffer(size, pointer);
+            return None;
+        }
+        self.pointers.push((size, pointer));
+        Some(pointer)
+    }
+}
+
+impl Drop for DeviceBuffers<'_> {
+    fn drop(&mut self) {
+        for (size, pointer) in self.pointers.drain(..) {
+            self.cuda.recycle_buffer(size, pointer);
+        }
+    }
 }
 
 fn cuda() -> Option<&'static Cuda> {
@@ -208,16 +263,17 @@ unsafe fn launch(cuda: &Cuda, function: Ptr, bufs: &[RoopBuf], params: [i64; 3])
         inputs.push((params_bytes.as_ptr() as *const c_void, params_bytes.len()));
         inputs.push((err_bytes.as_ptr() as *const c_void, err_bytes.len()));
 
-        let mut device_ptrs = Vec::new();
+        let mut device_buffers = DeviceBuffers {
+            cuda,
+            pointers: Vec::with_capacity(inputs.len()),
+        };
         for (host, size) in &inputs {
-            let mut dptr = 0u64;
-            ok((cuda.allocate)(&mut dptr, *size))?;
-            ok((cuda.copy_to_device)(dptr, *host, *size))?;
-            device_ptrs.push(dptr);
+            device_buffers.copy(*host, *size)?;
         }
-        let mut args: Vec<Ptr> = device_ptrs
+        let mut args: Vec<Ptr> = device_buffers
+            .pointers
             .iter_mut()
-            .map(|p| p as *mut u64 as Ptr)
+            .map(|(_, pointer)| pointer as *mut u64 as Ptr)
             .collect();
         let block = 256u32;
         let grid = (params[2].max(1) as u32).div_ceil(block);
@@ -239,24 +295,19 @@ unsafe fn launch(cuda: &Cuda, function: Ptr, bufs: &[RoopBuf], params: [i64; 3])
         let mut error = 0i32;
         ok((cuda.copy_to_host)(
             &mut error as *mut i32 as Ptr,
-            *device_ptrs.last()?,
+            device_buffers.pointers.last()?.1,
             4,
         ))?;
-        let mut status = if error != 0 {
+        let status = if error != 0 {
             KERNEL_ASSERTION_FAILED
         } else {
             OK
         };
         if status == OK {
-            for (buf, dptr) in bufs.iter().zip(&device_ptrs) {
+            for (buf, (_, pointer)) in bufs.iter().zip(&device_buffers.pointers) {
                 if buf.written != 0 {
-                    ok((cuda.copy_to_host)(buf.ptr, *dptr, buf.size as usize))?;
+                    ok((cuda.copy_to_host)(buf.ptr, *pointer, buf.size as usize))?;
                 }
-            }
-        }
-        for dptr in &device_ptrs {
-            if (cuda.free)(*dptr) != 0 {
-                status = UNAVAILABLE;
             }
         }
         Some(status)
