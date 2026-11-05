@@ -22,7 +22,7 @@
 \end{aug}
 
 \begin{abstract}
-Roop emits PTX and can execute generated kernels on NVIDIA hardware. A passing hardware test establishes a useful regression fact, but it does not prove that a GPU execution implements the Lean source semantics. We formulate the source, compiler, and backend relations needed for such a result. A conditional composition theorem shows exactly how the relations imply executable reversibility. The current repository establishes a source-level certificate calculus for a restricted class of transformations, records a PTX launch and copyback test on an RTX 4090, and emits a CUDA launch-contract manifest. The compiler correspondence and PTX refinement hypotheses remain open.
+Roop emits PTX and can execute generated kernels on NVIDIA hardware. A passing hardware test establishes a useful regression fact, but it does not prove that a GPU execution implements the Lean source semantics. We formulate the source, compiler, and backend relations needed for such a result. A conditional composition theorem shows exactly how the relations imply executable reversibility. The current repository establishes a source-level certificate calculus for a restricted class of transformations, records a PTX launch and copyback test on an RTX 4090, and emits a CUDA launch-contract manifest with a read-only ABI verifier. The compiler correspondence and PTX refinement hypotheses remain open.
 \end{abstract}
 
 \begin{keyword}[class=MSC]
