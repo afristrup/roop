@@ -245,14 +245,29 @@ fn emitted_cuda_contract_records_kernel_buffers() {
     assert!(output.status.success(), "{}", stderr(&output));
     let text = std::fs::read_to_string(dir.join("prog.cuda-contract.json")).unwrap();
     let manifest: serde_json::Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(manifest["schema"], "roop.cuda-contract.v1");
+    assert_eq!(manifest["schema"], "roop.cuda-contract.v2");
     let kernels = manifest["kernels"].as_array().unwrap();
     assert_eq!(kernels.len(), 2);
     let ptx = std::fs::read_to_string(dir.join("prog.ptx.ll")).unwrap();
     for kernel in kernels {
         let name = kernel["kernel"].as_str().unwrap();
-        let header = format!("define ptx_kernel void @{}", name);
-        assert!(ptx.contains(&header), "{ptx}");
+        let header = ptx
+            .lines()
+            .find(|line| line.contains(&format!("define ptx_kernel void @{name}")))
+            .unwrap_or_else(|| panic!("{ptx}"));
+        for buffer in kernel["buffers"].as_array().unwrap() {
+            let parameter = match buffer["role"].as_str().unwrap() {
+                "capture" => format!("%buf{}", buffer["slot"]),
+                "launch_params" => "%params".into(),
+                "error" => "%err".into(),
+                role => panic!("unknown CUDA buffer role: {role}"),
+            };
+            let pointer = format!(
+                "ptr addrspace({}) {parameter}",
+                buffer["address_space"].as_u64().unwrap()
+            );
+            assert!(header.contains(&pointer), "{header}");
+        }
     }
     let forward = kernels
         .iter()
@@ -263,6 +278,9 @@ fn emitted_cuda_contract_records_kernel_buffers() {
     assert!(buffers.iter().any(|buffer| {
         buffer["name"] == "q"
             && buffer["role"] == "capture"
+            && buffer["slot"] == 0
+            && buffer["llvm_type"] == "[4 x i64]"
+            && buffer["address_space"] == 1
             && buffer["bytes"] == 32
             && buffer["writable"] == false
     }));

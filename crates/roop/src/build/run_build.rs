@@ -106,8 +106,11 @@ fn write_ir(output: &Path, compiled: &roop_llvm::Compiled) -> Result<(), CliErro
                     "direction": contract.direction,
                     "induction": contract.induction,
                     "buffers": contract.buffers.iter().map(|buffer| json!({
+                        "slot": buffer.slot,
                         "name": buffer.name,
                         "role": buffer.role,
+                        "llvm_type": buffer.llvm_ty,
+                        "address_space": buffer.space,
                         "bytes": buffer.bytes,
                         "align": buffer.align,
                         "writable": buffer.writable,
@@ -116,7 +119,7 @@ fn write_ir(output: &Path, compiled: &roop_llvm::Compiled) -> Result<(), CliErro
             })
             .collect();
         let text = serde_json::to_string_pretty(&json!({
-            "schema": "roop.cuda-contract.v1",
+            "schema": "roop.cuda-contract.v2",
             "kernels": kernels,
         }))
         .expect("CUDA contracts only contain JSON values");

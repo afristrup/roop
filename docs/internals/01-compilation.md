@@ -26,10 +26,11 @@ renames generated items, handles Bennett transformations, and applies selected
 optimisations. `roop-llvm` emits LLVM IR and target-specific parallel code. For an
 NVPTX IR build, `roop build --emit ir` also writes `program.ptx.ll` and
 `program.cuda-contract.json`. The JSON file names each emitted kernel and records
-its direction, induction variable, and device buffers with their role, byte size,
-alignment, and copyback mode. It is generated from the compiler's kernel
-representation and checked against PTX entry names in a CLI regression. It does not
-prove that PTX refines the Roop or Lean semantics.
+its direction, induction variable, and device buffers with their ABI slot, LLVM
+element type, address space, role, byte size, alignment, and writability for
+copyback. It is generated from the compiler's kernel representation. A CLI
+regression checks each recorded parameter name and address space against the emitted
+PTX LLVM signature. This does not prove that PTX refines the Roop or Lean semantics.
 
 The Lean path shares loading, parsing, and checking. `roop-lean` translates the
 checked program into a pure Lean model. `roop weave` uses `roop-weave` to read
