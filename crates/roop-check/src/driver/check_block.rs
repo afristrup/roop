@@ -1,6 +1,6 @@
 use crate::{
     CheckError, Facts, Scope, check_ancilla, check_borrow, check_call_aliasing, check_no_world,
-    check_parallel, check_try, check_uncall_after_keep, check_update,
+    check_parallel, check_try, check_uncall_after_keep, check_update, holds_qubit,
 };
 use roop_syntax::{Block, StmtKind};
 
@@ -91,9 +91,15 @@ pub fn check_block(block: &Block, scope: Scope) -> Result<(), CheckError> {
                 check_block(step, scope)?;
             }
             StmtKind::Ancilla {
-                name, init, body, ..
+                name,
+                ty,
+                init,
+                body,
             } => {
-                if !scope.irrev {
+                // A qubit ancilla is checked by the device when its block
+                // ends, like the exit assertion of an `if`: whether gates
+                // restore |0⟩ depends on what they are, not on their shape.
+                if !scope.irrev && !holds_qubit(ty) {
                     check_ancilla(name, init, body, stmt.span, scope.mutability)?;
                 }
                 check_block(body, scope)?;

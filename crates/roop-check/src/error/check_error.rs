@@ -52,6 +52,24 @@ pub enum CheckError {
         callee: String,
         span: Span,
     },
+    QubitAsValue {
+        var: String,
+        span: Span,
+    },
+    QubitParam {
+        function: String,
+        param: String,
+        span: Span,
+    },
+    QubitInStruct {
+        name: String,
+        field: String,
+        span: Span,
+    },
+    QubitAncillaStart {
+        name: String,
+        span: Span,
+    },
     ParallelLoopShape {
         span: Span,
     },
@@ -187,6 +205,30 @@ impl fmt::Display for CheckError {
             Self::UncallAfterKeep { callee, span } => write!(
                 f,
                 "`uncall {callee}` takes back what `{callee}` kept, but other code has kept values since, and the history is last in, first out; `keep` the results instead, at {}..{}",
+                span.start, span.end
+            ),
+            Self::QubitAsValue { var, span } => write!(
+                f,
+                "`{var}` is a qubit, which cannot be read, copied or compared; give it to a gate or to a function that takes `&mut qubit`, at {}..{}",
+                span.start, span.end
+            ),
+            Self::QubitParam {
+                function,
+                param,
+                span,
+            } => write!(
+                f,
+                "`{function}` must take the qubit `{param}` as `&mut`, since a gate changes its qubits, at {}..{}",
+                span.start, span.end
+            ),
+            Self::QubitInStruct { name, field, span } => write!(
+                f,
+                "struct `{name}` holds the qubit `{field}`; qubits live in ancillas and `&mut qubit` parameters, at {}..{}",
+                span.start, span.end
+            ),
+            Self::QubitAncillaStart { name, span } => write!(
+                f,
+                "qubit ancilla `{name}` must start at 0, which allocates it in |0⟩, at {}..{}",
                 span.start, span.end
             ),
             Self::WorldInParallel { callee, span } => write!(

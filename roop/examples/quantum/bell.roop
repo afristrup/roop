@@ -1,0 +1,16 @@
+use std::io::*;
+use std::quantum::*;
+
+// Entangles a and b, then takes it back: the inverse runs the circuit backward.
+fn bell(a: &mut qubit, b: &mut qubit) {
+    call h(a);
+    call cx(a, b);
+}
+
+fn main() {
+    ancilla a: qubit = 0;
+    ancilla b: qubit = 0;
+    call bell(a, b);
+    call println("entangled");
+    uncall bell(a, b);
+}

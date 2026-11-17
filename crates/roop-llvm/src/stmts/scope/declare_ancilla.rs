@@ -2,7 +2,7 @@ use crate::{CodegenError, FnGen, Slot, gen_expr_as, llvm_type, mem_store, same_t
 use roop_syntax::{Expr, Type};
 
 /// Allocates the ancilla and stores its start value; `empty` is a zeroed stack
-/// and `0` zeroes a whole array.
+/// and `0` zeroes a whole array or a qubit handle.
 pub fn declare_ancilla(g: &mut FnGen, ty: &Type, init: &Expr) -> Result<Slot, CodegenError> {
     let llvm_ty = llvm_type(g.ctx, ty)?;
     let addr = g.alloca(&llvm_ty);
@@ -16,6 +16,8 @@ pub fn declare_ancilla(g: &mut FnGen, ty: &Type, init: &Expr) -> Result<Slot, Co
             return Err(CodegenError::InvalidOperand("`empty` needs a stack type"));
         }
         mem_store(g, &slot, "zeroinitializer")?;
+    } else if *init == Expr::Int(0) && matches!(ty, Type::Named(n) if n == "qubit") {
+        mem_store(g, &slot, "0")?;
     } else if *init == Expr::Int(0) && matches!(ty, Type::Array(..)) {
         mem_store(g, &slot, "zeroinitializer")?;
     } else {

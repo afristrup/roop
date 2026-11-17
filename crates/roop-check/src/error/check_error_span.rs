@@ -17,6 +17,10 @@ impl CheckError {
             | Self::CallAliasing { span, .. }
             | Self::UncallAfterKeep { span, .. }
             | Self::WorldInParallel { span, .. }
+            | Self::QubitAsValue { span, .. }
+            | Self::QubitParam { span, .. }
+            | Self::QubitInStruct { span, .. }
+            | Self::QubitAncillaStart { span, .. }
             | Self::ParallelLoopShape { span, .. }
             | Self::ParallelBoundModified { span, .. }
             | Self::ParallelInductionWritten { span, .. }

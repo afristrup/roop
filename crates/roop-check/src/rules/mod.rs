@@ -6,6 +6,7 @@ mod enums;
 mod interference;
 mod keep;
 mod parallel;
+mod quantum;
 mod sessions;
 mod structs;
 
@@ -17,5 +18,6 @@ pub use enums::*;
 pub use interference::*;
 pub use keep::*;
 pub use parallel::*;
+pub use quantum::*;
 pub use sessions::*;
 pub use structs::*;

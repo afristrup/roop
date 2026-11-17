@@ -65,6 +65,8 @@ pub fn compile_all(program: &Program, options: &Options) -> Result<Compiled, Cod
          declare i8 @llvm.fptoui.sat.i8.f64(double)\n\
          declare void @roop_set_args(i32, ptr)\n\
          declare void @roop_keep(ptr, i64)\n\
+         declare void @roop_q_alloc(ptr)\n\
+         declare void @roop_q_free(ptr)\n\
          declare void @roop_unkeep(ptr, i64)\n\
          declare void @roop_parallel_for(i64, i64, i64, ptr, ptr)\n\
          declare void @roop_dgemm(ptr, ptr, ptr, double, i64, i64, i64)\n\

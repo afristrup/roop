@@ -1,0 +1,58 @@
+// Qubits and the gates on them. A `qubit` is a place that holds a qubit of
+// the device: it starts as an ancilla at zero, which allocates it in |0⟩, and
+// its block ends by checking that it is back in |0⟩, so an ancilla qubit is
+// restored like any other ancilla. A qubit cannot be read, copied or
+// compared, only given to a gate or to a function that takes `&mut qubit`.
+//
+// Every gate is reversible and its inverse is its adjoint: `uncall t(q)` is T†,
+// and running a function backward runs its circuit backward. That is what
+// lets compute, use, uncompute leave a scratch qubit in |0⟩, and what lets a
+// failed `try` take its gates back.
+//
+// Measurement is not reversible: it is `irrev`, like `x = e`.
+
+use super::sys::*;
+
+pub fn h(q: &mut qubit) {
+    call roop_q_h(q);
+}
+
+pub fn x(q: &mut qubit) {
+    call roop_q_x(q);
+}
+
+pub fn y(q: &mut qubit) {
+    call roop_q_y(q);
+}
+
+pub fn z(q: &mut qubit) {
+    call roop_q_z(q);
+}
+
+pub fn s(q: &mut qubit) {
+    call roop_q_s(q);
+}
+
+pub fn t(q: &mut qubit) {
+    call roop_q_t(q);
+}
+
+// R_k = diag(1, e^{2πi/2^k}), so r(q, 2) is S and r(q, 3) is T.
+pub fn r(q: &mut qubit, k: &i64) {
+    call roop_q_r(q, k);
+}
+
+pub fn cx(control: &mut qubit, target: &mut qubit) {
+    call roop_q_cx(control, target);
+}
+
+pub fn cz(control: &mut qubit, target: &mut qubit) {
+    call roop_q_h(target);
+    call roop_q_cx(control, target);
+    call roop_q_h(target);
+}
+
+// Measures q in the computational basis into the zero bool c.
+pub irrev fn measure(q: &mut qubit, c: &mut bool) {
+    call roop_q_measure(q, c);
+}

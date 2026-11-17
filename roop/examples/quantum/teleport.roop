@@ -1,0 +1,39 @@
+use std::io::*;
+use std::quantum::*;
+
+// Moves the state of a to c with an entangled pair and two classical bits.
+// The corrections on c are classically controlled by the measurements.
+irrev fn teleport(a: &mut qubit, c: &mut qubit) {
+    ancilla b: qubit = 0;
+    auto ancilla m1: bool = false;
+    auto ancilla m2: bool = false;
+    call h(b);
+    call cx(b, c);
+    call cx(a, b);
+    call h(a);
+    call measure(a, m1);
+    call measure(b, m2);
+    if m2 {
+        call x(c);
+        call x(b);
+    } fi m2;
+    if m1 {
+        call z(c);
+        call x(a);
+    } fi m1;
+}
+
+irrev fn main() {
+    ancilla a: qubit = 0;
+    ancilla c: qubit = 0;
+    auto ancilla seen: bool = false;
+    call x(a);
+    call teleport(a, c);
+    call measure(c, seen);
+    if seen {
+        call println("teleported |1>");
+        call x(c);
+    } else {
+        call println("lost");
+    } fi seen;
+}

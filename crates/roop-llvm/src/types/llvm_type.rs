@@ -8,6 +8,7 @@ pub fn llvm_type(ctx: &Ctx, ty: &Type) -> Result<String, CodegenError> {
             "u8" => Ok("i8".into()),
             "f64" => Ok("double".into()),
             "bool" => Ok("i1".into()),
+            "qubit" => Ok("i64".into()),
             _ if ctx.structs.contains_key(name.as_str()) => Ok(format!("%{name}")),
             _ if ctx.enums.contains_key(name.as_str()) => Ok("i32".into()),
             _ => Err(CodegenError::UnknownName {

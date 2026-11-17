@@ -4,6 +4,7 @@ mod gpu;
 mod io;
 mod kernels;
 mod parallel;
+mod quantum;
 mod world;
 
 pub use chan::*;
@@ -11,4 +12,5 @@ pub use concurrent::roop_concurrent;
 pub use gpu::roop_gpu_dispatch;
 pub use io::*;
 pub use parallel::roop_parallel_for;
+pub use quantum::*;
 pub use world::*;

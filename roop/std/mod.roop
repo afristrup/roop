@@ -4,6 +4,7 @@ mod fs;
 mod io;
 mod math;
 mod process;
+mod quantum;
 mod session;
 mod sys;
 mod text;

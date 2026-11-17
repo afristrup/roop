@@ -1,7 +1,7 @@
 use crate::{
-    CheckError, Scope, check_block, check_concurrency, check_resolution, check_session,
-    check_struct, enum_table, fn_mutability, irreversible_fns, keeping_fns, non_atomic_fns,
-    program_blocks, world_fns,
+    CheckError, Scope, check_block, check_concurrency, check_qubits, check_resolution,
+    check_session, check_struct, enum_table, fn_mutability, irreversible_fns, keeping_fns,
+    non_atomic_fns, program_blocks, world_fns,
 };
 use roop_syntax::{Item, Program};
 
@@ -11,6 +11,7 @@ pub fn check(program: &Program) -> Result<(), CheckError> {
         check_resolution(&enums, block)?;
     }
     check_concurrency(program)?;
+    check_qubits(program)?;
     let irreversible = irreversible_fns(program);
     let non_atomic = non_atomic_fns(program);
     let world = world_fns(program);

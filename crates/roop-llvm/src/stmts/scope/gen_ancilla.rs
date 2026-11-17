@@ -1,4 +1,4 @@
-use crate::{Clear, CodegenError, Dir, FnGen, declare_ancilla, gen_block};
+use crate::{Clear, CodegenError, Dir, FnGen, declare_ancilla, gen_block, with_qubits};
 use roop_check::clean_temporaries;
 use roop_syntax::{Block, Expr, Stmt, Type};
 
@@ -27,7 +27,7 @@ pub fn gen_ancilla(
             });
         }
     }
-    let result = gen_block(g, body, dir);
+    let result = with_qubits(g, &slot, |g| gen_block(g, body, dir));
     g.clears.truncate(enclosing);
     g.vars.pop();
     result

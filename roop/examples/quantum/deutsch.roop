@@ -1,0 +1,42 @@
+use std::io::*;
+use std::quantum::*;
+
+// The balanced oracle f(a) = a, as |a⟩|b⟩ ↦ |a⟩|b ⊕ f(a)⟩.
+fn balanced(a: &mut qubit, b: &mut qubit) {
+    call cx(a, b);
+}
+
+// The constant oracle f(a) = 1.
+fn constant(a: &mut qubit, b: &mut qubit) {
+    call x(b);
+}
+
+// Deutsch's algorithm: one query decides whether the oracle is constant.
+// b is prepared in |−⟩, so the oracle kicks f(a) back into the phase of a.
+irrev fn deutsch(is_balanced: &mut bool, which: &i64) {
+    ancilla a: qubit = 0;
+    ancilla b: qubit = 0;
+    call x(b);
+    call h(b);
+    call h(a);
+    if which == 0 { call constant(a, b); } else { call balanced(a, b); } fi which == 0;
+    call h(a);
+    call measure(a, is_balanced);
+    if is_balanced { call x(a); } fi is_balanced;
+    uncall h(b);
+    uncall x(b);
+}
+
+irrev fn main() {
+    ancilla which: i64 = 0;
+    from which == 0 {
+        auto ancilla found: bool = false;
+        call deutsch(found, which);
+        if found {
+            call println("balanced");
+        } else {
+            call println("constant");
+        } fi found;
+    } loop { which += 1; } until which == 1;
+    which -= 1;
+}

@@ -1,4 +1,4 @@
-use crate::{CodegenError, Dir, FnGen, declare_ancilla, gen_place, gen_unwinding};
+use crate::{CodegenError, Dir, FnGen, declare_ancilla, gen_place, gen_unwinding, with_qubits};
 use roop_syntax::{Stmt, StmtKind};
 
 /// Statements that only scope a name or a history around a block: the
@@ -12,8 +12,8 @@ pub fn unwind_scope(g: &mut FnGen, stmt: &Stmt, dir: Dir, fail: &str) -> Result<
             body,
         } => {
             let slot = declare_ancilla(g, ty, init)?;
-            g.vars.push((name.clone(), slot));
-            let result = gen_unwinding(g, body, dir, fail);
+            g.vars.push((name.clone(), slot.clone()));
+            let result = with_qubits(g, &slot, |g| gen_unwinding(g, body, dir, fail));
             g.vars.pop();
             result
         }

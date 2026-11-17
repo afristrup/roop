@@ -131,3 +131,24 @@ pub extern fn roop_forget();
 
 // Shows what the program has written, and ends it with this status.
 pub extern fn roop_exit(code: &i64);
+
+// The quantum device, simulated by the runtime: see std::quantum. A qubit
+// place holds a handle; a gate changes the device and its inverse is the
+// adjoint. Measurement is irreversible.
+pub extern world fn roop_q_h(q: &mut qubit);
+
+pub extern world fn roop_q_x(q: &mut qubit);
+
+pub extern world fn roop_q_y(q: &mut qubit);
+
+pub extern world fn roop_q_z(q: &mut qubit);
+
+pub extern world fn roop_q_s(q: &mut qubit);
+
+pub extern world fn roop_q_t(q: &mut qubit);
+
+pub extern world fn roop_q_r(q: &mut qubit, k: &i64);
+
+pub extern world fn roop_q_cx(control: &mut qubit, target: &mut qubit);
+
+pub extern fn roop_q_measure(q: &mut qubit, c: &mut bool);

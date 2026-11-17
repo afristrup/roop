@@ -1,0 +1,22 @@
+use std::io::*;
+use std::quantum::*;
+
+// Tosses a quantum coin until it lands on 1, counting the tosses: the
+// repeat-until-success loop of Issa, Chareton and Péchoux. It expects 2.
+irrev fn toss(n: &mut i64) {
+    ancilla q: qubit = 0;
+    auto ancilla c: bool = false;
+    from n == 0 {
+        c = false;
+        call h(q);
+        call measure(q, c);
+        if c { call x(q); } fi c;
+    } loop { n += 1; } until c;
+}
+
+irrev fn main() {
+    auto ancilla n: i64 = 0;
+    call toss(n);
+    call print("tosses: ");
+    call println_int(n);
+}

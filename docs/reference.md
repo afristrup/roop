@@ -382,6 +382,62 @@ the tests wrote are gone again, which `roop/tests/files.roop` checks. `std::io`,
 `std::fs` and `std::process` are written this way, and Lean does not model the
 world: functions that reach it are skipped and listed.
 
+## Qubits
+
+`qubit` is a type. A qubit lives in an ancilla that starts at `0`, which
+allocates it in |0⟩, or behind a `&mut qubit` parameter; arrays of them work
+too. `std::quantum` has the gates `h`, `x`, `y`, `z`, `s`, `t`, `r(q, k)` for
+R_k = diag(1, e^{2πi/2^k}), `cx` and `cz`, and `measure`.
+
+```rust
+use std::quantum::*;
+
+fn bell(a: &mut qubit, b: &mut qubit) {
+    call h(a);
+    call cx(a, b);
+}
+
+test a_bell_pair_uncomputes {
+    ancilla a: qubit = 0;
+    ancilla b: qubit = 0;
+    call bell(a, b);
+    uncall bell(a, b);       // the adjoint: cx, then h
+}
+```
+
+A gate is reversible, and its inverse is its adjoint: `uncall t(q)` is T†, so
+the inverse of a function runs its circuit backward, and a `try` that fails
+takes its gates back. Every `roop test` of quantum code runs the circuit and
+then its adjoint.
+
+A qubit is never a value: it cannot be read, copied, compared, updated with
+`+=`, pushed or sent, and the checker refuses any of these (no-cloning). It
+can be given to a function that takes `&mut qubit`, swapped with another qubit
+(`a <=> b` relabels them), or let go of with `keep`, which hands it to the
+world. A struct cannot hold one, and a function takes one only by `&mut`,
+since a gate changes its qubits. Two arguments of one call cannot be the same
+qubit, by the rule that already refuses `call g(a, a)`.
+
+When a qubit ancilla's block ends, the device checks that it is back in |0⟩,
+and so not entangled with anything; if it is not, the program stops with
+status 70 and the probability it found. This is the run-time check of an `if`
+exit assertion, not the static matching of other ancillas: whether a sequence
+of gates restores |0⟩ depends on what the gates are, not on their shape, so
+compute, use as a control, uncompute is accepted and checked when it runs.
+
+`measure(q, c)` is irreversible, since it collapses the state, so it needs
+`irrev` code. It writes a `bool` that must be zero, and keeps the qubit,
+collapsed. Hybrid programs, with classical control on measurement results,
+are `irrev` functions; `roop/examples/quantum` has Deutsch's algorithm,
+teleportation and a repeat-until-success loop.
+
+The runtime simulates the device with a state vector, so at most 24 qubits
+are alive at once. Measurements draw from a fixed seed, or from
+`ROOP_QUANTUM_SEED`, so a run repeats. Lean does not model qubits yet:
+functions that use them are skipped and listed, like those that reach the
+world. `roop hybrid` (see [hybrid programs](hybrid.md)) compiles the separate
+HQbricks∞ language to OpenQASM 3.
+
 ## Einsum
 
 `einsum fn name: T = "subscripts";` writes a tensor contraction as loops:

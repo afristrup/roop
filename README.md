@@ -27,9 +27,10 @@ things that are hard to get any other way.
   quantum programs with classical control and unbounded loops to OpenQASM 3,
   fusing quantum kernels across host code, and runs them exactly to give
   termination probability and expected gate counts.
-- **A path toward hardware that does not erase.** Reversible logic is what
-  adiabatic and quantum circuits need. roop does not target them yet; it is a
-  language where the constraint is already met.
+- **Qubits that run backward.** [`qubit`](docs/reference.md#qubits) is a type,
+  and gates are reversible updates whose inverse is their adjoint, so `uncall`
+  of a circuit runs it backward and an ancilla qubit is checked to come back to
+  |0⟩. The runtime simulates the device; measurement is `irrev`.
 
 ## Thirty seconds
 

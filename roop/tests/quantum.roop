@@ -1,0 +1,63 @@
+// Quantum code is reversible: every test runs forward and then backward, and
+// each qubit ancilla is checked to be back in |0⟩ when its block ends.
+
+use std::quantum::*;
+
+fn bell(a: &mut qubit, b: &mut qubit) {
+    call h(a);
+    call cx(a, b);
+}
+
+fn rotate(q: &mut qubit) {
+    call h(q);
+    call t(q);
+    call s(q);
+    call r(q, 4);
+    call h(q);
+}
+
+test a_bell_pair_uncomputes {
+    ancilla a: qubit = 0;
+    ancilla b: qubit = 0;
+    call bell(a, b);
+    uncall bell(a, b);
+}
+
+test the_inverse_of_a_circuit_is_its_adjoint {
+    ancilla q: qubit = 0;
+    call rotate(q);
+    uncall rotate(q);
+}
+
+test a_scratch_qubit_is_computed_and_uncomputed {
+    ancilla a: qubit = 0;
+    ancilla b: qubit = 0;
+    ancilla scratch: qubit = 0;
+    call h(a);
+    call cx(a, scratch);
+    call cz(scratch, b);
+    uncall cx(a, scratch);
+    uncall h(a);
+}
+
+fn flip_and_swap(a: &mut qubit, b: &mut qubit) {
+    call x(a);
+    a <=> b;
+}
+
+test swapping_qubits_runs_backward {
+    ancilla a: qubit = 0;
+    ancilla b: qubit = 0;
+    call flip_and_swap(a, b);
+    uncall flip_and_swap(a, b);
+}
+
+test qubit_arrays_allocate_every_element {
+    ancilla qs: [qubit; 3] = 0;
+    call h(qs[0]);
+    call cx(qs[0], qs[1]);
+    call cx(qs[1], qs[2]);
+    uncall cx(qs[1], qs[2]);
+    uncall cx(qs[0], qs[1]);
+    uncall h(qs[0]);
+}
