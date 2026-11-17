@@ -318,7 +318,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "roop"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "roop-check",
  "roop-config",
@@ -334,14 +334,14 @@ dependencies = [
 
 [[package]]
 name = "roop-check"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "roop-syntax",
 ]
 
 [[package]]
 name = "roop-config"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "toml",
@@ -349,7 +349,7 @@ dependencies = [
 
 [[package]]
 name = "roop-fmt"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "roop-config",
  "roop-syntax",
@@ -357,7 +357,7 @@ dependencies = [
 
 [[package]]
 name = "roop-lean"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "roop-check",
  "roop-syntax",
@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "roop-llvm"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "roop-check",
  "roop-opt",
@@ -374,7 +374,7 @@ dependencies = [
 
 [[package]]
 name = "roop-modules"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "roop-check",
  "roop-config",
@@ -383,7 +383,7 @@ dependencies = [
 
 [[package]]
 name = "roop-opt"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "roop-check",
  "roop-syntax",
@@ -391,11 +391,11 @@ dependencies = [
 
 [[package]]
 name = "roop-revlib"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "roop-rt"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "libloading",
  "objc2",
@@ -405,7 +405,7 @@ dependencies = [
 
 [[package]]
 name = "roop-syntax"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chumsky",
  "logos",
@@ -413,8 +413,9 @@ dependencies = [
 
 [[package]]
 name = "roop-weave"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
+ "roop-syntax",
  "serde_json",
 ]
 
