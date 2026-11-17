@@ -10,4 +10,5 @@ pub enum Cond {
     And(Box<Cond>, Box<Cond>),
     Or(Box<Cond>, Box<Cond>),
     Not(Box<Cond>),
+    Xor(Box<Cond>, Box<Cond>),
 }

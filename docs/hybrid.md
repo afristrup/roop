@@ -50,6 +50,37 @@ typed, and the literals 0 and 1 are bits as well as ints.
    registers `q` and `c`, ints as `int[64] v_<name>`, and `while`/`if` on
    measurement results. `--emit ir` shows the kernels and host code.
 
+## Roop programs
+
+`roop hybrid prog.roop` compiles the `main` of a roop program that uses
+[qubits](reference.md#qubits). The program is loaded and checked as for
+`roop build`, then lowered into the same hybrid IR, so it gets the same
+optimizer, OpenQASM and report:
+
+- every call is inlined, and `uncall f` is `f` inlined backward, with each
+  gate replaced by its adjoint (T by T†, R_k by R_k†);
+- `if c { A } else { B } fi e` is an `if` on `c`, and on `e` when run
+  backward; `from e { B } loop { S } until u` is `B; while !u { S; B }`;
+- each ancilla gets its own qubits or registers, which a loop reuses: a qubit
+  ancilla ends in |0⟩, which roop checks;
+- `measure` is a measurement, `x = e` an assignment, `a <=> b` three CNOTs or
+  three xors, and a kept value moves to a `<name>_kept` register, since the
+  world holds it;
+- calls into `std::io` are left out: a circuit's only output is its bits.
+
+```
+$ roop hybrid roop/examples/quantum/teleport.roop --emit report
+...
+  P(seen_kept = 1) = 1.000000000
+```
+
+`bell.roop` compiles to no gates at all: `call bell` followed by `uncall bell`
+is the identity, and the optimizer cancels it. The exit assertions of `if` and
+`from` are roop's run-time checks and do not reach the circuit. A qubit array
+is indexed only by numbers known when compiling. Stacks, `match`, `try`,
+channels, structs and floats have no lowering yet, and are refused with their
+place in the source.
+
 ## Running it exactly
 
 `--emit report` runs the program on cq-states, the semantics of Feng and Ying,

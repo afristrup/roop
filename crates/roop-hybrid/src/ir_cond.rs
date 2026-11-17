@@ -10,6 +10,7 @@ pub fn ir_cond(cond: &Cond, layout: &Layout) -> String {
         Cond::Eq(a, b) => format!("({} = {})", int(a), int(b)),
         Cond::And(a, b) => both(a, "&&", b),
         Cond::Or(a, b) => both(a, "||", b),
+        Cond::Xor(a, b) => both(a, "!=", b),
         Cond::Not(a) => format!("!{}", ir_cond(a, layout)),
     }
 }

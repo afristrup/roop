@@ -7,7 +7,9 @@ pub fn reads(cond: &Cond, bit: Option<usize>, reg: Option<usize>) -> bool {
         Cond::Lit(_) => false,
         Cond::Bit(b) => Some(*b) == bit,
         Cond::Le(a, b) | Cond::Eq(a, b) => int(a) || int(b),
-        Cond::And(a, b) | Cond::Or(a, b) => reads(a, bit, reg) || reads(b, bit, reg),
+        Cond::And(a, b) | Cond::Or(a, b) | Cond::Xor(a, b) => {
+            reads(a, bit, reg) || reads(b, bit, reg)
+        }
         Cond::Not(a) => reads(a, bit, reg),
     }
 }

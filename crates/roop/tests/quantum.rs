@@ -125,3 +125,46 @@ fn one_qubit_is_not_two_arguments() {
         stderr(&out)
     );
 }
+
+fn hybrid(name: &str, emit: &str) -> String {
+    let path = format!("examples/quantum/{name}.roop");
+    let out = roop(&library(), &["hybrid", &path, "--emit", emit]);
+    assert!(out.status.success(), "{}", stderr(&out));
+    stdout(&out)
+}
+
+#[test]
+fn roop_hybrid_compiles_a_roop_program_to_qasm() {
+    let qasm = hybrid("teleport", "qasm");
+    assert!(qasm.starts_with("OPENQASM 3.0;"), "{qasm}");
+    assert!(qasm.contains("= measure q["), "{qasm}");
+    assert!(qasm.contains("if ((c["), "{qasm}");
+}
+
+#[test]
+fn teleportation_always_arrives() {
+    assert!(hybrid("teleport", "report").contains("P(seen_kept = 1) = 1.000000000"));
+}
+
+#[test]
+fn deutsch_is_exact() {
+    let report = hybrid("deutsch", "report");
+    assert!(
+        report.contains("P(found_kept = 1) = 0.000000000"),
+        "{report}"
+    );
+    assert!(
+        report.contains("P(found_1_kept = 1) = 1.000000000"),
+        "{report}"
+    );
+}
+
+#[test]
+fn the_coin_toss_takes_one_extra_toss_on_average() {
+    assert!(hybrid("coin_toss", "report").contains("E[n_kept] = 1.000000000"));
+}
+
+#[test]
+fn a_bell_pair_and_its_uncall_compile_to_nothing() {
+    assert!(!hybrid("bell", "qasm").contains("// kernel"));
+}

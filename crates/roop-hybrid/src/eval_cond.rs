@@ -9,5 +9,6 @@ pub fn eval_cond(cond: &Cond, store: &Store) -> Result<bool, HybridError> {
         Cond::And(a, b) => eval_cond(a, store)? && eval_cond(b, store)?,
         Cond::Or(a, b) => eval_cond(a, store)? || eval_cond(b, store)?,
         Cond::Not(a) => !eval_cond(a, store)?,
+        Cond::Xor(a, b) => eval_cond(a, store)? != eval_cond(b, store)?,
     })
 }

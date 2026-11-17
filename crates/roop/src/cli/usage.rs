@@ -6,7 +6,7 @@ pub const USAGE: &str =
        roop fmt [<path>...] [--check] [--width <columns>] [--stdin]
        roop weave <model.json> [-o <output.roop>] [--tests] [--main] [--batch <samples>]
                   [--driver <main.c>] [--certificate <model.lean>]
-       roop hybrid <program.hyq> [-o <output>] [--emit qasm|ir|report] [-O0]
+       roop hybrid <program.hyq|.roop> [-o <output>] [--emit qasm|ir|report] [-O0]
                    [--iterations <n>]
        roop verify-cuda-contract <module.ptx.ll> <module.cuda-contract.json>
        roop lsp
@@ -47,7 +47,8 @@ pub const USAGE: &str =
                  write a Lean certificate for the model's coupling structure
 
   hybrid       compile a hybrid quantum program in HQbricks∞ (qubit, bit and int
-               memory, Clifford+R_k gates, measurement, if and unbounded while)
+               memory, Clifford+R_k gates, measurement, if and unbounded while),
+               or the `main` of a roop program with qubits, inlined
     --emit qasm  OpenQASM 3 with real-time classical control (default)
     --emit ir    the hybrid IR: quantum kernels and the host code between them
     --emit report

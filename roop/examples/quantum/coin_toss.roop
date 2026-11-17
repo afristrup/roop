@@ -1,8 +1,9 @@
 use std::io::*;
 use std::quantum::*;
 
-// Tosses a quantum coin until it lands on 1, counting the tosses: the
-// repeat-until-success loop of Issa, Chareton and Péchoux. It expects 2.
+// Tosses a quantum coin until it lands on 1: the repeat-until-success loop
+// of Issa, Chareton and Péchoux. n counts the tosses after the first, so it
+// is 1 on average; `roop hybrid --emit report` finds exactly that.
 irrev fn toss(n: &mut i64) {
     ancilla q: qubit = 0;
     auto ancilla c: bool = false;

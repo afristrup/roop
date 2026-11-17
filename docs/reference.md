@@ -435,8 +435,10 @@ The runtime simulates the device with a state vector, so at most 24 qubits
 are alive at once. Measurements draw from a fixed seed, or from
 `ROOP_QUANTUM_SEED`, so a run repeats. Lean does not model qubits yet:
 functions that use them are skipped and listed, like those that reach the
-world. `roop hybrid` (see [hybrid programs](hybrid.md)) compiles the separate
-HQbricks∞ language to OpenQASM 3.
+world. `roop hybrid prog.roop` (see [hybrid programs](hybrid.md)) compiles
+`main` to OpenQASM 3, inlining every call and running each `uncall` as the
+adjoint, and `--emit report` runs it exactly for termination and expected
+gate counts.
 
 ## Einsum
 

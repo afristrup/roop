@@ -57,6 +57,12 @@ pub enum HybridError {
         name: String,
     },
     Overflow,
+    DivisionByZero,
+    Unsupported {
+        what: String,
+        start: usize,
+        end: usize,
+    },
     NegativeExponent(i64),
     TooManyQubits {
         qubits: usize,
@@ -133,6 +139,10 @@ impl fmt::Display for HybridError {
                 )
             }
             Self::Overflow => write!(f, "integer arithmetic overflowed 64 bits"),
+            Self::DivisionByZero => write!(f, "division by zero"),
+            Self::Unsupported { what, start, end } => {
+                write!(f, "{what} has no hybrid circuit yet, at {start}..{end}")
+            }
             Self::NegativeExponent(e) => write!(f, "the exponent {e} is negative"),
             Self::TooManyQubits { qubits, limit } => {
                 write!(
