@@ -323,6 +323,7 @@ dependencies = [
  "roop-check",
  "roop-config",
  "roop-fmt",
+ "roop-hybrid",
  "roop-lean",
  "roop-llvm",
  "roop-modules",
@@ -354,6 +355,10 @@ dependencies = [
  "roop-config",
  "roop-syntax",
 ]
+
+[[package]]
+name = "roop-hybrid"
+version = "0.1.1"
 
 [[package]]
 name = "roop-lean"

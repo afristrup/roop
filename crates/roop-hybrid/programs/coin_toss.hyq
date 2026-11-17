@@ -1,0 +1,6 @@
+// CoinToss (Issa et al., Listing 2): toss a quantum coin until heads.
+qubit q; bit c; int x;
+do
+    H(q); c := measure q;
+    x := x + 1
+while (¬c)

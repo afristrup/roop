@@ -6,6 +6,8 @@ pub const USAGE: &str =
        roop fmt [<path>...] [--check] [--width <columns>] [--stdin]
        roop weave <model.json> [-o <output.roop>] [--tests] [--main] [--batch <samples>]
                   [--driver <main.c>] [--certificate <model.lean>]
+       roop hybrid <program.hyq> [-o <output>] [--emit qasm|ir|report] [-O0]
+                   [--iterations <n>]
        roop verify-cuda-contract <module.ptx.ll> <module.cuda-contract.json>
        roop lsp
 
@@ -43,6 +45,17 @@ pub const USAGE: &str =
     --driver F   write a C program that trains the model on data files (needs --batch)
     --certificate F
                  write a Lean certificate for the model's coupling structure
+
+  hybrid       compile a hybrid quantum program in HQbricks∞ (qubit, bit and int
+               memory, Clifford+R_k gates, measurement, if and unbounded while)
+    --emit qasm  OpenQASM 3 with real-time classical control (default)
+    --emit ir    the hybrid IR: quantum kernels and the host code between them
+    --emit report
+                 run it exactly on cq-states: termination probability, means
+                 on termination, and the expected count of kernels and gates
+    -O0          skip kernel fusion and gate cancellation
+    --iterations N
+                 rounds an unbounded loop is unrolled in a report (default 10000)
 
   verify-cuda-contract
                check a v2 CUDA contract against NVPTX LLVM kernel signatures

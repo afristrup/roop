@@ -18,3 +18,4 @@ roop-lean = { path = "../roop-lean" }
 roop-modules = { path = "../roop-modules" }
 roop-fmt = { path = "../roop-fmt" }
 roop-weave = { path = "../roop-weave" }
+roop-hybrid = { path = "../roop-hybrid" }

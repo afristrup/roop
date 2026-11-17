@@ -1,0 +1,8 @@
+// Gates the optimizer removes: H H, T·T·T·T·S·S = identity phase, and kernels
+// split by a classical increment that fuse into one.
+qubit a; qubit b; bit m; int n;
+H(a); H(a);
+T(b); T(b); n := n + 1; T(b); T(b); S(b); S(b);
+CNOT(a, b); X(b); CNOT(a, b); X(b);
+H(a);
+m := measure a

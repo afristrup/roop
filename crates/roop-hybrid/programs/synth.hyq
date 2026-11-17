@@ -1,0 +1,10 @@
+// Repeat-until-success synthesis of U = (I + i√2 X)/√3 on q (Listing 3).
+qubit q; qubit q1; bit c; int x;
+X(q1); c := 1;
+do
+    X(q1); H(q1); T(q1);
+    CNOT(q1, q); H(q1); CNOT(q1, q);
+    T(q1); H(q1);
+    c := measure(q1);
+    x := x + 1
+while c

@@ -23,6 +23,10 @@ things that are hard to get any other way.
 - **Parallel loops that are checked, not hoped for.** `#[parallel]` loops run on
   CPU threads, Metal or CUDA, and the checker proves the iterations touch disjoint
   places. Lean proves the iterations can run in any order.
+- **Hybrid quantum programs.** [`roop hybrid`](docs/hybrid.md) compiles
+  quantum programs with classical control and unbounded loops to OpenQASM 3,
+  fusing quantum kernels across host code, and runs them exactly to give
+  termination probability and expected gate counts.
 - **A path toward hardware that does not erase.** Reversible logic is what
   adiabatic and quantum circuits need. roop does not target them yet; it is a
   language where the constraint is already met.

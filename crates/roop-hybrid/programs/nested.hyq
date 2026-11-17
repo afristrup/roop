@@ -1,0 +1,16 @@
+// Nested loops that communicate through a phase on q2 (Listing 6, with R_2).
+bit c1; bit c2;
+int x1; int x2;
+qubit q1; qubit q2;
+while (¬c2) do
+    H(q2); c1 := 0;
+    while (¬c1) do
+        H(q1);
+        c1 := measure q1;
+        R(q2, 2);
+        x1 := x1 + 1
+    done;
+    H(q2);
+    c2 := measure q2;
+    x2 := x2 + 1
+done
